@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HKRBC Calculation Framework — Workflow Notes</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontSize: 15 });</script>
+<script>
+MathJax = {
+  tex: { inlineMath: [['\\(','\\)'], ['$','$']], displayMath: [['$$','$$'], ['\\[','\\]']] },
+  options: { skipHtmlTags: ['script','noscript','style','textarea','pre'] }
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
+<style>
+  :root {
+    --primary: #1a3a5c;
+    --accent:  #2e7d9f;
+    --light:   #e8f4f8;
+    --border:  #c8dce8;
+    --text:    #1e2b36;
+    --muted:   #5a7080;
+    --warn:    #b85c00;
+    --warn-bg: #fff3e0;
+    --code-bg: #f4f7fa;
+    --font: 'Segoe UI', 'PingFang HK', 'Microsoft YaHei', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); color: var(--text); background: #f7f9fb; line-height: 1.75; font-size: 15px; }
+
+  .layout { display: flex; min-height: 100vh; }
+
+  nav#sidebar {
+    width: 275px; min-width: 220px;
+    background: var(--primary); color: #d0e8f5;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    padding: 0 0 2rem 0; flex-shrink: 0;
+  }
+  nav#sidebar .nav-brand {
+    display: block; padding: 1.4rem 1.4rem 1rem;
+    font-size: 1rem; font-weight: 700; color: #fff;
+    border-bottom: 1px solid rgba(255,255,255,0.12); letter-spacing: 0.02em;
+  }
+  nav#sidebar .nav-section {
+    padding: 0.8rem 1.4rem 0.3rem;
+    font-size: 0.7rem; letter-spacing: 0.1em;
+    text-transform: uppercase; color: #7aafca; font-weight: 600;
+  }
+  nav#sidebar a {
+    display: block; padding: 0.35rem 1.4rem 0.35rem 1.8rem;
+    color: #b8d8ea; text-decoration: none; font-size: 0.87rem;
+    border-left: 3px solid transparent; transition: all 0.15s;
+  }
+  nav#sidebar a:hover, nav#sidebar a.active {
+    background: rgba(255,255,255,0.08); border-left-color: #5ab8e0; color: #fff;
+  }
+  nav#sidebar a.sub { padding-left: 2.6rem; font-size: 0.82rem; }
+
+  main { flex: 1; max-width: 960px; margin: 0 auto; padding: 2.5rem 2.5rem 5rem; }
+
+  h1 { font-size: 1.9rem; color: var(--primary); margin-bottom: 0.4rem; }
+  h2 { font-size: 1.42rem; color: var(--primary); margin: 2.8rem 0 0.8rem;
+       padding-bottom: 0.4rem; border-bottom: 2px solid var(--border); }
+  h3 { font-size: 1.12rem; color: var(--accent); margin: 2rem 0 0.6rem; }
+  h4 { font-size: 1rem; color: var(--text); margin: 1.5rem 0 0.4rem; font-weight: 600; }
+  p  { margin-bottom: 0.85rem; }
+
+  .hero {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+    color: #fff; border-radius: 10px; padding: 2.2rem 2.5rem; margin-bottom: 2.5rem;
+  }
+  .hero h1 { color: #fff; margin-bottom: 0.4rem; }
+  .hero .subtitle { color: #b8d8ea; font-size: 0.95rem; }
+  .hero .meta { margin-top: 1rem; font-size: 0.82rem; color: rgba(255,255,255,0.65); }
+
+  .badge {
+    display: inline-block; padding: 0.15em 0.6em; border-radius: 4px;
+    font-size: 0.78rem; font-weight: 600; margin: 0 0.2em;
+    background: #e3f0f7; color: var(--accent);
+  }
+  .badge.orange { background: #fff0e0; color: #a85; }
+  .badge.green  { background: #e6f5e9; color: #2a7a3a; }
+
+  .callout {
+    border-left: 4px solid var(--accent); background: var(--light);
+    padding: 0.9rem 1.2rem; border-radius: 0 6px 6px 0; margin: 1rem 0; font-size: 0.92rem;
+  }
+  .callout.warn  { border-color: var(--warn); background: var(--warn-bg); }
+  .callout.green { border-color: #2a7a3a; background: #e6f5e9; }
+  .callout strong { display: block; margin-bottom: 0.25rem; }
+
+  .tbl-wrap { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th { background: var(--primary); color: #fff; padding: 0.55rem 0.9rem; text-align: left; }
+  td { padding: 0.5rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:nth-child(even) td { background: #f0f6fa; }
+  tr:hover td { background: #daeef7; }
+
+  code {
+    background: var(--code-bg); border: 1px solid var(--border);
+    padding: 0.1em 0.4em; border-radius: 3px;
+    font-size: 0.85em; font-family: 'Cascadia Code','Fira Code',monospace;
+  }
+
+  .formula {
+    background: #f0f6fa; border: 1px solid var(--border); border-radius: 6px;
+    padding: 0.8rem 1.2rem; margin: 0.8rem 0; font-size: 0.95rem; font-style: italic;
+  }
+
+  .diff-hk { color: #1a5c9a; font-weight: 600; }
+
+  /* Legal reference tag */
+  .ref {
+    display: inline-block;
+    font-size: 0.72rem; font-weight: 600; font-style: normal;
+    background: #dbeafe; color: #1e40af;
+    border: 1px solid #93c5fd; border-radius: 3px;
+    padding: 0.05em 0.45em; margin-left: 0.4em;
+    vertical-align: middle; letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+  .ref.sched { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+  .ref.circ  { background: #dcfce7; color: #166534; border-color: #86efac; }
+
+  .mermaid-wrap {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 1.2rem; margin: 1rem 0; overflow-x: auto;
+  }
+
+  .card {
+    background: #fff; border: 1px solid var(--border); border-radius: 8px;
+    padding: 1.4rem 1.6rem; margin: 1rem 0;
+  }
+
+  hr { border: none; border-top: 1px solid var(--border); margin: 2.5rem 0; }
+  ul, ol { padding-left: 1.4rem; margin-bottom: 0.8rem; }
+  li { margin-bottom: 0.25rem; }
+
+  @media (max-width: 768px) {
+    .layout { flex-direction: column; }
+    nav#sidebar { width: 100%; height: auto; position: static; }
+    main { padding: 1.5rem 1rem; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ══════════ SIDEBAR ══════════ -->
+<nav id="sidebar">
+  <span class="nav-brand">HKRBC Workflow Notes</span>
+
+  <div class="nav-section">Overview</div>
+  <a href="#overview">§1 Framework Overview 框架總覽</a>
+  <a href="#ebs">§2 Economic Balance Sheet (EBS)</a>
+
+  <div class="nav-section">Matching Adjustment (MA)</div>
+  <a href="#ma-overview">§3 MA Overall Process 整體流程</a>
+  <a href="#ma-spread">§3.1 Adjusted Spread 調整後利差</a>
+  <a href="#ma-ar">§3.2 Application Ratio (AR) 應用比率</a>
+  <a href="#ma-simplified">§3.3 Simplified Approaches 簡化方法</a>
+  <a href="#ma-stressed">§3.4 Stressed MA 壓力情景</a>
+
+  <div class="nav-section">Prescribed Capital Req. (PCR)</div>
+  <a href="#pcr-overview">§4 PCR Overview 總覽</a>
+  <a href="#pcr-market">§4.1 Market Risk 市場風險</a>
+  <a href="#pcr-equity-cca">§4.1.1 Equity CCA 順周期調整</a>
+  <a href="#pcr-life">§4.2 Life Insurance Risk 人壽保險風險</a>
+  <a href="#pcr-gi">§4.3 GI Risk 非壽險風險</a>
+  <a href="#pcr-cdrc">§4.4 Counterparty Default Risk</a>
+  <a href="#pcr-op">§4.5 Operational Risk 操作風險</a>
+  <a href="#pcr-lac">§4.6 Loss Absorbing Capacity (LAC)</a>
+
+  <div class="nav-section">Regulatory</div>
+  <a href="#par-fund">§5 Participating Fund (GL34)</a>
+  <a href="#capital">§6 Capital Adequacy 資本充足率</a>
+  <a href="#diff">§7 HKRBC vs Macao RBC Differences</a>
+
+  <div class="nav-section">Appendix</div>
+  <a href="#appendix-esg">A. ESG Minimum Requirements</a>
+  <a href="#appendix-ref">B. Reference Documents 參考文件</a>
+</nav>
+
+<!-- ══════════ MAIN ══════════ -->
+<main>
+
+<!-- Hero -->
+<div class="hero">
+  <h1>HKRBC Calculation Framework<br/>香港風險為本資本制度 — 工作流筆記</h1>
+  <div class="subtitle">Insurance (Valuation and Capital) Rules, Cap. 41R — Personal Study Notes</div>
+  <div class="meta">
+    Effective Date: 1 July 2024 &nbsp;|&nbsp;
+    Basis: Cap. 41R · GL34 · IA Circulars (2024) &nbsp;|&nbsp;
+    For reference only — not regulatory advice
+  </div>
+</div>
+
+<!-- ══ §1 Overview ══ -->
+<h2 id="overview">§1 Framework Overview 框架總覽</h2>
+
+<p>
+  HKRBC (Hong Kong Risk-Based Capital) came into force on <strong>1 July 2024</strong> alongside the
+  Insurance (Amendment) Ordinance 2023. The framework uses an
+  <strong>Economic Balance Sheet (EBS 經濟資產負債表)</strong> as its foundation.
+  The <strong>Prescribed Capital Amount (PCA 訂明資本額)</strong> <span class="ref">Cap. 41R Rule 37</span> is determined via stress-scenario methods
+  across four risk modules, and compared against the available <strong>Capital Base (資本基礎)</strong> <span class="ref">Cap. 41R Rule 7</span>
+  to establish capital adequacy per Rule 5.
+</p>
+
+<div class="callout" style="background:#fef9c3; border-left-color:#d97706; font-size:0.9rem;">
+  <strong>📌 Official Cap. 41R Terminology vs. Common Abbreviations</strong>
+  <table style="font-size:0.85rem; width:100%; margin-top:0.5rem; border-collapse:collapse;">
+    <tr style="background:#fef3c7;"><th style="padding:3px 8px; text-align:left; border:1px solid #fcd34d;">Common Abbreviation</th><th style="padding:3px 8px; text-align:left; border:1px solid #fcd34d;">Official Cap. 41R Term (English)</th><th style="padding:3px 8px; text-align:left; border:1px solid #fcd34d;">Source</th></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>PCA</strong> (or informally "PCR")</td><td style="padding:3px 8px; border:1px solid #fde68a;">prescribed capital amount 訂明資本額</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 37; Part 5</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>current estimate</strong> (not "BEL")</td><td style="padding:3px 8px; border:1px solid #fde68a;">current estimate 現時估計值</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 2, Rule 16</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>MOCE</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">margin over current estimate 現時估計邊際</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 25</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>asset spread</strong> (≈ Z-Spread)</td><td style="padding:3px 8px; border:1px solid #fde68a;">asset spread 資產利差</td><td style="padding:3px 8px; border:1px solid #fde68a;">Sch. 5 §2</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>asset duration</strong> (≈ ESD)</td><td style="padding:3px 8px; border:1px solid #fde68a;">duration / asset dollar duration 資產價格存續期</td><td style="padding:3px 8px; border:1px solid #fde68a;">Sch. 5 §§2, 8</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>credit rating band</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">credit rating band 信用評級等級</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 2; Sch. 6</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>constant prescribed spread component</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">constant prescribed spread component 固定訂明利差組成部分</td><td style="padding:3px 8px; border:1px solid #fde68a;">Sch. 5 §9</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>qualified LTA</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">qualified LTA / qualified long term adjustment 具資格長期調整</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 2; Sch. 5 §10</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>make-whole call option</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">make-whole call option / make-whole call spread 全額提前贖回權</td><td style="padding:3px 8px; border:1px solid #fde68a;">Sch. 5 §4</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;"><strong>ACS%</strong></td><td style="padding:3px 8px; border:1px solid #fde68a;">accumulated cash flow shortfall percentage 累計現金流缺口百分率</td><td style="padding:3px 8px; border:1px solid #fde68a;">Sch. 5 §7</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;">❌ "Risk Margin (RM)" does NOT exist in HKRBC</td><td style="padding:3px 8px; border:1px solid #fde68a;">Use MOCE (margin over current estimate) instead; 4% CoC "Risk Margin" is a Solvency II / Macao RBC concept</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 25</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #fde68a;">❌ "Technical Provisions (TP)" not in HKRBC</td><td style="padding:3px 8px; border:1px solid #fde68a;">Use "insurance liabilities" = current estimate + MOCE</td><td style="padding:3px 8px; border:1px solid #fde68a;">Rule 15, Rule 25</td></tr>
+  </table>
+</div>
+
+<div class="mermaid-wrap">
+<div class="mermaid">
+flowchart LR
+    subgraph INPUT["Data Inputs 數據輸入"]
+        direction TB
+        A1["Policy & Asset Data\n保單與資產數據"]
+        A2["Actuarial Assumptions\n精算假設"]
+        A3["Regulatory Parameters\n(Cap. 41R)"]
+    end
+
+    subgraph EBS_BOX["EBS Calculation 計算層"]
+        direction TB
+        B1["Asset Market Value\nMV(A)"]
+        B2["BEL + RM + TVOG + MOCE\n(Technical Provisions)"]
+        B3["Matching Adjustment (MA)\n匹配調整"]
+        B3 --> B2
+    end
+
+    subgraph PCR_BOX["PCR Calculation 計算層"]
+        direction TB
+        C1["Market Risk\n市場風險"]
+        C2["Life Insurance Risk\n人壽保險風險"]
+        C3["GI Risk\n非壽險風險"]
+        C4["Counterparty Default Risk\n交易對手違約風險"]
+        C5["Operational Risk\n操作風險"]
+        C6["LAC Adjustment\n損失吸收調整"]
+        C1 & C2 & C3 & C4 --> AGG["Risk Aggregation\n風險聚合"]
+        AGG --> C6
+        C6 --> C5
+    end
+
+    subgraph CAP["Capital Position 資本狀況"]
+        D1["Capital Base\n(Tier 1 + Tier 2)"]
+        D2["PCR"]
+        D3["CAR = Capital Base / PCR\n≥ 100%"]
+        D1 & D2 --> D3
+    end
+
+    INPUT --> EBS_BOX
+    EBS_BOX --> PCR_BOX
+    PCR_BOX --> D2
+    EBS_BOX --> D1
+</div>
+</div>
+
+<hr />
+
+<!-- ══ §2 EBS ══ -->
+<h2 id="ebs">§2 Economic Balance Sheet (EBS) 經濟資產負債表 <span class="ref">Cap. 41R Part 2</span></h2>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Item 項目</th><th>Measurement Method 計量方法</th><th>Key Notes &amp; Legal Reference</th></tr>
+  <tr><td><strong>Assets 資產</strong></td><td>Market Value (MV) 市場價值</td><td>Valued per Rule 34 (asset valuation); RI recoverables net of counterparty default adjustment per Rule 33 <span class="ref">Rule 34</span></td></tr>
+  <tr><td><strong>Current Estimate (Gross) 現時估計值（未扣再保）</strong><br/><small style="color:var(--muted)">informally "Gross BEL" — but official Cap. 41R term is "current estimate" per Rule 2 &amp; Rule 16</small></td><td>PV of direct insurance cash flows (discounted at RFR + MA per Rule 23(4))</td><td>Best estimate CF per Rule 17; excludes MOCE; time value of contractual options and financial guarantees (TVOG) required per Rule 19 <span class="ref">Rule 16</span></td></tr>
+  <tr><td><strong>Reinsurance Recoverables 再保攤回應收</strong><br/><small style="color:var(--muted)">informally "RI BEL" — official term is "reinsurance recoverables" per Rule 2 &amp; Rule 33</small></td><td>PV of reinsurance cash flows net of counterparty default</td><td>Recognised net of counterparty default adjustment; valuation per Rule 33 <span class="ref">Rule 33</span></td></tr>
+  <tr><td><strong>TVOG</strong> — Time Value of Contractual Options &amp; Financial Guarantees</td><td>Stochastic simulation (ESG ≥ 1,000 scenarios) — see Appendix A</td><td>Mandatory for contracts with "contractual options or financial guarantees" (official Rule 19 terms) <span class="ref">Rule 19(2)</span> <span class="ref circ">IA Circular 12 Jun 2024, App. 1</span></td></tr>
+  <tr><td><strong>MOCE</strong> — Margin Over Current Estimate 現時估計邊際 <span class="ref">Rule 25</span></td><td>75th percentile minus mean of the loss distribution; aggregated using Sch. 7 Table 1</td><td>Computed per sub-risk using the 99.5th percentile (= risk capital amount per sub-risk) as calibration input; allocated to each LTB fund <span class="ref">Rule 25</span> <span class="ref sched">Sch. 7 Table 1</span><br/><em>Note: "Risk Margin (RM)" does NOT exist in Cap. 41R; MOCE serves this function.</em></td></tr>
+  <tr><td><strong>Net Asset Value (NAV 淨資產值)</strong></td><td>MV(Assets) − Insurance Liabilities − other liabilities</td><td>ΔNAV under each stress scenario = risk capital amount for that sub-risk; Capital Base ≥ PCA (prescribed capital amount) per Rule 5 <span class="ref">Rule 37</span></td></tr>
+</table>
+</div>
+
+<div class="callout">
+  <strong>Key Formula 關鍵公式</strong>
+  Insurance Liabilities 保險負債 = Gross Current Estimate − Reinsurance Recoverables + TVOG + MOCE &nbsp; <span class="ref">Rule 15–16, Rule 25</span>
+  <br/><small style="color:var(--muted)">Note: "Insurance liabilities" is the official Cap. 41R term (Rule 15). "Technical Provisions (TP)" is a Solvency II / Macao RBC term and does NOT appear in Cap. 41R. Similarly, "BEL (Best Estimate Liability)" is NOT a Cap. 41R term — the correct term is "current estimate" (Rule 16).</small>
+</div>
+
+<hr />
+
+<!-- ══ §3 MA ══ -->
+<h2 id="ma-overview">§3 Matching Adjustment (MA) 匹配調整 <span class="ref">Cap. 41R Rule 24</span></h2>
+
+<p>
+  MA is an additional spread applied to the risk-free discount rate for <strong>qualifying MA portfolios</strong> (官方 Cap. 41R 術語 Rule 2: "MA portfolio").
+  It allows a portion of the excess asset spread (above credit risk) to enhance the liability discount rate,
+  thereby reducing the current estimate (現時估計值; 非 Cap. 41R 術語的 "BEL") and releasing capital.
+</p>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <strong>Legal Basis 法律依據</strong><br/>
+  <table style="font-size:0.88rem; width:100%; border:none; background:transparent;">
+    <tr><td style="padding:2px 8px 2px 0; border:none; color:#374151; white-space:nowrap;"><code>Rule 24(1)</code></td><td style="border:none; color:#374151;">Eligibility: MA portfolio must be physically or notionally segregated; assets and liabilities must be matched in cash flow terms.</td></tr>
+    <tr><td style="padding:2px 8px 2px 0; border:none; color:#374151; white-space:nowrap;"><code>Rule 24(2)</code></td><td style="border:none; color:#374151;">MA = application ratio × adjusted spread<sub>portfolio</sub> + constant prescribed spread component + qualified LTA (top-level formula per Sch. 5 §1).</td></tr>
+    <tr><td style="padding:2px 8px 2px 0; border:none; color:#374151; white-space:nowrap;"><code>Rule 24(6)</code></td><td style="border:none; color:#374151;">Simplified approaches (a)–(g) available with IA approval for practical difficulties. <span class="ref circ">IA Circular 12 Jun 2024, App. 2</span></td></tr>
+    <tr><td style="padding:2px 8px 2px 0; border:none; color:#374151; white-space:nowrap;"><code>Cap. 41R Sch. 5</code></td><td style="border:none; color:#374151;">Detailed tables for risk correction (RC%), maximal make-whole call spreads, constant prescribed spreads (CPS), reduction factors (RF), and all sub-formula parameters.</td></tr>
+  </table>
+</div>
+
+<div class="card" style="background:#f0f6fa">
+  <h4>Overall MA Formula 總公式 <span class="ref">Rule 24(2)</span></h4>
+  $$MA = \underbrace{AR \times \text{adjusted spread}_{portfolio}}_{\text{Adjusted Spread Component}} + \underbrace{\text{constant prescribed spread component}}_{\text{CPS Component}} + \underbrace{\text{qualified LTA}}_{\text{LTA (if eligible per Rule 24(3))}}$$
+  $$\text{Discount Rate} = r_{RFR} + MA \quad \Rightarrow \quad \text{current estimate} = \sum_t \frac{CF_t}{(1 + r_{RFR} + MA)^t}\ \downarrow \quad \Rightarrow \quad NAV\ \uparrow$$
+  <small style="color:var(--muted);">Formula per Cap. 41R Rule 24(2) &amp; Sch. 5 §1(2). Note: "adjusted spread" and "application ratio" are the official Sch. 5 terms; "constant prescribed spread component" replaces informal "CPS Part".</small>
+</div>
+
+<div class="mermaid-wrap">
+<div class="mermaid">
+flowchart LR
+    subgraph ASSET["Asset Side 資產端"]
+        direction TB
+        ZS["Asset Spread per asset\n(Cap. 41R: 'asset spread', ≈Z-Spread)"]
+        RC["Risk Correction RC%\n(by credit rating band, Sch. 6)"]
+        ADD_B["Adjusted Spread per asset\n= asset spread × (1 − RC%)"]
+        ADD_P["Portfolio Adjusted Spread\n(duration-weighted average, Sch. 5 §5)"]
+        ZS & RC --> ADD_B --> ADD_P
+    end
+
+    subgraph LIAB["Liability Side 負債端"]
+        direction TB
+        ACS["Accumulated Cash Flow\nShortfall % (ACS%, Sch. 5 §7)"]
+        PF["Predictability Factor (PF)\n= max(0, 1 − ACS%)"]
+        ADD_L["Asset Dollar Duration\nvs Liability Dollar Duration (Sch. 5 §8)"]
+        DF["Duration Factor (DF)\n= min(asset$/liab$, EA%)"]
+        AR["Application Ratio (AR)\n= PF × DF (Sch. 5 §6)"]
+        ACS --> PF
+        ADD_L --> DF
+        PF & DF --> AR
+    end
+
+    subgraph MA_BOX["MA Aggregation"]
+        direction TB
+        CPS_P["CPS Part\n= Wtd CPS × PF × gap%"]
+        LTA["Qualified LTA\n(if applicable)"]
+        MA_FINAL["MA = AR × ADD_portfolio\n+ CPS Part + LTA"]
+        CPS_P & LTA --> MA_FINAL
+    end
+
+    ADD_P --> MA_BOX
+    AR --> MA_BOX
+    MA_FINAL --> DISC["Discount Rate = RFR + MA"]
+    DISC --> BEL["BEL Calculation"]
+
+    style MA_BOX fill:#e8f4f8,stroke:#2e7d9f
+</div>
+</div>
+
+<!-- ─── §3.1 Adjusted Spread ─── -->
+<h3 id="ma-spread">§3.1 Adjusted Spread (ADD) 調整後利差 <span class="ref sched">Cap. 41R Sch. 5</span></h3>
+
+<h4>Step 1: Asset Spread per bond 資產利差 <span class="ref sched">Sch. 5 §§2, 5</span></h4>
+<p>
+  <strong>Official Cap. 41R term: "asset spread" (資產利差)</strong> — defined in Schedule 5 §2 as "the constant spread that makes the price of an eligible asset equal to the present value of its cash flows when added to the specified risk-free yield curve at each point on the spot rate."
+  In standard financial practice this is commonly called the <em>Z-Spread</em>. The value \(z\) is solved numerically:
+</p>
+
+$$Price_i = \sum_{t} \frac{CF_t}{(1 + r_t^{RFR} + z)^t} \quad \xrightarrow{\text{solve for}} \quad z = \text{asset spread}_i$$
+
+<h4>Step 2: Asset Duration &amp; Asset Dollar Duration 資產存續期 <span class="ref sched">Sch. 5 §§2, 8</span></h4>
+<p>
+  <strong>Official Cap. 41R term: "duration" (存續期)</strong> — defined in Schedule 5 §2 as "a measure of sensitivity of the value of asset or liability with respect to a change in interest rate … percentage change in price of the asset or value of the liability for a 100 basis point change in yield."
+  In standard practice this corresponds to the ESD (Effective Spread Duration) for spread-sensitive assets.
+</p>
+
+$$\text{asset dollar duration} = \text{weighted average duration of eligible assets} \times MV_{\text{eligible assets}}$$
+
+$$\text{liability dollar duration} = \text{effective duration of liabilities} \times CE_{\text{liabilities discounted at RFR}+MA_{est}}$$
+
+<p style="font-size:0.9rem;color:var(--muted)">
+  Note: "asset dollar duration" and "liability dollar duration" are the official Schedule 5 §8 terms. These correspond to what is commonly called "dollar duration" or "DV01 × notional" in practice.
+  Asset duration measures sensitivity to a 100 bp parallel shift in spread; it is used as the weighting metric in MA.
+</p>
+
+<h4>Step 3: Risk Correction &amp; Adjusted Spread per asset <span class="ref sched">Sch. 5 §5 Table 4 (RC%) &amp; §4 Table 2 (Maximal Make-Whole Call Spread)</span></h4>
+<p>Risk correction removes the portion of asset spread attributable to expected credit losses. The official Cap. 41R formula from Schedule 5 §5(2):
+  <em>adjusted spread = Σ ω<sub>i</sub> × (spread<sub>i</sub> − RC<sub>i</sub>)</em>, where RC<sub>i</sub> is the risk correction percentage.</p>
+
+$$\text{adjusted spread}_i = \text{asset spread}_i \times (1 - RC_i\%)$$
+
+<p>For assets with <strong>make-whole call options</strong> (official Cap. 41R term per Sch. 5 §4), the asset spread is capped at the <strong>maximal make-whole call spread</strong> before applying risk correction.
+  <em>Note: "MWC" used informally; official terms are "make-whole call option" and "make-whole call spread."</em></p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Credit Rating Band 信用評級等級 <span class="ref sched">Cap. 41R Sch. 6</span></th><th>Risk Correction (RC%) 風險修正比例 <span class="ref sched">Sch. 5 §5 Table 4</span></th><th>Maximal Make-Whole Call Spread (bps) <span class="ref sched">Sch. 5 §4 Table 2</span></th></tr>
+  <tr><td>Band 1 (AAA / AA)</td><td><strong>11%</strong></td><td>30 bps</td></tr>
+  <tr><td>Band 2 (A)</td><td>14%</td><td>40 bps</td></tr>
+  <tr><td>Band 3 (BBB)</td><td><strong>20%</strong></td><td>60 bps</td></tr>
+  <tr><td>Band 4 or below (BB and below)</td><td>22%</td><td>80 bps</td></tr>
+  <tr><td>Sovereign (qualifying) 主權國債</td><td>0%</td><td>—</td></tr>
+</table>
+</div>
+<p style="font-size:0.85rem; color:var(--muted)">Credit rating bands 1–4 correspond to the mapping in Schedule 6 (Credit Rating Band) of Cap. 41R.</p>
+
+<div class="callout warn">
+  <strong>⚠️ Constraint</strong>
+  adjusted spread<sub>i</sub> ≥ 0 must always hold. Recognised Green Bonds: credit spread stress factor × 0.9 (10% discount).
+</div>
+
+<h4>Step 4: Portfolio-level weighted average adjusted spread <span class="ref sched">Sch. 5 §§5, 9–11</span></h4>
+<p>The portfolio adjusted spread is the duration-weighted average across all eligible assets. The official weight ω<sub>i</sub> per Schedule 5 §5(2)(a) is based on the proportion of each asset group's market value multiplied by its asset duration:</p>
+
+$$\omega_i = \frac{MV_i \times \text{asset duration}_i}{\displaystyle\sum_j MV_j \times \text{asset duration}_j}$$
+
+$$ADD_{portfolio} = \sum_i \omega_i \times ADD_i$$
+
+<!-- ─── §3.2 Application Ratio ─── -->
+<h3 id="ma-ar">§3.2 Application Ratio (AR) 應用比率 <span class="ref sched">Cap. 41R Sch. 5 §§12–28</span></h3>
+
+<h4>Predictability Factor (PF) 可預測性因子 <span class="ref sched">Sch. 5 §§12–18</span></h4>
+<p>
+  PF (predictability factor) measures how reliably asset cash flows can cover liability outflows even under extreme lapse scenarios.
+  It is derived from the <strong>accumulated cash flow shortfall percentage</strong> (ACS%, official Cap. 41R term per Sch. 5 §7):
+</p>
+
+$$PF = \max\!\left(0,\ 1 - ACS\%_{max}\right)$$
+
+$$ACS\%_{max} = \max\!\left(ACS\%_{Base},\ ACS\%_{Lapse\ Up},\ ACS\%_{Mass\ Lapse}\right)$$
+
+<p>ACS% for each scenario is computed by rolling forward a cumulative surplus/deficit account year by year:</p>
+
+$$Excess_t = Excess_{t-1} + Asset\_CF_t - Liab\_Net\_CF_t + Interest_{t-1}$$
+
+$$Interest_{t-1} = \max(Excess_{t-1},\ 0) \times r_t^{RFR} \quad \text{(positive balance earns interest only)}$$
+
+$$PV\_Shortfall_t = \begin{cases} |Excess_t| \times \displaystyle\prod_{s=1}^{t}\frac{1}{1+r_s} & \text{if } Excess_t < 0 \\ 0 & \text{otherwise} \end{cases}$$
+
+$$ACS\%_{scenario} = \frac{\displaystyle\max_{t=1}^{LLP}\ PV\_Shortfall_t}{MV_{Eligible\ Assets}}$$
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Lapse Scenario 情景</th><th>Liability Cash Flow Impact 負債端影響</th></tr>
+  <tr><td><strong>Base</strong></td><td>Best estimate lapse rates 最佳估計退保率</td></tr>
+  <tr><td><strong>Lapse Up</strong></td><td>Lapse rate × 1.40 (+40%); surrender benefit outflows increase</td></tr>
+  <tr><td><strong>Mass Lapse</strong></td><td>30% of individual policies lapse in Year 1 (one-off shock)</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.9rem;color:var(--muted)">
+  Key constraints: Only cash flows within the <strong>last liquid point (LLP)</strong> <span class="ref sched">Sch. 5 §7(6); Sch. 4</span> are considered.
+  The last liquid point is the longest point at which the specified risk-free yield curve is liquid (per Sch. 5 §7(6) and Sch. 4).
+  Liability outflows = <em>guaranteed</em> benefits only (future discretionary benefits / TVOG excluded); net of premium income.
+  Asset cash flows are the same across all three scenarios (buy-and-hold strategy assumed).
+</p>
+
+<h4>Simplified Proxy for Lapse Scenarios <span class="ref">Rule 24(6)(b)</span> <span class="ref circ">IA Circular 12 Jun 2024, App. 2(b)</span></h4>
+$$ACS\%_{Lapse\ Up} = ACS\%_{Base} + 25\% \quad\quad ACS\%_{Mass\ Lapse} = ACS\%_{Base} + 25\%$$
+<p style="font-size:0.9rem;color:var(--muted)">Avoids running stressed actuarial models for lapse scenarios; subject to IA approval.</p>
+
+<h4>Duration Factor (DF) 久期因子 <span class="ref sched">Sch. 5 §8</span></h4>
+<p>DF compares the <strong>asset dollar duration</strong> of eligible assets against the <strong>liability dollar duration</strong> of insurance liabilities subject to MA (official Cap. 41R terms per Sch. 5 §8):</p>
+
+$$\text{asset dollar duration} = \text{weighted average duration (eligible assets)} \times MV_{\text{eligible assets}}$$
+
+$$\text{liability dollar duration} = \text{effective duration (liabilities)} \times CE_{\text{liabilities at RFR+MA}_{est}}$$
+
+$$DF = \min\!\left(\text{eligible asset percentage},\ \frac{\text{asset dollar duration}}{\text{liability dollar duration}}\right); \quad \text{floored at 0}$$
+
+<p>Where <strong>eligible asset percentage</strong> (official Sch. 5 §8 term) = portion of eligible assets to total invested assets, capped at 100%. DF is floored at 0.</p>
+
+<h4>Application Ratio 應用比率 <span class="ref sched">Sch. 5 §6</span></h4>
+$$AR = PF \times DF \quad \text{(i.e. predictability factor × duration factor; both per Sch. 5 §6)}$$
+<p style="font-size:0.9rem;color:var(--muted)">Simplified Approach (a) <span class="ref">Rule 24(6)(a)</span>: AR = 15% flat at entity level, no constant prescribed spread component recognised.</p>
+
+<!-- ─── §3.2.1 CPS ─── -->
+<h4 id="ma-cps">Constant Prescribed Spread Component 固定訂明利差組成部分 <span class="ref sched">Cap. 41R Sch. 5 §9 Table 5 (CPS rates)</span></h4>
+<p>
+  The <strong>constant prescribed spread component</strong> (official Cap. 41R term per Sch. 5 §9; informally abbreviated "CPS") compensates for the "duration gap" — the portion of eligible assets whose duration cannot be matched to liabilities.
+  It applies to <em>all</em> MA portfolios (Par, Non-Par, Capital) for investment-grade eligible assets only.
+  Sovereign bonds of qualifying jurisdictions: constant prescribed spread = 0 (per Sch. 5 §9(3)).
+</p>
+
+$$CPS\ Part = Weighted\ CPS_{portfolio} \times PF \times \max\!\left[\min\!\left(20\%,\ EA\% - \frac{ADD}{LDD}\right),\ 0\right]$$
+
+<p>where \(EA\%\) = eligible assets as a proportion of total invested assets; the gap \(EA\% - ADD/LDD\) is capped at 20% and floored at 0.</p>
+<p>If \(ADD_{portfolio} &lt; Weighted\ CPS\), substitute \(ADD_{portfolio}\) for \(Weighted\ CPS\).</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Maturity Bucket 期限組別 <span class="ref sched">Sch. 5 §9 Table 5</span></th><th>Rating 1 (AAA/AA)</th><th>Rating 2 (A)</th><th>Rating 3 (BBB)</th><th>Rating 4+ (BB–)</th></tr>
+  <tr><td>0 – 5 yrs</td><td>20 bps</td><td>30 bps</td><td>45 bps</td><td>60 bps</td></tr>
+  <tr><td>5 – 10 yrs</td><td>35 bps</td><td>45 bps</td><td>60 bps</td><td>70 bps</td></tr>
+  <tr><td>10 – 15 yrs</td><td>40 bps</td><td>50 bps</td><td>65 bps</td><td>80 bps</td></tr>
+  <tr><td>15 – 20 yrs</td><td>50 bps</td><td>60 bps</td><td>75 bps</td><td>90 bps</td></tr>
+  <tr><td>20 – 25 yrs</td><td>50 bps</td><td>60 bps</td><td>75 bps</td><td>90 bps</td></tr>
+  <tr><td>25 – 30 yrs</td><td>50 bps</td><td>60 bps</td><td>75 bps</td><td>90 bps</td></tr>
+  <tr><td>30+ yrs</td><td>50 bps</td><td>60 bps</td><td>75 bps</td><td>90 bps</td></tr>
+</table>
+</div>
+<p style="font-size:0.9rem;color:var(--muted)">
+  Note: If \(ADD_{portfolio} &lt; Weighted\ CPS\), substitute \(ADD_{portfolio}\) for \(Weighted\ CPS\) per Sch. 5 §9(4). Sovereign bonds (qualifying): CPS = 0 per Sch. 5 §9(3).
+</p>
+
+<!-- ─── §3.2.2 Qualified LTA ─── -->
+<h4>Qualified LTA 合格長期調整 <span class="ref sched">Cap. 41R Sch. 5 §§29–35</span></h4>
+<p>Additional adjustment for qualifying portfolios (physically segregated participating or universal life business) to reflect the liquidity premium of long-term equity and property holdings:</p>
+
+$$Qualified\ LTA = LTA_{prescribed} \times \min\!\left(\frac{MV_{Equity+Property}}{MV_{Total\ Invested\ Assets}},\ Cap_{30y+}\right)$$
+
+$$Cap_{30y+} = \frac{\displaystyle\sum_{t>30} PV(Liability\ CF_t)}{\displaystyle\sum_{all\ t} PV(Liability\ CF_t)}$$
+
+<p>\(LTA_{prescribed} = 100\ bps\). The equity/property proportion is capped by the weight of liabilities with duration > 30 years, preventing over-recognition.</p>
+<div class="callout warn">
+  <strong>Note 備註</strong>
+  Qualified LTA is typically set to zero if the portfolio does not meet the physical segregation requirement.
+</div>
+
+<!-- ─── §3.3 Simplified ─── -->
+<h3 id="ma-simplified">§3.3 Simplified Approaches 簡化方法 (Cap. 41R Rule 24(6); IA Circular 12 Jun 2024, Appendix 2)</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Simplified Approach 簡化方法</th><th>Description &amp; Formula 說明與公式</th><th>Applicability 適用條件</th></tr>
+  <tr>
+    <td><strong>a) Proxy AR = 15%</strong></td>
+    <td>\(AR = 15\%\) for all portfolios; no CPS Part recognised</td>
+    <td>Practical difficulty calculating portfolio AR</td>
+  </tr>
+  <tr>
+    <td><strong>b) ACS% additive proxy +25%</strong></td>
+    <td>\(ACS\%_{Lapse\ Up} = ACS\%_{Mass\ Lapse} = ACS\%_{Base} + 25\%\)</td>
+    <td>Stressed actuarial runs not available</td>
+  </tr>
+  <tr>
+    <td><strong>c) Prescribed haircuts on stressed ESD</strong></td>
+    <td>Apply prescribed reductions to Base \(ADD\) / \(LDD\) for IR Down and Equity scenarios</td>
+    <td>Stressed ESD cannot be recalculated</td>
+  </tr>
+  <tr>
+    <td><strong>d/e) Data recency (±1 month)</strong></td>
+    <td>Policy / market data within 1 month of valuation date allowed; must evidence no material difference</td>
+    <td>Data unavailable at exact valuation date</td>
+  </tr>
+  <tr>
+    <td><strong>f) Interpolation of TVOG</strong></td>
+    <td>Reference points ≤ 50 bps apart; interpolation permitted, extrapolation not</td>
+    <td>Reduces stochastic simulation runs</td>
+  </tr>
+  <tr>
+    <td><strong>g) Round MA down to nearest 10 bps</strong></td>
+    <td>Final MA is rounded <em>down</em> to the nearest 10 bps in each scenario (base and all PCR stress scenarios) 最終MA向下取整至最接近10bps</td>
+    <td>Reduces precision requirements in liability system</td>
+  </tr>
+</table>
+</div>
+
+<div class="callout" style="background:#fefce8; border-left-color:#ca8a04;">
+  <strong>Consistency Requirement 一致性要求 <span class="ref">Rule 24(6), IA Circular 12 Jun 2024, App. 2</span></strong><br/>
+  Once a simplified approach is elected, it must be applied <em>consistently</em> across:
+  <ul style="margin:0.4rem 0 0 1.2rem;">
+    <li>All MA portfolios of the insurer (same approach entity-wide);</li>
+    <li>All scenarios — base case, IR Up, IR Down, Credit Spread, and Equity PCR calculations.</li>
+  </ul>
+  The insurer must be able to demonstrate prudence over the default calculation or demonstrate no major solvency impact, and provide evidence to the IA on request.
+</div>
+
+<!-- ─── §3.4 Stressed MA ─── -->
+<h3 id="ma-stressed">§3.4 Stressed MA 壓力情景下的匹配調整 <span class="ref sched">Cap. 41R Sch. 5 §§36–46</span></h3>
+
+<h4>Default Approach 默認法</h4>
+<p>Recalculate stressed ADD and stressed LDD under each scenario; AR is updated accordingly.</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Stress Scenario</th><th>ADD Change</th><th>AR / DF Change</th><th>Approach</th></tr>
+  <tr><td>IR Up</td><td>Largely unchanged</td><td>Liability ESD shortens → DF may fall</td><td>Default</td></tr>
+  <tr><td>IR Down</td><td>Largely unchanged</td><td>Liability ESD lengthens → DF may rise; or use haircut</td><td>Default / Simplified (c)</td></tr>
+  <tr><td>Credit Spread (CS) — Dynamic MA</td><td>See Dynamic MA below</td><td>AR held at Base; ADD increases then reduced by RF</td><td>Dynamic MA</td></tr>
+  <tr><td>Equity</td><td>Largely unchanged</td><td>Use Base AR or apply haircut to ESD</td><td>Default / Simplified (c)</td></tr>
+</table>
+</div>
+
+<h4>Dynamic MA for Credit Spread Stress 信用利差壓力下的動態匹配調整 <span class="ref sched">Sch. 5 Table 4 (RF)</span></h4>
+<p>
+  When credit spreads widen, Z-Spreads increase, causing ADD to rise — but this increase must be partially offset
+  by a <em>Reduction Factor (RF)</em> (a regulatory haircut) to avoid over-recognition of stressed spread in the discount rate.
+</p>
+
+$$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed} - ADD_{base}\right)\right] + CPS\ Part_{stressed}$$
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>MA Rating Band</th><th>Reduction Factor (RF) 削減因子 <span class="ref sched">Sch. 5 Table 4</span></th></tr>
+  <tr><td>Rating 1</td><td>0.35</td></tr>
+  <tr><td>Rating 2</td><td>0.40</td></tr>
+  <tr><td>Rating 3</td><td>0.50</td></tr>
+  <tr><td>Rating 4</td><td>0.60</td></tr>
+  <tr><td>Rating 5</td><td>0.70</td></tr>
+</table>
+</div>
+<p style="font-size:0.9rem;color:var(--muted)">
+  A higher RF means more of the stressed spread increase is recognised in MA, partially offsetting the liability impact of CS stress.
+  Lower-rated assets get a higher RF because their spread widening is more likely to reflect genuine liquidity rather than credit deterioration.
+</p>
+
+<hr />
+
+<!-- ══ §4 PCA (officially "prescribed capital amount") ══ -->
+<h2 id="pcr-overview">§4 Prescribed Capital Amount (PCA) 訂明資本額 <span class="ref">Cap. 41R Part 5 (Rules 37–86)</span></h2>
+
+<div class="callout" style="background:#f0fdf4; border-left-color:#16a34a; font-size:0.88rem; margin-bottom:1rem;">
+  <strong>📌 Official Terminology Note 官方術語注意：</strong> The official Cap. 41R term is <strong>"prescribed capital amount"</strong> (訂明資本額), abbreviated as <strong>PCA</strong>. The abbreviation "PCR" (Prescribed Capital Requirement) is widely used by practitioners but does not appear in Cap. 41R. See Rule 37(1) and Part 5 title. Similarly, each module produces a <strong>"risk capital amount"</strong> (not "PCR for risk"), per Rule 37(1)(a)–(b).
+</div>
+
+<div class="formula">
+  PCA = RCA<sub>aggregate</sub> − LAC(FDB) [Rule 43] − LAC(DT) [Rule 44] + RCA<sub>operational risk</sub> [Rule 86]
+  &nbsp; <span class="ref">Rule 37(1)</span>
+  <br/>
+  RCA<sub>aggregate</sub> = √( Σ<sub>x,y</sub> ρ<sub>xy</sub> × RCA<sub>x</sub> × RCA<sub>y</sub> )
+  &nbsp; <span class="ref">Rule 37(1)(c) &amp; Sch. 7 Table 2</span>
+  <br/>
+  <span style="font-size:0.85em; color:#6b7280;">where RCA = risk capital amount (風險資本額); LAC = loss absorbing capacity (損失吸收能力); FDB = future discretionary benefits (未來酌情利益)</span>
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Risk Module 風險模組</th><th>Sub-risks 子風險</th><th>Method 方法</th><th>Cap. 41R (Confirmed)</th></tr>
+  <tr><td rowspan="5"><strong>Market Risk 市場風險</strong> <span class="ref">Rules 45–51</span></td><td>Interest Rate Up / Down (IR)</td><td>Stress scenario (asset + liability); MA recalculated per Rule 46 &amp; Sch. 5</td><td>Rule 47</td></tr>
+  <tr><td>Credit Spread Risk (CS) + Dynamic MA</td><td>Stress scenario; ADD recalculated per Sch. 5 §5; DF recalculated per Sch. 5 §8</td><td>Rule 48; Rule 46</td></tr>
+  <tr><td>Equity Risk + CCA (順周期調整)</td><td>Stress scenario (asset only 僅資產端)</td><td>Rule 49; Rule 49(2)(a) for CCA</td></tr>
+  <tr><td>Property Risk 物業風險</td><td>Stress scenario (asset only)</td><td>Rule 50</td></tr>
+  <tr><td>Currency Risk 貨幣風險</td><td>Net exposure × factor (HKD vs MOP = 0%)</td><td>Rule 51</td></tr>
+  <tr><td rowspan="6"><strong>Life Insurance Risk 人壽保險風險</strong> <span class="ref">Rules 52–59</span></td><td>Mortality Risk 死亡率風險</td><td>Stress scenario (liability only 僅負債端)</td><td>Rule 54</td></tr>
+  <tr><td>Longevity Risk 長壽風險</td><td>Stress scenario (liability only)</td><td>Rule 55</td></tr>
+  <tr><td>Life Catastrophe Risk 人壽巨災風險</td><td>Stress scenario (liability only)</td><td>Rule 56</td></tr>
+  <tr><td>Morbidity Risk 疾病風險 (4 categories)</td><td>Stress scenario (liability only)</td><td>Rule 57</td></tr>
+  <tr><td>Expense Risk 費用風險 <span class="badge orange">4 regions</span></td><td>Stress scenario (liability only)</td><td>Rule 58</td></tr>
+  <tr><td>Lapse Risk 退保風險 (Level/Trend + Mass)</td><td>Stress scenario (liability only); max(Level/Trend, Mass)</td><td>Rule 59</td></tr>
+  <tr><td rowspan="3"><strong>GI Risk 非壽險風險</strong> <span class="ref">Rules 60–80</span></td><td>Reserve Risk 準備金風險</td><td>Factor-based 因子法</td><td>Rule 64</td></tr>
+  <tr><td>Premium Risk 保費風險</td><td>Factor-based</td><td>Rule 65</td></tr>
+  <tr><td>Natural Catastrophe Risk 自然巨災風險</td><td>Factor-based (Rule 68) or Own Assessment (Rule 67, IA approval required)</td><td>Rule 67–68</td></tr>
+  <tr><td><strong>Counterparty Default &amp; Other Risk 交易對手違約風險</strong></td><td>Reinsurance / deposits / derivatives / others</td><td>Factor-based; adjustments for netting / collateral / guarantees</td><td>Rules 81–85</td></tr>
+  <tr><td><strong>Operational Risk 業務操作風險</strong></td><td>Premium + premium growth + liabilities</td><td>Statistical formula</td><td>Rule 86</td></tr>
+</table>
+</div>
+
+<h3>Risk Module Correlation Matrix 風險模組間相關矩陣 (ρ) <span class="ref sched">Cap. 41R Sch. 7 Table 2</span></h3>
+<div class="tbl-wrap">
+<table>
+  <tr><th></th><th>Market 市場</th><th>Life 壽險</th><th>GI 一般保險</th><th>Counterparty 交易對手</th></tr>
+  <tr><td><strong>Market 市場</strong></td><td>100%</td><td>25%</td><td>25%</td><td>25%</td></tr>
+  <tr><td><strong>Life 壽險</strong></td><td>25%</td><td>100%</td><td>0%</td><td>25%</td></tr>
+  <tr><td><strong>GI 一般保險</strong></td><td>25%</td><td>0%</td><td>100%</td><td>25%</td></tr>
+  <tr><td><strong>Counterparty 交易對手</strong></td><td>25%</td><td>25%</td><td>25%</td><td>100%</td></tr>
+</table>
+</div>
+
+<!-- ── Market Risk ── -->
+<h3 id="pcr-market">§4.1 Market Risk 市場風險 <span class="ref">Cap. 41R Rules 45–51; Rule 46 for MA recalculation</span></h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Sub-risk</th><th>Asset Shock 資產端衝擊</th><th>Liability Shock 負債端衝擊</th><th>Representative Stress Factor</th></tr>
+  <tr><td>IR Up 利率上升 <span class="ref">Rule 47</span></td><td>✅ Bonds repriced at stressed discount rate</td><td>✅ BEL recalculated (higher rate → lower BEL); MA recalculated per Rule 46 &amp; Sch. 5 §8</td><td>Curve shifts up (prescribed per Rule 47 &amp; Sch. 7 Table 3A)</td></tr>
+  <tr><td>IR Down 利率下降 <span class="ref">Rule 47</span></td><td>✅ Bonds repriced</td><td>✅ BEL increases; MA recalculated per Rule 46 &amp; Sch. 5 §8</td><td>Curve shifts down (prescribed per Rule 47 &amp; Sch. 7 Table 3B)</td></tr>
+  <tr><td>Credit Spread (CS) 信用利差 <span class="ref">Rule 48</span></td><td>✅ Bonds repriced (Z-Spread + CS stress)</td><td>✅ BEL recalculated + Dynamic MA (ADD &amp; DF recalculated per Rule 46, Sch. 5 §§5, 8)</td><td>Rating × maturity factor matrix (Rule 48 &amp; Sch. 7)</td></tr>
+  <tr><td>Equity 權益 <span class="ref">Rule 49</span></td><td>✅ Equity MV × (1 + stress factor + CCA)</td><td>❌ BEL holds at Base; DF may use haircut per Rule 46 &amp; Sch. 5 §8</td><td>By asset class (Rule 49); CCA per Rule 49(2)(a)</td></tr>
+  <tr><td>Property 物業 <span class="ref">Rule 50</span></td><td>✅ Property MV × (1 − 25%)</td><td>❌ No change</td><td>−25%</td></tr>
+  <tr><td>Currency 貨幣 (FX) <span class="ref">Rule 51</span></td><td colspan="2">✅ Net exposure per currency × FX stress factor (HKD vs MOP = 0%)</td><td>Per Rule 51 currency factor table</td></tr>
+</table>
+</div>
+
+<h4 id="pcr-equity-cca">§4.1.1 Equity Countercyclical Adjustment (CCA) 權益順周期調整</h4>
+
+<div class="callout warn">
+  <strong>⚠️ HKRBC-specific mechanism (IA Circular, 21 Jun 2024)</strong>
+  Per Cap. 41R Rule 49(2)(a), the adjusted equity downward stress factor = Table 5 prescribed factor + CCA (CCA per Rule 49(2)(a)).<br/>
+  During the <strong>Interim Period</strong> (until IA concludes its CCA review study), each insurer must notify IA of one of the following (irrevocable election, by 15 Jul 2024):<br/>
+  &nbsp;&nbsp;(a) Adopt the CCA published by IA (based on CCA Generation Tool specifications, 9 July 2021); or<br/>
+  &nbsp;&nbsp;(b) Set CCA = 0 (no countercyclical adjustment applied).
+</div>
+
+<!-- ── Life Risk ── -->
+<h3 id="pcr-life">§4.2 Life Insurance Risk 人壽保險風險 <span class="ref">Cap. 41R Rules 52–59; HRG definition: Rule 53</span></h3>
+
+<div class="callout green">
+  <strong>Common Mechanism 共同機制</strong>
+  All life insurance risk scenarios shock the <strong>liability side only</strong> (BEL is recalculated; assets remain at Base). <span class="ref">Rule 52</span><br/>
+  PCR<sub>sub-risk</sub> = Σ<sub>HRG</sub> max( ΔBEL<sub>hrg</sub> + ΔTVOG<sub>hrg</sub>, 0 ) — aggregated using <span class="ref sched">Sch. 7 Table 4</span> (life sub-risk correlation matrix)
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Sub-risk 子風險</th><th>Stress Applied 壓力</th><th>Affected Products 受影響產品</th></tr>
+  <tr><td>Mortality Risk 死亡率風險</td><td>Permanent multiplicative +12.5% on mortality rate (×1.125)</td><td>Life protection products (death benefit)</td></tr>
+  <tr><td>Longevity Risk 長壽風險</td><td>Permanent multiplicative −17.5% on mortality rate (×0.825)</td><td>Annuities / retirement protection</td></tr>
+  <tr><td>Life CAT Risk 人壽巨災風險</td><td>Year 1 additive +1.5‰ on mortality rate (short-term shock)</td><td>Life protection products</td></tr>
+  <tr><td>Morbidity Risk 疾病風險 (4 categories)</td>
+    <td>Cat 1 Medical: +20% / +8%; Cat 2 Lump-sum CI: +25% / +20%;<br/>Cat 3 Short Periodic: +20% / +12%; Cat 4 Long Periodic: +25% / +20% (recovery rate −20%)</td>
+    <td>By product / benefit category</td></tr>
+  <tr>
+    <td>Expense Risk 費用風險<br/><span class="badge orange">4 geographic regions — HKRBC-specific</span></td>
+    <td>
+      <strong>Applied simultaneously 同時施加:</strong><br/>
+      ① Multiplicative +8% on expense level (all years 永久);<br/>
+      ② Additive increase on expense inflation 費用通脹:<br/>
+      &nbsp;&nbsp; HK: Yr 1–10 +3%, Yr 11–20 +2%, Yr 21+ +1%<br/>
+      &nbsp;&nbsp; (Non-HK regions have separate prescribed rates per Rule 62)
+    </td>
+    <td>All HRGs</td>
+  </tr>
+  <tr><td>Lapse Up 退保上升</td><td>Lapse rate ×1.40 (+40%), capped at 100%</td><td>Products where higher lapse is adverse</td></tr>
+  <tr><td>Lapse Down 退保下降</td><td>Lapse rate ×0.60 (−40%)</td><td>Products where lower lapse is adverse</td></tr>
+  <tr><td>Mass Lapse 大規模退保</td><td>Individual 30%; Group 20% (one-off mass surrender)</td><td>Individual / Group policies</td></tr>
+</table>
+</div>
+
+<p><strong>Lapse PCR 退保風險資本要求</strong> = max( Level/Trend component, Mass Lapse component ) <span class="ref">Rule 59</span></p>
+
+<!-- ── GI Risk ── -->
+<h3 id="pcr-gi">§4.3 General Insurance (GI) Risk 非壽險風險 <span class="ref">Cap. 41R Rules 60–80</span></h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Sub-risk</th><th>Method</th><th>Notes</th></tr>
+  <tr><td>Reserve Risk 準備金風險 <span class="ref">Rule 64</span></td><td>Factor × Net outstanding claims reserve 淨未付賠款準備金</td><td>Factor per lines of business (Sch. 9); aggregated with Premium Risk per Rule 63 &amp; Sch. 7 Table 7</td></tr>
+  <tr><td>Premium Risk 保費風險 <span class="ref">Rule 65</span></td><td>Factor × Expected net earned premium (next 12 months)</td><td>Factor per lines of business (Sch. 9); Reserve &amp; Premium combined per Rule 63, Sch. 7 Table 7 (ρ=50%)</td></tr>
+  <tr>
+    <td>Natural Catastrophe Risk 自然災害風險 <span class="ref">Rule 67–68</span></td>
+    <td>Factor-based (Rule 68) <strong>or</strong> Own Assessment (OA) with IA approval (Rule 67)</td>
+    <td>OA application: IA Circular 12 Jun 2024, Appendix 3;<br/>Man-made non-systematic CAT: Rule 69; Man-made systematic CAT: Rule 70</td>
+  </tr>
+  <tr>
+    <td>Mortgage Insurance Risk 按揭保險風險 <span class="ref">Rules 71–80</span></td>
+    <td>Separate factor-based treatment; onshore standard/reverse mortgage and offshore classes each have distinct rules</td>
+    <td>GI sub-risks aggregated per Sch. 7 Table 5 (GI overall) and Table 6 (Reserve &amp; Premium vs CAT: ρ=25%)</td>
+  </tr>
+</table>
+</div>
+
+<!-- ── Counterparty ── -->
+<h3 id="pcr-cdrc">§4.4 Counterparty Default &amp; Other Risk 交易對手違責及其他風險 <span class="ref">Cap. 41R Rules 81–85</span></h3>
+
+<p>
+  Exposures subject to counterparty default risk include: reinsurance recoverables (RI BEL),
+  reinsurance receivables, outstanding premiums, deposits with banks, derivatives (OTC),
+  and other balance sheet assets not covered by market/life/GI risk modules.
+</p>
+
+<div class="formula">
+  PCR<sub>Counterparty</sub> = Σ<sub>i</sub> Exposure<sub>i</sub> × Risk Factor<sub>i</sub>
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Rating Band 評級</th><th>Risk Factor 風險因子</th><th>Source</th></tr>
+  <tr><td>Rating 1</td><td>0.4%</td><td rowspan="7">Cap. 41R Table 13.1</td></tr>
+  <tr><td>Rating 2</td><td>0.8%</td></tr>
+  <tr><td>Rating 3</td><td>1.6%</td></tr>
+  <tr><td>Rating 4</td><td>4.0%</td></tr>
+  <tr><td>Rating 5</td><td>8.4%</td></tr>
+  <tr><td>Rating 6</td><td>16.0%</td></tr>
+  <tr><td>Rating 7</td><td>38.8%</td></tr>
+  <tr><td>Unrated — regulated financial entity 受監管財務實體 (Rule 2 definition)</td><td>6.2% (average of Rating 4 + 5)</td><td><span class="ref">Rule 81</span>: must demonstrate ongoing capital compliance; adjustments for netting/collateral per Rules 82–84</td></tr>
+  <tr><td>Unrated — all others</td><td>38.8% (= Rating 7)</td><td><span class="ref">Rule 81</span>: most conservative treatment; Cap. 41R Sch. 6 for rating band mapping</td></tr>
+</table>
+</div>
+
+<!-- ── Operational Risk ── -->
+<h3 id="pcr-op">§4.5 Operational Risk 業務操作風險 <span class="ref">Cap. 41R Rule 86</span></h3>
+
+<div class="card">
+  <h4>Life Non-Linked Business 非聯結人壽業務</h4>
+  <div class="formula">
+    OP<sub>Total</sub> = OP<sub>Prem</sub> + OP<sub>PremGrowth</sub> + OP<sub>Liab</sub>
+    <br/><br/>
+    OP<sub>Prem</sub> = 4% × Prem<sub>t</sub> &nbsp;&nbsp; (current year gross written premium 當期毛保費)
+    <br/>
+    OP<sub>PremGrowth</sub> = 4% × max(0, Prem<sub>t</sub> − 1.2 × Prem<sub>t−1</sub>) &nbsp;&nbsp; (premium growth beyond 20% threshold)
+    <br/>
+    OP<sub>Liab</sub> = 0.45% × (CE<sub>t</sub> + CE<sub>t−1</sub> + CE<sub>t−2</sub>) / 3 &nbsp;&nbsp; (3-year average current estimate 三年均值)
+  </div>
+  <p style="margin-top:0.7rem">
+    <strong>Life Linked Business 聯結人壽業務</strong>: No premium factor; liability factor = 0.40% of 3-year average current estimate.<br/>
+    <strong>Class H (Pension) 養老業務</strong>: Follows Life Linked treatment for QIS 2.
+  </p>
+  <div class="formula" style="margin-top:0.8rem">
+    PCR<sub>OP</sub> = max( Floor, min( Cap, OP<sub>Total</sub> ) )
+    <br/>
+    Cap = PCR<sub>before_OP</sub> × 30% &nbsp;|&nbsp; Floor = HKD 15,000 thousand (life insurers)
+  </div>
+  <p style="margin-top:0.5rem; font-size:0.9rem; color:var(--muted)">
+    PCR<sub>OP</sub> is added <em>after</em> risk aggregation: PCR<sub>final</sub> = PCR<sub>aggregate</sub> − LAC + PCR<sub>OP</sub>
+  </p>
+</div>
+
+<!-- ── LAC ── -->
+<h3 id="pcr-lac">§4.6 Loss Absorbing Capacity (LAC) 損失吸收能力 <span class="ref">Cap. 41R Rules 43–44</span></h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Type 類型</th><th>Description 說明</th><th>Rule Reference</th></tr>
+  <tr>
+    <td><strong>LAC of Future Discretionary Benefits 未來酌情利益損失吸收能力</strong><br/><small style="color:var(--muted)">Official Rule 43 title: "Adjustment to prescribed capital amount to reflect the loss absorbing capacity of future discretionary benefits." Often informally called "LAC(FDB)" or "LAC-TP".</small></td>
+    <td>The additional reduction in future discretionary benefits (FDB) achievable under stress through extra management actions (e.g., reducing bonuses/dividends in adverse scenarios). Capped at max(PV FDB<sub>base</sub> − PV FDB<sub>minimum</sub>, 0). Excess above cap added back to PCA per Rule 37(1)(d).</td>
+    <td><span class="ref">Rule 43</span></td>
+  </tr>
+  <tr>
+    <td><strong>LAC of Deferred Tax 遞延稅項損失吸收能力</strong><br/><small style="color:var(--muted)">Official Rule 44 title: "Adjustment to prescribed capital amount to reflect loss absorbing capacity of deferred tax." Often informally called "LAC(DT)".</small></td>
+    <td>Tax savings arising from a stressed loss position (effective tax rate, capped at 16.5% per Rule 44(2)(b)). Must be demonstrably realisable — requires evidence of future taxable income. No mechanical recognition allowed.</td>
+    <td><span class="ref">Rule 44</span></td>
+  </tr>
+</table>
+</div>
+
+<hr />
+
+<!-- ══ §5 Par Fund ══ -->
+<h2 id="par-fund">§5 Participating Fund Management (GL34) 參與型保單基金管理 <span class="ref circ">GL34 (IA Guideline, effective 1 Jul 2024)</span></h2>
+
+<p>
+  GL34 (Guideline on Establishment and Maintenance of Funds in respect of Participating Business)
+  took effect on 1 July 2024, setting out IA's expectations for governance of participating funds (參與型基金)
+  maintained under <strong>section 21B of the Insurance Ordinance (Cap. 41)</strong>.
+  Physical segregation of assets under GL34 is also a prerequisite for MA portfolio eligibility under Cap. 41R Rule 24(1).
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>GL34 Section</th><th>Key Requirement 主要要求</th></tr>
+  <tr>
+    <td><strong>§3 Asset & Liability Identification 資產負債識別</strong></td>
+    <td>Clearly identify assets and liabilities attributable to participating business; riders/FOD/prepaid premiums assessed separately based on substance over form</td>
+  </tr>
+  <tr>
+    <td><strong>§4 Opening Balance 期初餘額</strong></td>
+    <td>On effective date, assets in participating fund must not be less than the amount attributable to participating business; changes of basis or one-off distributions since Jan 2019 subject to independent review</td>
+  </tr>
+  <tr>
+    <td><strong>§5 Expenses & Charges 費用分配</strong></td>
+    <td>Allocations must be fair, equitable and reasonable; costs must benefit policyholders; related-party transactions at arm's length; inflated charges treated as profit distribution</td>
+  </tr>
+  <tr>
+    <td><strong>§6 Distributable Surplus / Profits 盈餘分配</strong></td>
+    <td>Profit-sharing mechanism must be documented in Board-approved corporate policy; policyholder fair treatment must be demonstrable; IA may require independent assessment</td>
+  </tr>
+  <tr>
+    <td><strong>§7 Capital Support 資本支持</strong></td>
+    <td>If participating fund assets are insufficient to cover liabilities, additional assets must be transferred promptly</td>
+  </tr>
+  <tr>
+    <td><strong>§8 Physical Segregation 資產隔離</strong></td>
+    <td>Insurer must maintain books to identify assets attributable to each participating fund; physical segregation may not be legally required but records must be traceable</td>
+  </tr>
+  <tr>
+    <td><strong>§9 Independent Report 獨立報告</strong></td>
+    <td>On effective date, an external independent person must assess whether the participating fund has been properly established in compliance with GL34</td>
+  </tr>
+</table>
+</div>
+
+<hr />
+
+<!-- ══ §6 Capital Adequacy ══ -->
+<h2 id="capital">§6 Capital Requirements &amp; Capital Base 資本要求與資本基礎 <span class="ref">Cap. 41R Part 2 (Rule 5) &amp; Part 3 (Rules 7–10)</span></h2>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Tier 層級</th><th>Composition 構成</th><th>Limit 限額 <span class="ref">Rule 7(b)–(c)</span></th></tr>
+  <tr>
+    <td><strong>Unlimited Tier 1 capital (UT1) 無限制一級資本</strong></td>
+    <td>Ordinary shares, retained earnings, other qualifying UT1 instruments <span class="ref sched">Sch. 1</span>; less deductions (intangibles, net DTA, crypto assets, etc.) per Rule 8(3)</td>
+    <td>No limit — forms the core <span class="ref">Rule 8</span></td>
+  </tr>
+  <tr>
+    <td><strong>Limited Tier 1 capital (LT1) 有限制一級資本</strong></td>
+    <td>Hybrid instruments meeting <span class="ref sched">Sch. 2</span> criteria (permanence, loss-absorption, subordination)<br/><em>Official term: "Limited Tier 1 capital instrument" per Rule 2</em></td>
+    <td><strong>≤ 10% of PCA</strong> <span class="ref">Rule 7(b)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Tier 2 capital 二級資本</strong></td>
+    <td>Subordinated debt and other instruments meeting <span class="ref sched">Sch. 3</span> criteria<br/><em>Official term: "Tier 2 capital instrument" per Rule 2</em></td>
+    <td><strong>≤ 50% of PCA</strong> <span class="ref">Rule 7(c)</span></td>
+  </tr>
+</table>
+</div>
+
+<div class="formula">
+  Capital Requirement (Rule 5): Capital Base ≥ max( PCA, 50% × PCA, HKD 20,000,000 )
+  &nbsp; <span class="ref">Rule 5(1)(a)–(c)</span>
+  <br/>
+  Capital Base = UT1 + LT1 + Tier 2 capital (subject to limits per Rule 7)
+  &nbsp; <span class="ref">Rule 7(a)</span>
+  <br/>
+  <span style="font-size:0.85em; color:#6b7280;">PCA = prescribed capital amount 訂明資本額 (Rule 37); commonly called "PCR" by practitioners.</span>
+</div>
+
+<hr />
+
+<!-- ══ §7 HKRBC vs Macao RBC ══ -->
+<h2 id="diff">§7 HKRBC vs Macao RBC — Key Differences 主要差異對照</h2>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Dimension 維度</th><th class="diff-hk">HKRBC (Cap. 41R)</th><th>Macao RBC (MRBC)</th></tr>
+  <tr>
+    <td><strong>Effective Date 生效日期</strong></td>
+    <td class="diff-hk">1 July 2024</td>
+    <td>QIS 2 (testing phase, 2025)</td>
+  </tr>
+  <tr>
+    <td><strong>Expense Risk Regions 費用風險地區分組</strong></td>
+    <td class="diff-hk">4 geographic regions (HK / Non-HK Developed / Non-HK Emerging / Other) — each with distinct inflation stress parameters</td>
+    <td>Single unified parameter set (all regions)</td>
+  </tr>
+  <tr>
+    <td><strong>Equity CCA 順周期調整</strong></td>
+    <td class="diff-hk">Rule 49(2)(a); during Interim Period, insurer may elect CCA = 0 or use IA CCA Generation Tool value (irrevocable)</td>
+    <td>CCA exists under MRBC Appendix VI; specific parameters TBC</td>
+  </tr>
+  <tr>
+    <td><strong>MA Simplified Approaches 匹配調整簡化方法</strong></td>
+    <td class="diff-hk">Rule 24(6): 6 prescribed simplifications, including 15% proxy AR and +25% additive ACS% proxy (IA Circular Appendix 2)</td>
+    <td>MA Tech Spec §59: simplified haircut approaches; slightly different parameters and structure</td>
+  </tr>
+  <tr>
+    <td><strong>Participating Fund Regulation 參與型基金監管</strong></td>
+    <td class="diff-hk">GL34 (detailed): covers surplus distribution, expense allocation, physical segregation, and independent report requirements</td>
+    <td>No equivalent dedicated guideline under MRBC QIS 2</td>
+  </tr>
+  <tr>
+    <td><strong>Natural CAT Own Assessment 自然巨災自評法</strong></td>
+    <td class="diff-hk">Available under Rule 67 — requires IA approval; detailed application and ongoing reporting process (IA Circular Appendix 3)</td>
+    <td>Not applicable (GI exposure minimal)</td>
+  </tr>
+  <tr>
+    <td><strong>ESG Minimum Requirements</strong></td>
+    <td class="diff-hk">Codified in IA Circular (12 Jun 2024, Appendix 1): ≥ 1,000 scenarios, martingale test, implied volatility test, annual re-calibration</td>
+    <td>MA Tech Spec: similar stochastic simulation requirements; parameters broadly consistent</td>
+  </tr>
+  <tr>
+    <td><strong>Unrated Counterparty Factor</strong></td>
+    <td class="diff-hk">Regulated RBC entity: 6.2% (avg Rating 4+5); Others: 38.8% (= Rating 7)</td>
+    <td>Same rule (Main Tech Spec §615)</td>
+  </tr>
+  <tr>
+    <td><strong>MOCE Treatment</strong></td>
+    <td class="diff-hk">Included in TP; not deducted from PCR; allocated to participating funds separately (per CoC 4%)</td>
+    <td>Same treatment (Main Tech Spec)</td>
+  </tr>
+</table>
+</div>
+
+<hr />
+
+<!-- ══ Appendix A ══ -->
+<h2 id="appendix-esg">Appendix A: ESG Minimum Requirements <span class="ref">Cap. 41R Rule 19(2)</span> <span class="ref circ">IA Circular 12 Jun 2024, Appendix 1</span></h2>
+
+<p>
+  The Economic Scenario Generator (ESG) used in computing TVOG (Time Value of Options and Guarantees)
+  must satisfy the following minimum requirements under Cap. 41R Rule 19(2):
+</p>
+
+<ul>
+  <li>Number of economic scenarios: <strong>≥ 1,000</strong></li>
+  <li>Time step: at least <strong>annual</strong>; more frequent steps required where product features are sensitive to cash flow timing</li>
+  <li>Must consider all material financial risks, including:
+    <ul>
+      <li>Interest rate model (at least short, medium and long tenor movements)</li>
+      <li>Fixed income asset return model (function of: level/change of interest rates, credit spreads, credit default, random component)</li>
+      <li>Inflation model (where relevant and material)</li>
+      <li>Equity asset return model</li>
+      <li>Cross-asset correlations 資產類別間相關性</li>
+    </ul>
+  </li>
+  <li>Must pass <strong>Martingale Test 鞅檢驗</strong> and <strong>Market Consistency Test</strong></li>
+  <li>Must pass <strong>Implied Volatility Test</strong> — simulated asset class volatilities must be consistent with market data</li>
+  <li>Must validate simulated correlations against historical data</li>
+  <li>Calibrated to RFR yield curves prescribed in Cap. 41R Schedules 4 & 5 (with MA if applicable)</li>
+  <li>Must be <strong>re-calibrated at least annually 每年重新校準</strong></li>
+</ul>
+
+<hr />
+
+<!-- ══ Appendix B ══ -->
+<h2 id="appendix-ref">Appendix B: Reference Documents 主要參考文件</h2>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Document 文件</th><th>Key Provisions 主要條款</th><th>Date 日期</th></tr>
+  <tr>
+    <td><strong>Insurance (Valuation and Capital) Rules (Cap. 41R)</strong></td>
+    <td>
+      <strong>Part 2 (EBS)</strong>: Rules 11–22 — BEL, TVOG, RM, MOCE, MA eligibility &amp; calculation<br/>
+      <strong>Part 3 (PCR)</strong>: Rules 35–79 — aggregation, LAC, market/life/GI/CDRC/OP risk modules<br/>
+      <strong>Part 4 (Capital Base)</strong>: Rules 80–93<br/>
+      <strong>Schedule 4</strong>: MA calculation tables (RC%, MWC Cap, CPS, RF, PF/DF methodology)<br/>
+      <strong>Schedule 5</strong>: Stressed MA / PCR sub-risk factors
+    </td>
+    <td>Effective 1 Jul 2024</td>
+  </tr>
+  <tr>
+    <td><strong>GL34: Participating Business Fund Guideline</strong></td>
+    <td>§3 Asset/liability identification; §5 Expense allocation; §7 Surplus distribution; §8 Capital support; Physical segregation requirements for MA eligibility</td>
+    <td>Effective 1 Jul 2024</td>
+  </tr>
+  <tr>
+    <td><strong>IA Circular (12 Jun 2024)</strong><br/>Ref: INS/TEC/6/20/6 Sub-file XI</td>
+    <td>
+      <strong>Rule 19</strong>: Stochastic ESG minimum requirements → App. 1<br/>
+      <strong>Rule 24(6)</strong>: MA Simplified Approaches (a)–(g) → App. 2<br/>
+      <strong>Rule 67</strong>: Natural CAT OA application process → App. 3
+    </td>
+    <td>12 Jun 2024</td>
+  </tr>
+  <tr>
+    <td><strong>IA Circular (21 Jun 2024)</strong><br/>Equity CCA — Countercyclical Adjustment</td>
+    <td><strong>Rule 49(2)(a)</strong>: Adjusted equity stress factor = Table 5 factor + CCA; irrevocable election by 15 Jul 2024 — Option (a) adopt IA CCA tool or Option (b) CCA = 0</td>
+    <td>21 Jun 2024</td>
+  </tr>
+  <tr>
+    <td><strong>GL34 Consultation Conclusions (2024)</strong></td>
+    <td>Finalised requirements for par fund management; addressed industry feedback on expense allocation bases and capital support triggers</td>
+    <td>2024</td>
+  </tr>
+</table>
+</div>
+
+<div class="callout" style="background:#f0f9ff; border-left-color:#0ea5e9; margin-top:1.5rem;">
+  <strong>Quick Rule Index 條款速查表</strong>
+  <table style="font-size:0.84rem; width:100%; margin-top:0.5rem; border-collapse:collapse;">
+    <tr style="background:#e0f2fe;"><th style="padding:4px 8px; text-align:left; border:1px solid #bae6fd;">Cap. 41R Rule / Schedule</th><th style="padding:4px 8px; text-align:left; border:1px solid #bae6fd;">Topic 主題</th></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 5(1)</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Capital requirement: Capital Base ≥ max(PCR, 50%×PCR, HKD 20M)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 7</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Capital Base = UT1 + LT1 + T2; LT1 ≤ 10% PCR; T2 ≤ 50% PCR</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 8 / 9 / 10</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">UT1 / LT1 / Tier 2 definition &amp; qualification criteria (Sch. 1/2/3)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 16</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Long-term insurance Current Estimate (BEL) calculation</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 17</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Cash flow projection methodology</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 19(2)</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">TVOG: mandatory stochastic simulation for contracts with options/guarantees</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 23(4)</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Discount rate = RFR + MA (linking MA to BEL discount)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 24(1)–(6)</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">MA: eligibility, formula, LTA eligibility, asset≥liability, hedging costs, simplified approaches</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 25</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">MOCE (75th percentile loading; aggregated using Sch. 7 Table 1)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 33</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Reinsurance recoverables (RI BEL) valuation</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 37(1)</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">PCR determination &amp; aggregation formula; correlation per Sch. 7 Table 2</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 43</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">LAC of FDB (Future Discretionary Benefits)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 44</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">LAC of Deferred Tax (effective tax rate, capped at 16.5%)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 46</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">MA recalculation under IR / CS / Equity stress (stressed ADD, DF per Sch. 5)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 47</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Interest Rate Risk (IR Up &amp; Down)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 48</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Credit Spread Risk (CS) + Dynamic MA</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 49</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Equity Risk (incl. CCA via Rule 49(2)(a))</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 50</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Property Risk (−25% stress)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 51</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Currency Risk</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rules 52–59</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Life Insurance Risk (52: overview; 53: HRG; 54: Mortality; 55: Longevity; 56: Life CAT; 57: Morbidity; 58: Expense; 59: Lapse)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rules 60–80</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">GI Risk (64: Reserve; 65: Premium; 67–68: Natural CAT; 69–70: Man-made CAT; 71–80: Mortgage)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rules 81–85</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Counterparty Default &amp; Other Risk (82: netting; 83: collateral; 84: guarantees/CDS)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Rule 86</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Operational Risk 業務操作風險</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Schedule 4</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Risk-free yield curves 無風險收益率曲線 (NOT MA)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Schedule 5</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">MA determination: §3 asset classes, §4 MWC, §5 RC%/ADD, §6 AR, §7 PF, §8 DF, §9 CPS, §10 LTA</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Schedule 6</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Credit Rating Bands (Rating 1=AAA/AA to Rating 7=CCC and below)</td></tr>
+    <tr><td style="padding:3px 8px; border:1px solid #e2e8f0;">Schedule 7</td><td style="padding:3px 8px; border:1px solid #e2e8f0;">Correlation matrices: Table 1 (MOCE sub-risk), Table 2 (PCR modules), Table 3A/B (Market IR up/down), Table 4 (Life sub-risk), Tables 5–8 (GI)</td></tr>
+  </table>
+</div>
+
+<div class="callout" style="margin-top:2.5rem">
+  <strong>Disclaimer 免責聲明</strong>
+  These are personal study notes for reference only. Content does not constitute legal or regulatory advice.
+  All regulatory decisions should be based on the official text of Cap. 41R and guidance issued by the
+  Insurance Authority of Hong Kong (IA). 本筆記僅供個人學習參考，不構成正式法律或監管意見。
+  實際業務應以Cap. 41R原文及香港保險業監管局（IA）發布之正式指引為準。
+</div>
+
+</main>
+</div>
+
+<script>
+const links = document.querySelectorAll('nav#sidebar a');
+const headings = document.querySelectorAll('h2[id], h3[id], h4[id]');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      links.forEach(l => l.classList.remove('active'));
+      const a = document.querySelector('nav#sidebar a[href="#' + e.target.id + '"]');
+      if (a) a.classList.add('active');
+    }
+  });
+}, { rootMargin: '-10% 0px -75% 0px' });
+headings.forEach(h => observer.observe(h));
+</script>
+</body>
+</html>
