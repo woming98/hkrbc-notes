@@ -2770,6 +2770,130 @@ for t in range(1, T+1):
   Par TVOG can easily reach <strong>1-3% of Current Estimate</strong>, materially impacting capital.
 </p>
 
+<!-- ─── §9.7.0 ESG → Asset Share → TVOG Data Flow ─── -->
+<h4>§9.7.0 How ESG Variables Flow into Asset Share and TVOG</h4>
+
+<p style="font-size:0.93rem;">
+  Before diving into the mechanics, it helps to understand exactly how each ESG output variable
+  acts on the asset side and liability side, and ultimately produces the TVOG figure.
+</p>
+
+<!-- 总流程图 -->
+<pre class="diagram">
+ESG Output (per scenario s, per time step t)
+│
+├── rfr_short(t,s) ──────────┬──────────────────────────────────────────────────┐
+│                            │                                                  │
+├── equity_total_return(t,s) ┤  ASSET SIDE                                      │  LIABILITY SIDE
+│                            │  ──────────                                      │  ──────────────
+├── credit_spread(t,s) ──────┤                                                  │
+│                            │  bond_return(t,s)  = rfr_short + credit_spread   │
+│                            │  equity_value(t,s) × (1 + equity_return)         │
+│                            │  ─────────────────────────────────────────       │
+│                            │  earned_rate i(t,s) = w_bond × bond_return       │
+│                            │                     + w_equity × equity_return   │
+│                            │                                                  │
+│                            └──→  i(t,s) feeds into Asset Share recursion  ───→│  AS(t,s) = AS(t-1,s)×(1+i) + P - DB - SB - E - C - Tax - PROF
+│                                                                                │
+├── rfr_short(t,s) ─────────────────────────────────────────────────────────────┤  DPB: q_lapse(t,s) = base × (1 + β·max(rfr - credited, 0))
+│                                                                                │  → CF(t,s) changes (surrenders, maturities)
+│                                                                                │
+└── discount_factor(t,s) = exp(-∫rfr dt) ──────────────────────────────────────→│  PV(s) = Σ_t CF(t,s) × discount_factor(t,s)
+
+                                                                                    ↓
+                                                               CE_stochastic = average of PV(s) across all scenarios
+                                                                                    ↓
+                                                               TVOG = CE_stochastic − CE_deterministic
+</pre>
+
+<!-- 变量作用表 -->
+<h5>ESG Variable Role Summary</h5>
+<div class="tbl-wrap">
+<table>
+  <tr><th>ESG Variable</th><th>Asset Side</th><th>Liability Side (Asset Share)</th><th>Discounting</th></tr>
+  <tr>
+    <td><strong>rfr_short(t,s)</strong></td>
+    <td>Bond pricing; reinvestment yield on new fixed income purchases</td>
+    <td>Sets market rate benchmark → drives DPB lapse formula; influences credited rate smoothing</td>
+    <td>Integrated to give discount_factor: \(D(t,s) = e^{-\int_0^t r(u,s)\,du}\)</td>
+  </tr>
+  <tr>
+    <td><strong>equity_total_return(t,s)</strong></td>
+    <td>Equity portfolio mark-to-market: \(V^{\text{eq}}(t,s) = V^{\text{eq}}(0)\prod_\tau(1+R^\text{eq}_\tau)\)</td>
+    <td>Feeds earned_rate → higher equity return → higher AS growth → higher bonus potential</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><strong>credit_spread(t,s)</strong></td>
+    <td>Corporate bond spread over RFR; wider spread → lower bond price → unrealised loss hits earned rate</td>
+    <td>Indirectly via earned rate; may trigger management action (asset switch) under GL34</td>
+    <td>—</td>
+  </tr>
+  <tr>
+    <td><strong>discount_factor(t,s)</strong></td>
+    <td>—</td>
+    <td>—</td>
+    <td>Folds all liability cash flows back to t=0. Low rates → large discount_factor → high PV of liabilities</td>
+  </tr>
+  <tr>
+    <td><strong>fx_rate(t,s)</strong></td>
+    <td>Converts foreign-currency assets to HKD for portfolio valuation</td>
+    <td>Relevant if Par fund holds foreign assets or has foreign policyholders</td>
+    <td>—</td>
+  </tr>
+</table>
+</div>
+
+<!-- 9步计算路径 -->
+<h5>Per-Scenario Calculation Path (Steps 1–9)</h5>
+<ol style="font-size:0.93rem; line-height:2.1;">
+  <li><strong>ESG provides</strong> {rfr_short, equity_return, credit_spread} paths for scenario s</li>
+  <li><strong>Compute earned rate</strong> \(i(t,s) = w_{\text{bond}}\cdot(r_t^f + cs_t) + w_{\text{eq}}\cdot R_t^{\text{eq}} + \ldots\)</li>
+  <li><strong>Asset Share recursion</strong>: plug \(i(t,s)\) into \(AS_t = AS_{t-1}(1+i_t)+P_t-DB_t-SB_t-E_t-C_t-\text{Tax}_t-\text{PROF}_t\)</li>
+  <li><strong>Credited rate / bonus</strong>: apply smoothing function to \(i(t,s)\); compute Reversionary Bonus and Terminal Bonus from \(AS(t,s)\)</li>
+  <li><strong>DPB lapse</strong>: \(q^{\text{lapse}}(t,s) = q^{\text{base}}\times(1+\beta\cdot\max(r^{\text{mkt}}_t - r^{\text{credited}}_t,\,0))\)</li>
+  <li><strong>Cash flows</strong>: deaths, surrenders (at AS or SV floor), maturities — all path-dependent on AS(t,s)</li>
+  <li><strong>Discount</strong>: \(\mathrm{PV}(s) = \sum_t CF(t,s)\times e^{-\int_0^t r(u,s)\,du}\)</li>
+  <li><strong>Average</strong> across N scenarios: \(\mathrm{CE}_{\text{stochastic}} = \tfrac{1}{N}\sum_s \mathrm{PV}(s)\)</li>
+  <li><strong>TVOG</strong> \(= \mathrm{CE}_{\text{stochastic}} - \mathrm{CE}_{\text{deterministic}}\)</li>
+</ol>
+
+<!-- 直觉例子 -->
+<h5>Intuition: Why Low-Rate Scenarios Dominate TVOG</h5>
+<div class="tbl-wrap">
+<table>
+  <tr><th>Scenario Type</th><th>earned_rate i(t,s)</th><th>AS Growth</th><th>DPB Lapse</th><th>PV of Liabilities</th><th>Net Impact</th></tr>
+  <tr>
+    <td><strong>Low rate</strong> (rfr ↓)</td>
+    <td>↓ (bonds underperform)</td>
+    <td>Slow → bonus cut</td>
+    <td>↑ (rfr &lt; credited → mass lapse)</td>
+    <td>↑ (low discount rate)</td>
+    <td>Insurer loss ↑↑</td>
+  </tr>
+  <tr>
+    <td><strong>High rate</strong> (rfr ↑)</td>
+    <td>↑ (but reinvestment lag)</td>
+    <td>Fast → bonus rises</td>
+    <td>↓ (market rate &gt; credited → stay)</td>
+    <td>↓ (high discount rate)</td>
+    <td>Partial offset</td>
+  </tr>
+  <tr>
+    <td><strong>Equity crash</strong></td>
+    <td>↓↓ (equity drag on earned rate)</td>
+    <td>Very slow / negative</td>
+    <td>↑ (guarantee binding)</td>
+    <td>Depends on rfr path</td>
+    <td>Guarantee floor activated → TVOG_floor large</td>
+  </tr>
+</table>
+</div>
+<p style="font-size:0.93rem;">
+  The average across all scenarios is always <em>worse</em> than the deterministic best-estimate because of this asymmetry —
+  losses in bad scenarios are not fully offset by gains in good scenarios (Jensen's inequality). This asymmetry <em>is</em> the TVOG.
+</p>
+
 <!-- ─── §9.7.1 Product Structure ─── -->
 <h4>§9.7.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
 
