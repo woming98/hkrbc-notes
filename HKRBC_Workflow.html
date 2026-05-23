@@ -2999,11 +2999,27 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 </p>
 
 <p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.3rem 0;">
-  <strong>Circular Dependency: SB<sub>t</sub> Depends on AS(t) Which Is What We Are Solving For</strong>
+  <strong>Important: Step Numbering ≠ Execution Order</strong>
 </p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
-  Since \(SB_t = q_{\text{lapse}}(t,s)\times\max(AS(t,s),\, SV_{\text{floor}})\), the surrender outgo depends on the very AS(t) being computed.
-  Three methods are used in practice to resolve this:
+  Step 3 (AS) appears before Step 5 (DPB lapse) in this document, but the <em>actual within-year execution order</em> is the reverse —
+  AS(t,s) cannot be computed until q_lapse(t,s) is known, because SB_t depends on it.
+  The correct execution sequence within each year t is:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>Exec Order</th><th>Doc Step</th><th>Computes</th><th>Requires</th></tr>
+  <tr><td>①</td><td>Step 2</td><td>i(t,s) earned rate</td><td>ESG outputs</td></tr>
+  <tr><td>②</td><td>Step 4</td><td>credited_rate(t,s) = smooth(i)</td><td>① i(t,s)</td></tr>
+  <tr><td>③</td><td>Step 5</td><td>q_lapse(t,s) = f(rfr, credited_rate)</td><td>① rfr_short &nbsp; ② credited_rate</td></tr>
+  <tr><td>④</td><td><strong>Step 3</strong></td><td><strong>AS(t,s)</strong> — now computable in one pass</td><td>① i(t,s) &nbsp; ③ q_lapse(t,s) — both known, no true circularity</td></tr>
+  <tr><td>⑤</td><td>Step 6</td><td>CF(t,s) cash flows</td><td>③ q_lapse &nbsp; ④ AS(t,s)</td></tr>
+  <tr><td>⑥</td><td>Step 7</td><td>PV(s) discounted</td><td>⑤ CF &nbsp; ESG disc_factor</td></tr>
+</table>
+</div>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  The remaining question is: once q_lapse(t,s) is known, which AS value should the surrender payment be based on?
+  That is where the three methods below differ:
 </p>
 
 <!-- 方法一 -->
