@@ -3325,13 +3325,43 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 7 — Discount Cash Flows to t=0</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
   \[
     \mathrm{PV}(s) = \sum_{t=1}^{T} CF(t,s) \times D(t,s)
     \quad\text{where}\quad D(t,s) = e^{-\sum_{\tau=1}^{t} r^f(\tau,s)\cdot\Delta\tau}
   \]
   Discount uses the <em>risk-free</em> rate from the ESG (Sch. 4 RFR), <strong>not</strong> the earned rate — a common mistake.
   If Matching Adjustment applies, discount rate = RFR + MA; the MA itself may be scenario-dependent (Dynamic MA).
+</p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>What Goes into CF(t,s)? — Regulatory Basis</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  <span class="ref rule">Cap. 41R Rule 17(4)</span> defines the scope of cash flows for long term insurance liabilities:
+</p>
+<div class="callout" style="margin: 0.3rem 0 0.6rem 0; font-size:0.85rem;">
+  <strong>Rule 17(4)</strong> — All future cash inflows and outflows … should be included … including but not limited to:
+  <br/>(a) cash inflows from <strong>premiums</strong> and any other amounts to be received from the policy holders;
+  <br/>(b) cash inflows from non-reinsurance recoveries related to claims;
+  <br/>(c) cash outflows for all types of <strong>benefits and payments payable to policy holders and beneficiaries</strong>;
+  <br/>(d) cash outflows for <strong>expenses</strong> incurred in servicing the contract … including investment expenses, claims handling expenses and acquisition expenses.
+</div>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Item</th><th>In CF(t,s)?</th><th>Reason</th></tr>
+  <tr><td>Premium income</td><td>✅ Yes (inflow, negative sign)</td><td>Rule 17(4)(a) — direct policyholder cash flow</td></tr>
+  <tr><td>Death benefit</td><td>✅ Yes (outflow)</td><td>Rule 17(4)(c) — benefit payable to policyholder</td></tr>
+  <tr><td>Surrender value</td><td>✅ Yes (outflow)</td><td>Rule 17(4)(c) — benefit payable to policyholder; amount = max(AS, SV_floor) embeds all accumulated returns</td></tr>
+  <tr><td>Maturity benefit</td><td>✅ Yes (outflow)</td><td>Rule 17(4)(c) — AS(T,s) + TB(T,s) already net of tax and expenses via AS recursion</td></tr>
+  <tr><td>Expenses (E_t)</td><td>❌ Not separately — embedded in AS</td><td>Rule 17(4)(d) lists expenses, but in the AS model they reduce AS(t,s) in Step 5; the reduced AS is paid out at surrender/maturity, so expenses are implicitly included without double-counting</td></tr>
+  <tr><td><strong>Investment income</strong></td><td>❌ No</td><td>Not listed in Rule 17(4). Investment income accrues to the fund (asset side), not to policyholders directly. It is <em>embedded in AS growth</em> via earned rate i(t,s) — paying out AS already distributes accumulated investment returns to policyholders</td></tr>
+  <tr><td><strong>Tax (Tax_t)</strong></td><td>❌ No</td><td>Rule 17 (long term) does not list tax as a liability cash flow (unlike Rule 29(4)(e) for general insurance). Tax reduces AS in the recursion (Tax_t term); the after-tax AS is then paid out at surrender/maturity</td></tr>
+  <tr><td><strong>PROF (profit transfer)</strong></td><td>❌ No</td><td>PROF is a shareholder transfer, not a policyholder cash flow. It reduces AS, but the policyholder's entitlement is to the remaining (post-PROF) AS</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  <strong>Key principle:</strong> Investment income, tax and PROF are all <em>internal fund movements</em> — they change the size of AS but are not direct transfers to/from policyholders. By the time a policyholder receives SV or MB, those items are already reflected in the AS amount. Including them again in CF(t,s) would constitute double-counting.
 </p>
 </div>
 
