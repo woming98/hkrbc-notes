@@ -1815,18 +1815,83 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </p>
 
 <!-- Smith-Wilson 公式 -->
-<h5>三、Smith-Wilson 核心公式（理解原理用）</h5>
-
-<div class="formula">
-  P(0, T) = e<sup>−UFR · T</sup> + Σ<sub>i=1..N</sub> ξ<sub>i</sub> · W(T, t<sub>i</sub>)
-  <br/><br/>
-  W(T, u) = α · [ e<sup>−UFR(T+u)</sup> · (α · min(T,u) − 0.5 · e<sup>α·min(T,u)</sup> + 0.5 · e<sup>−α·min(T,u)</sup>) ]
-  <br/><br/>
-  其中：α = 收斂速度參數（IA 規定）；ξ<sub>i</sub> 由 LLP 以內 N 個市場報價反解
-</div>
+<h5>三、Smith-Wilson — How It Works (for intuition)</h5>
 
 <p style="font-size:0.93rem;">
-  <em>注：實際工作中無需自行實作 Smith-Wilson，IA 已公佈最終 zero rate 數據。此公式僅用於理解曲線構建邏輯。</em>
+  The core idea: the discount factor curve P(0, T) is decomposed into two parts —
+  a <strong>long-run UFR anchor</strong> that takes over as T → ∞, plus a
+  <strong>finite sum of "correction bumps"</strong> that pull the curve back towards observed market prices near and within the LLP.
+</p>
+
+<!-- 主公式 -->
+<div class="formula">
+  <strong>P(0, T) = UFR anchor + market correction</strong>
+  <br/><br/>
+  P(0, T) &nbsp;=&nbsp; <span style="color:#f9c74f;">e<sup>−UFR · T</sup></span>
+  &nbsp;+&nbsp;
+  <span style="color:#90e0ef;">Σ<sub>i=1..N</sub> ξ<sub>i</sub> · W(T, t<sub>i</sub>)</span>
+</div>
+
+<!-- 逐項解釋 -->
+<div class="tbl-wrap" style="margin-top:0.8rem;">
+<table>
+  <tr><th>Term</th><th>What It Represents</th><th>Intuition</th></tr>
+  <tr>
+    <td><strong style="color:#f9c74f;">e<sup>−UFR · T</sup></strong></td>
+    <td>The UFR anchor — discount factor if the world converged immediately to UFR from day 1</td>
+    <td>As T → ∞, the correction bumps decay to zero and P(0,T) → this term. This is how UFR convergence is enforced.</td>
+  </tr>
+  <tr>
+    <td><strong style="color:#90e0ef;">ξ<sub>i</sub></strong></td>
+    <td>Weights — one per market instrument (e.g. each IRS tenor within LLP)</td>
+    <td>Solved by a linear system: "what weights make the model exactly reprice all N market instruments?"</td>
+  </tr>
+  <tr>
+    <td><strong style="color:#90e0ef;">W(T, t<sub>i</sub>)</strong></td>
+    <td>Kernel function — measures how strongly instrument i "influences" the curve at maturity T</td>
+    <td>Influence decays with distance |T − t<sub>i</sub>|. Instruments far from T have little pull.</td>
+  </tr>
+</table>
+</div>
+
+<!-- 核函數展開 -->
+<h6 style="margin-top:1rem;">The Kernel Function W(T, u)</h6>
+
+<div class="formula">
+  W(T, u) = e<sup>−UFR(T+u)</sup> · [ α · min(T, u) − 0.5·e<sup>α·min(T,u)</sup> + 0.5·e<sup>−α·min(T,u)</sup> ]
+</div>
+
+<div class="tbl-wrap" style="margin-top:0.6rem;">
+<table>
+  <tr><th>Parameter</th><th>Meaning</th><th>Who Sets It</th></tr>
+  <tr>
+    <td><strong>α</strong></td>
+    <td>Convergence speed — controls how fast the curve transitions from the market-fitted region to the UFR tail. Higher α = faster convergence.</td>
+    <td>IA prescribes α (aligned with EIOPA's Solvency II standard)</td>
+  </tr>
+  <tr>
+    <td><strong>min(T, u)</strong></td>
+    <td>Overlap between the projection maturity T and the instrument's maturity u — the kernel is symmetric</td>
+    <td>Computed automatically</td>
+  </tr>
+  <tr>
+    <td><strong>e<sup>−UFR(T+u)</sup></strong></td>
+    <td>Decay envelope — ensures W → 0 as T → ∞, so the correction vanishes and UFR takes over</td>
+    <td>Built into formula</td>
+  </tr>
+</table>
+</div>
+
+<!-- 三步建構流程 -->
+<h6 style="margin-top:1rem;">Three-Step Build Process</h6>
+<ol style="font-size:0.93rem; line-height:1.9;">
+  <li><strong>Collect inputs:</strong> N market IRS rates within LLP (e.g. HKD: 1Y, 2Y, …, 15Y), plus the UFR and α prescribed by IA.</li>
+  <li><strong>Solve for ξ:</strong> Set up an N×N linear system — "model price of each instrument = market price" — and solve for the N weights ξ<sub>i</sub>. This is just matrix algebra: <code>ξ = W_matrix⁻¹ · (P_market − P_UFR_anchor)</code>.</li>
+  <li><strong>Evaluate P(0, T) for any T:</strong> Plug T into the formula above. Within LLP, the result exactly fits market prices. Beyond LLP, the correction terms decay and UFR takes over smoothly.</li>
+</ol>
+
+<p style="font-size:0.93rem; margin-top:0.6rem;">
+  <em>Practical note: in day-to-day HKRBC work, IA publishes the final zero rates directly — you never need to run this calculation yourself. Understanding the formula matters mainly for ESG calibration discussions and model validation.</em>
 </p>
 
 <!-- 從 Sch. 4 曲線提取 Forward Rate 的操作步驟 -->
