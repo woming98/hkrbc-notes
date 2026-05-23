@@ -1801,12 +1801,19 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <div class="tbl-wrap">
 <table>
-  <tr><th>貨幣</th><th>Last Liquid Point (LLP)</th><th>Ultimate Forward Rate (UFR)</th><th>LLP 以內數據源</th></tr>
-  <tr><td><strong>HKD</strong></td><td>15 年</td><td>~ 4.05%（IA 規定）</td><td>HKD IRS 市場報價</td></tr>
-  <tr><td><strong>USD</strong></td><td>30 年</td><td>~ 4.05%</td><td>USD IRS 市場報價</td></tr>
-  <tr><td><strong>RMB</strong></td><td>15 年</td><td>~ 4.05%</td><td>CNY IRS / 國債市場報價</td></tr>
+  <tr><th>貨幣</th><th>Last Liquid Point (LLP)</th><th>Convergence Point</th><th>UFR <span class="ref rule">G.N. 4006 of 2024</span></th><th>LLP 以內數據源</th></tr>
+  <tr><td><strong>HKD</strong></td><td>15 年</td><td>60 年</td><td><strong>3.8%</strong></td><td>Bloomberg HKD IRS (HDSW1–HDSW15 BGN)</td></tr>
+  <tr><td><strong>USD</strong></td><td>30 年</td><td>60 年</td><td><strong>3.8%</strong></td><td>Bloomberg USD zero-coupon govt bond (I111xxY)</td></tr>
+  <tr><td><strong>RMB</strong></td><td>10 年</td><td>60 年</td><td><strong>4.6%</strong></td><td>ChinaBond Govt Bond Yield Curve (spot rate, 1–10Y)</td></tr>
+  <tr><td><strong>GBP</strong></td><td>50 年</td><td>80 年</td><td><strong>3.8%</strong></td><td>Bloomberg GBP IRS (BPSWS1–BPSWS50 BGN)</td></tr>
+  <tr><td><strong>EUR</strong></td><td>20 年</td><td>60 年</td><td><strong>3.8%</strong></td><td>Bloomberg EUR IRS (EUSA1–EUSA20 BGN)</td></tr>
+  <tr><td><strong>SGD</strong></td><td>20 年</td><td>60 年</td><td><strong>3.8%</strong></td><td>Bloomberg SGD zero-coupon govt bond (I107xxY)</td></tr>
+  <tr><td><strong>JPY</strong></td><td>30 年</td><td>60 年</td><td><strong>3.8%</strong></td><td>Bloomberg JPY zero-coupon govt bond (I018xxY)</td></tr>
+  <tr><td><strong>TWD</strong></td><td>10 年</td><td>60 年</td><td><strong>4.4%</strong></td><td>Bloomberg TWD zero-coupon govt bond (BI0594Z)</td></tr>
+  <tr><td><strong>THB</strong></td><td>10 年</td><td>60 年</td><td><strong>5.0%</strong></td><td>Bloomberg THB zero-coupon govt bond (BI0570Z)</td></tr>
 </table>
 </div>
+<p style="font-size:0.85rem; color:#888; margin-top:0.3rem;">來源：IA Gazette Notice G.N. 4006 of 2024（2024年7月12日），生效日期 2024年7月1日</p>
 
 <p style="font-size:0.93rem;">
   <strong>Smith-Wilson 為何是香港標準：</strong>IA 採用 Smith-Wilson 方法（與歐洲 Solvency II 一致）對 LLP 以外的曲線進行外推，
