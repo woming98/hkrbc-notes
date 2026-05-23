@@ -137,10 +137,46 @@ MathJax = {
   ul, ol { padding-left: 1.4rem; margin-bottom: 0.8rem; }
   li { margin-bottom: 0.25rem; }
 
+  /* ── Code blocks 統一樣式 ── */
+  pre.codeblock {
+    background: #0f172a;
+    color: #f1f5f9;
+    padding: 1.1rem 1.3rem;
+    border-radius: 8px;
+    border: 1px solid #1e293b;
+    font-size: 0.86rem;
+    line-height: 1.55;
+    overflow-x: auto;
+    font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+    margin: 1rem 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  pre.codeblock code {
+    color: #f1f5f9;
+    font-family: inherit;
+    font-size: inherit;
+    background: transparent;
+  }
+  /* ASCII diagram 樣式 (淺色) */
+  pre.diagram {
+    background: #f8fafc;
+    color: #0f172a;
+    padding: 0.9rem 1.1rem;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.83rem;
+    line-height: 1.45;
+    font-family: 'Menlo', 'Monaco', 'Consolas', 'Courier New', monospace;
+    margin: 0.5rem 0 0;
+    overflow-x: auto;
+  }
+
   @media (max-width: 768px) {
     .layout { flex-direction: column; }
     nav#sidebar { width: 100%; height: auto; position: static; }
     main { padding: 1.5rem 1rem; }
+    pre.codeblock { font-size: 0.78rem; padding: 0.8rem; }
+    pre.diagram { font-size: 0.72rem; }
   }
 </style>
 </head>
@@ -1176,7 +1212,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
   <strong>End-to-End Modelling Pipeline 建模流水線</strong>
-  <pre style="background:transparent; border:none; padding:0; margin:0.5rem 0 0; font-size:0.85rem; color:#1f2937;">
+  <pre class="diagram">
   ┌──────────────┐    ┌──────────────┐    ┌─────────────┐    ┌─────────────────┐    ┌──────────────┐
   │ §9.1 Liab CF │    │ §9.2 Asset   │    │ §9.3 MA     │    │ §9.4 Stress &amp;  │    │ §9.5 ESG     │
   │   Model      │ →  │   Valuation  │ →  │   Engine    │ →  │   PCR Engine    │ ←  │  (TVOG只用)   │
@@ -1433,7 +1469,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </div>
 
 <h4>Reference Python Pseudo-code</h4>
-<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>def ma_engine(assets, liabilities, scenarios, tol_bps=10, max_iter=20):
+<pre class="codeblock"><code>def ma_engine(assets, liabilities, scenarios, tol_bps=10, max_iter=20):
     # --- Step 1-2: Asset Side ---
     for a in assets.eligible:
         a.adj_spread = a.asset_spread * (1 - RC_TABLE[a.rating_band])
@@ -1912,7 +1948,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <h5>(c) Dynamic Management Actions 動態管理行動</h5>
 
-<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>def crediting_rate_decision(scenario_t, last_smoothed):
+<pre class="codeblock"><code>def crediting_rate_decision(scenario_t, last_smoothed):
     """Decide credited rate in scenario_t under Par fund management policy.
        Must be consistent with board-approved policy (GL34 §6).
     """
@@ -1936,7 +1972,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <h5>(e) Path-Dependent Calculation (Lookback / Ratchet)</h5>
 
-<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>high_water_mark = initial_av
+<pre class="codeblock"><code>high_water_mark = initial_av
 for t in range(1, T+1):
     av_t = av_prev * (1 + investment_return_t) - policy_charges_t
     high_water_mark = max(high_water_mark, av_t)
@@ -2038,7 +2074,7 @@ for t in range(1, T+1):
 <h4>§9.6.7 TVOG's Position in the HKRBC EBS 在經濟資產負債表中的位置</h4>
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
-  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  <pre class="diagram">
   EBS 經濟資產負債表 (Cap. 41R Part 2 &amp; Part 4)
   ├── Assets (Market Value, Rule 34)
   └── Insurance Liabilities (Rule 15)
@@ -2086,7 +2122,7 @@ for t in range(1, T+1):
 <h4>§9.7.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
-  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  <pre class="diagram">
   ┌─────────────────────────────────────────────────────────────────────┐
   │ Layer 3: Terminal Bonus (TB) ─ paid at maturity / surrender / death │  ← Largest, most flexible
   │          Non-vested, fully discretionary                            │
@@ -2167,7 +2203,7 @@ for t in range(1, T+1):
 
 <h5>(c) Dividend Declaration Rule 分紅宣派規則 (GL34 §6 governed)</h5>
 
-<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code># Each year t in each scenario s:
+<pre class="codeblock"><code># Each year t in each scenario s:
 1. free_surplus = Asset(t) - Liability(t) - Min Solvency Capital
 2. target_div = long_term_expected_earned_rate - guaranteed_rate
 3. actual_div = smoothing(earned_rate, target_div)
@@ -2359,7 +2395,7 @@ for t in range(1, T+1):
 <p>The IA expects insurers to declare dividends based on Asset Share — not on arbitrary management judgement. The standard process under GL34 §6:</p>
 
 <div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
-  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  <pre class="diagram">
   ┌────────────────────────────────────────────────────────────────┐
   │ Step 1: Calculate AS<sub>t</sub> per cohort (retrospective rollforward)         │
   │         per §3, §4, §5, §6 cost &amp; profit allocation rules        │
@@ -2561,7 +2597,7 @@ for t in range(1, T+1):
 </p>
 
 <div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
-  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  <pre class="diagram">
   IR Down stress
     → Asset value ↑ (bonds rally)
     → Guaranteed liability ↑ (lower discount rate)
@@ -2599,7 +2635,7 @@ for t in range(1, T+1):
 <!-- ─── §9.7.9 Simplified Python Implementation ─── -->
 <h4>§9.7.9 Simplified Python Implementation 簡化Python實作</h4>
 
-<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.78rem; overflow-x:auto;"><code>import numpy as np
+<pre class="codeblock"><code>import numpy as np
 
 def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
                   rb_share=0.4, tb_share=0.6, beta1=2.0, beta2=1.5):
