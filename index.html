@@ -2246,29 +2246,277 @@ for t in range(1, T+1):
 </table>
 </div>
 
-<!-- ─── §9.7.4 Asset Share Model ─── -->
-<h4>§9.7.4 Asset Share Model — The Industry Standard 資產份額模型</h4>
+<!-- ─── §9.7.4 Asset Share Model & GL34 Compliance ─── -->
+<h4>§9.7.4 Asset Share Model &amp; GL34 Compliance 資產份額模型與GL34合規 <span class="ref circ">GL34 (effective 1 Jul 2024)</span></h4>
 
 <p>
-  Asset Share (AS) represents <strong>the theoretical accumulated share each policy "should" have</strong>
-  if it were managed on a standalone basis. It is the foundation of fair dividend declaration under GL34 and is the
-  most defensible TVOG modelling approach for Par funds.
+  <strong>Asset Share (AS, 資產份額)</strong> is the cornerstone of Par fund actuarial management.
+  It represents <em>the theoretical accumulated share each policy (or cohort) "should" have</em>
+  if it were managed on a standalone basis since policy inception, after sharing investment returns and bearing its share of costs.
+  Under <strong>GL34</strong>, Asset Share is the <em>de facto</em> audit basis for the IA to assess fair treatment of policyholders,
+  and is the most defensible methodology for both <strong>dividend declaration</strong> and <strong>TVOG calculation</strong>.
 </p>
 
+<h5>(a) Core Asset Share Formula 核心公式</h5>
+
 <div class="formula">
-  AS<sub>t</sub> = AS<sub>t-1</sub> × (1 + i<sub>t</sub>) + P<sub>t</sub> − DB<sub>t</sub> − SB<sub>t</sub> − E<sub>t</sub> − PROF<sub>t</sub>
+  AS<sub>t</sub> = AS<sub>t-1</sub> × (1 + i<sub>t</sub>) + P<sub>t</sub> − DB<sub>t</sub> − SB<sub>t</sub> − E<sub>t</sub> − C<sub>t</sub> − Tax<sub>t</sub> − PROF<sub>t</sub>
+</div>
+
+<p style="font-size:0.93rem;">Each component is governed by a specific GL34 section — this is what makes the model audit-ready:</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Symbol</th><th>Meaning 意義</th><th>GL34 Reference 對應條款</th><th>Key Audit Question</th></tr>
+  <tr>
+    <td><strong>AS<sub>0</sub></strong></td>
+    <td>Opening asset share at policy inception (or fund effective date)</td>
+    <td><span class="ref circ">GL34 §4</span> Opening Balance</td>
+    <td>Is it ≥ amount attributable on day before effective date? (§4.1)<br/>Are there any asymmetric distributions since 1 Jan 2019? (§4.2)</td>
+  </tr>
+  <tr>
+    <td><strong>i<sub>t</sub></strong></td>
+    <td>Asset earned rate (investment return on the fund's physically segregated assets)</td>
+    <td><span class="ref circ">GL34 §3, §8</span> Identification &amp; Physical Segregation</td>
+    <td>Are the underlying assets correctly identified and segregated per the fund (§3, §8.1)?<br/>For sub-HKD 1B funds: earmarked properly? (§8.2-§8.3)</td>
+  </tr>
+  <tr>
+    <td><strong>P<sub>t</sub></strong></td>
+    <td>Premium income (including riders if material per §3.3)</td>
+    <td><span class="ref circ">GL34 §3.3</span></td>
+    <td>Are riders &amp; FOD properly classified per substance over form? (§3.3)</td>
+  </tr>
+  <tr>
+    <td><strong>DB<sub>t</sub>, SB<sub>t</sub></strong></td>
+    <td>Death benefit, surrender benefit cash outflows</td>
+    <td><span class="ref circ">GL34 §3.4</span></td>
+    <td>Properly tracked in books of account per §22 of Ordinance?</td>
+  </tr>
+  <tr>
+    <td><strong>E<sub>t</sub></strong></td>
+    <td>Expenses allocated to the fund (acquisition, maintenance, investment)</td>
+    <td><span class="ref circ">GL34 §5</span> Expenses &amp; Charges</td>
+    <td>Allocation <strong>fair, equitable, reasonable</strong> (§5.1)? Cost benefits policyholders (§5.2)?<br/>Related-party at arm's length (§5.3)? Inflated charges treated as profit distribution (§5.4)?</td>
+  </tr>
+  <tr>
+    <td><strong>C<sub>t</sub></strong></td>
+    <td>Cost of insurance (mortality / morbidity charges)</td>
+    <td><span class="ref circ">GL34 §5.5</span></td>
+    <td>Reflects best estimate or contractual basis?</td>
+  </tr>
+  <tr>
+    <td><strong>Tax<sub>t</sub></strong></td>
+    <td>Tax attributable to the fund</td>
+    <td><span class="ref circ">GL34 §5</span></td>
+    <td>Allocated based on fund's actual tax position?</td>
+  </tr>
+  <tr>
+    <td><strong>PROF<sub>t</sub></strong></td>
+    <td>Shareholder profit charge (the "90/10 split" or equivalent mechanism)</td>
+    <td><span class="ref circ">GL34 §6</span> Allocation of Distributable Surplus/Profits</td>
+    <td>Fair balance of risk &amp; reward (§6.3 footnote 4)?<br/>Not accelerating shareholder distribution asymmetrically (§6.5)?<br/>Consistently applied year-to-year (§6.7)?</td>
+  </tr>
+</table>
+</div>
+
+<h5>(b) Three Asset Share Methods 三種計算方法</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Method 方法</th><th>Description 描述</th><th>Strengths / Weaknesses</th></tr>
+  <tr>
+    <td><strong>Retrospective Asset Share</strong><br/>追溯式</td>
+    <td>Roll forward AS from policy inception using <em>actual</em> historical earned rates, expenses, claims, and PROF charges</td>
+    <td>
+      ✅ Most accurate; reflects actual experience<br/>
+      ✅ GL34 §4 Opening Balance auditable<br/>
+      ❌ Data-intensive (need 20-30 yrs history); legacy systems may not have records
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Prospective Asset Share</strong><br/>前瞻式</td>
+    <td>Project AS forward using best-estimate assumptions; calibrate to current liability value</td>
+    <td>
+      ✅ Quick; useful for new business pricing<br/>
+      ❌ Does not reflect historical fund performance<br/>
+      ❌ Not suitable for GL34 §4 audit
+    </td>
+  </tr>
+  <tr>
+    <td><strong>Hybrid / Sub-fund Asset Share</strong><br/>混合 / 子基金式</td>
+    <td>Retrospective at <em>cohort/sub-fund level</em> instead of per-policy; pool-level AS allocated to cohorts via attribution rules</td>
+    <td>
+      ✅ Industry standard for HK Par funds<br/>
+      ✅ Balances accuracy with operational feasibility<br/>
+      ✅ Aligns with GL34 §2.3 "granularity fit for purpose"
+    </td>
+  </tr>
+</table>
+</div>
+
+<h5>(c) Dividend Declaration Driven by Asset Share GL34合規的分紅決策流程</h5>
+
+<p>The IA expects insurers to declare dividends based on Asset Share — not on arbitrary management judgement. The standard process under GL34 §6:</p>
+
+<div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
+  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  ┌────────────────────────────────────────────────────────────────┐
+  │ Step 1: Calculate AS<sub>t</sub> per cohort (retrospective rollforward)         │
+  │         per §3, §4, §5, §6 cost &amp; profit allocation rules        │
+  │                              ↓                                  │
+  │ Step 2: Calculate Guaranteed Liability (GL<sub>t</sub>) per cohort          │
+  │         under Cap. 41R Rule 16 (current estimate, no bonus)    │
+  │                              ↓                                  │
+  │ Step 3: Surplus<sub>t</sub> = AS<sub>t</sub> − GL<sub>t</sub> − Smoothing Buffer            │
+  │         (Smoothing Buffer reserved for future fair payout)      │
+  │                              ↓                                  │
+  │ Step 4: Apply 90/10 (or fund-specific) profit split             │
+  │         Distributable to PH = Surplus × PH_share               │
+  │                              ↓                                  │
+  │ Step 5: Split into RB (vested, sustainable) and TB              │
+  │         RB ≤ amount that fund can sustainably support           │
+  │         TB = residual + surplus buffer release                  │
+  │                              ↓                                  │
+  │ Step 6: Appointed Actuary recommends to Board (§6.8)            │
+  │         Board approves bonus declaration (§1.5)                 │
+  │                              ↓                                  │
+  │ Step 7: Document basis in board policy (§6.7); apply            │
+  │         consistently year-to-year (§6.7); IA report (§6.6)      │
+  └────────────────────────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<h5>(d) TVOG via Asset Share Decomposition</h5>
+
+<p>The economic value of the Par fund liability can be expressed in terms of Asset Share:</p>
+
+<div class="formula" style="font-size:0.95rem;">
+  Liability Value<sub>Par</sub> = E[ AS<sub>T</sub> × Discount<sub>T</sub> ] &nbsp; <em>(if fund pays out the full AS at terminal)</em><br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ max(GL<sub>T</sub> − AS<sub>T</sub>, 0) × Discount<sub>T</sub> ] &nbsp; <em>(put option on AS — TVOG floor)</em><br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ value of early exercise (surrender option on AS) ] &nbsp; <em>(American option — TVOG surrender)</em>
+</div>
+
+<div class="formula" style="font-size:0.95rem; margin-top:0.5rem;">
+  <strong>TVOG<sub>Par</sub> = Liability Value<sub>Par</sub> − Deterministic CE</strong>
 </div>
 
 <p style="font-size:0.93rem;">
-  Where: <code>i<sub>t</sub></code> = earned rate, <code>P<sub>t</sub></code> = premium, <code>DB<sub>t</sub></code> = death benefit,
-  <code>SB<sub>t</sub></code> = surrender benefit, <code>E<sub>t</sub></code> = expenses + commissions, <code>PROF<sub>t</sub></code> = profit margin to shareholders.
+  This decomposition is powerful because it maps cleanly onto closed-form approximations (Black-Scholes put for the guarantee, Bermudan put for the surrender option),
+  allowing fast TVOG estimation when full stochastic runs are infeasible.
 </p>
 
-<h5>TVOG Decomposition via Asset Share</h5>
+<h5>(e) Asset Share Numerical Example 數值範例</h5>
 
-<div class="formula" style="font-size:0.95rem;">
-  TVOG<sub>Par</sub> = E[ max(Guaranteed Liability − AS, 0) ] &nbsp;<em>(put option on AS)</em><br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ value of surrender option on AS ] &nbsp;<em>(American option)</em>
+<div class="tbl-wrap">
+<table>
+  <tr><th>Item</th><th>Year 1</th><th>Year 2</th><th>Year 3</th><th>...</th><th>Year 20 (Maturity)</th></tr>
+  <tr><td>Opening AS</td><td>0</td><td>10,000</td><td>20,500</td><td>...</td><td>250,000</td></tr>
+  <tr><td>+ Premium</td><td>10,000</td><td>10,000</td><td>10,000</td><td>...</td><td>10,000</td></tr>
+  <tr><td>+ Investment income (5%)</td><td>500</td><td>1,000</td><td>1,525</td><td>...</td><td>13,000</td></tr>
+  <tr><td>− Expenses (acquisition Y1; maintenance Y2+)</td><td>−400</td><td>−100</td><td>−105</td><td>...</td><td>−200</td></tr>
+  <tr><td>− Cost of insurance</td><td>−50</td><td>−55</td><td>−60</td><td>...</td><td>−150</td></tr>
+  <tr><td>− Shareholder profit charge (10%)</td><td>−50</td><td>−100</td><td>−155</td><td>...</td><td>−1,300</td></tr>
+  <tr><td><strong>Closing AS</strong></td><td><strong>10,000</strong></td><td><strong>20,500</strong></td><td><strong>31,705</strong></td><td>...</td><td><strong>270,000</strong></td></tr>
+  <tr style="background:#f8fafc;"><td>Guaranteed Liability</td><td>9,000</td><td>18,500</td><td>28,500</td><td>...</td><td>200,000</td></tr>
+  <tr style="background:#f8fafc;"><td><em>Distributable Surplus = AS − GL</em></td><td>1,000</td><td>2,000</td><td>3,205</td><td>...</td><td><strong>70,000</strong> → Bonuses</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.85rem; color:var(--muted);">
+  At maturity, the 70,000 distributable surplus is paid out as accumulated RB + TB. Under stochastic ESG, AS<sub>20</sub> varies by scenario; the average payout drives stochastic CE,
+  while Jensen's inequality (due to the floor at GL<sub>20</sub> = 200,000) drives positive TVOG.
+</p>
+
+<h5>(f) GL34 Compliance Audit Trail 合規審計鏈條</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>GL34 Requirement</th><th>How Asset Share Demonstrates Compliance</th></tr>
+  <tr>
+    <td><span class="ref circ">§1.3</span> PH should not bear undisclosed disadvantage</td>
+    <td>AS calculation is fully transparent; PROF charge explicitly identified per §5.4</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§3</span> Identification of assets &amp; liabilities</td>
+    <td>AS is calculated <em>per</em> identified fund, using identified fund's earned rate</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§4</span> Opening balance sufficiency</td>
+    <td>AS<sub>0</sub> = day-1 attributable amount; audited by Independent Professional (§9)</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§4.2</span> Pre-2019 asymmetric distributions</td>
+    <td>AS rollforward starts from 1 Jan 2019; any one-off shareholder distribution flagged</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§5</span> Fair, equitable, reasonable expense allocation</td>
+    <td>E<sub>t</sub> in AS formula uses transparent allocation keys (e.g., premium-based, policy-count-based)</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§5.4</span> Inflated charges = profit distribution</td>
+    <td>If actual cost &lt; charged amount, the excess flows to PROF<sub>t</sub> (not to E<sub>t</sub>)</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§6.1</span> Allocation fair &amp; equitable, in line with PRE, sustainable</td>
+    <td>Bonus declaration tied directly to AS surplus (not arbitrary)</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§6.4</span> Balance between exiting and continuing policyholders</td>
+    <td>Smoothing Buffer maintained in AS framework; TB calibrated against fund's projected surplus</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§6.5</span> No asymmetric acceleration to shareholders</td>
+    <td>PROF<sub>t</sub> follows fixed percentage rule (e.g. 10%); ad-hoc transfers flagged</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§6.7</span> Consistent application year-to-year</td>
+    <td>AS methodology documented in board policy; changes require board re-approval</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§6.8</span> Annual Appointed Actuary report</td>
+    <td>AS calculation forms the actuarial basis for the AA's bonus declaration recommendation</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§8</span> Physical segregation (≥ HKD 1B funds)</td>
+    <td>AS uses earned rate from segregated custodian/bank accounts (§8.4)</td>
+  </tr>
+  <tr>
+    <td><span class="ref circ">§9</span> Independent Professional report (by 31 Mar 2025)</td>
+    <td>AS rollforward, opening balance, expense allocation, profit split all subject to independent review</td>
+  </tr>
+</table>
+</div>
+
+<h5>(g) Asset Share &amp; Cohort Segmentation 隊列分組</h5>
+
+<p style="font-size:0.93rem;">In production, Asset Share is computed per <strong>cohort</strong>, typically defined by:</p>
+
+<ul style="font-size:0.93rem;">
+  <li>Issue year (vintage)</li>
+  <li>Product code (e.g. WL with-profits 1995, Endowment 2010)</li>
+  <li>Currency (HKD / USD / RMB)</li>
+  <li>Distribution channel (if profit-sharing varies)</li>
+  <li>Asset pool (if multiple sub-funds exist within one Par fund per §8.1)</li>
+</ul>
+
+<p style="font-size:0.93rem;">
+  Cohort segmentation is critical for <strong>GL34 §6.4 "balance between exiting and continuing policyholders"</strong> —
+  without cohort-level AS, you cannot demonstrate that old policies are not subsidising new business (or vice versa).
+</p>
+
+<h5>(h) Common Asset Share Pitfalls 常見計算陷阱</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Pitfall</th><th>GL34 Risk</th><th>Mitigation</th></tr>
+  <tr><td>Using fund total / number of policies instead of true per-cohort AS</td><td>§6.4 violation: cross-cohort subsidy</td><td>Build cohort-level AS with proper attribution keys</td></tr>
+  <tr><td>Acquisition cost (Y1) recovered too slowly</td><td>§6.5 risk: artificial PH AS suppression</td><td>Use industry-standard amortisation period (e.g. 10 yrs)</td></tr>
+  <tr><td>Profit charge (PROF<sub>t</sub>) front-loaded</td><td>§5.4, §6.5: asymmetric acceleration</td><td>Use level percentage of premium or fund value</td></tr>
+  <tr><td>No allowance for inflated expense charges</td><td>§5.4: profit not properly identified</td><td>Reconcile actual vs charged expense; difference → PROF</td></tr>
+  <tr><td>Treating reinsurance recoveries as part of AS earned rate</td><td>§5: distorts true investment return</td><td>RI recoveries net of premium ceded handled separately</td></tr>
+  <tr><td>Ignoring tax on fund</td><td>§5: under-allocation of cost</td><td>Allocate tax based on fund's actual tax position</td></tr>
+  <tr><td>Changing methodology without board approval</td><td>§6.7: inconsistent application</td><td>All AS methodology changes require board re-approval &amp; AA opinion</td></tr>
+</table>
 </div>
 
 <!-- ─── §9.7.5 Stochastic-on-Stochastic ─── -->
