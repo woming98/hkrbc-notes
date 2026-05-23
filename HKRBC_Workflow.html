@@ -2894,6 +2894,146 @@ ESG Output (per scenario s, per time step t)
   losses in bad scenarios are not fully offset by gains in good scenarios (Jensen's inequality). This asymmetry <em>is</em> the TVOG.
 </p>
 
+<!-- ── Deep Dive A: Bond Return 的两个来源 ── -->
+<h5>Deep Dive A: How bond_return Is Built from rfr_short and credit_spread</h5>
+<p style="font-size:0.93rem;">
+  Many practitioners conflate bond income with bond total return. Under HKRBC EBS (mark-to-market basis), the earned rate
+  captures <em>both</em> cash income and mark-to-market revaluation:
+</p>
+<div class="tbl-wrap">
+<table>
+  <tr><th>Component</th><th>Formula</th><th>ESG Driver</th><th>Direction when rfr ↑</th></tr>
+  <tr>
+    <td><strong>Coupon income</strong></td>
+    <td>Fixed coupon / book value</td>
+    <td>Fixed at purchase; not scenario-driven</td>
+    <td>Unchanged (existing bonds)</td>
+  </tr>
+  <tr>
+    <td><strong>Mark-to-market revaluation</strong></td>
+    <td>\(\Delta P \approx -D_{\text{mod}} \times \Delta r \times P\)</td>
+    <td>rfr_short(t,s) + credit_spread(t,s)</td>
+    <td><strong>Negative</strong> (bond price falls)</td>
+  </tr>
+  <tr>
+    <td><strong>Reinvestment yield</strong></td>
+    <td>New bonds purchased at current rfr + credit spread</td>
+    <td>rfr_short(t,s) + credit_spread(t,s)</td>
+    <td><strong>Positive</strong> (higher coupon on new bonds)</td>
+  </tr>
+  <tr>
+    <td><strong>Total bond return</strong></td>
+    <td>coupon + Δ price + reinvestment yield</td>
+    <td>Net of all three</td>
+    <td>Negative short-term, positive long-term (duration effect)</td>
+  </tr>
+</table>
+</div>
+<p style="font-size:0.93rem;">
+  This is why a <strong>sudden rate rise hurts earned_rate immediately</strong> (mark-to-market loss > coupon gain),
+  but gradually recovers as old bonds mature and are replaced at higher yields.
+  The speed of recovery depends on <strong>asset duration vs liability duration</strong> — the core of ALM.
+</p>
+
+<!-- ── Deep Dive B: 数值算例 ── -->
+<h5>Deep Dive B: Numerical Walkthrough — One Policy, Two Scenarios, 3 Years</h5>
+<p style="font-size:0.93rem;">
+  Assumptions: Sum Assured = HKD 100,000 | Annual Premium = HKD 3,000 | Asset mix: 70% bond / 30% equity |
+  Guaranteed rate = 2% | Base lapse = 5% | β = 2.0 | Smoothing: credited rate = 3-year moving average of earned rate
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th colspan="7" style="text-align:center; background:#1e3a5f;">Scenario A — Low Rate (rfr falls to 1%)</th></tr>
+  <tr><th>Year</th><th>rfr_short</th><th>equity_return</th><th>earned_rate i(t)</th><th>credited_rate</th><th>q_lapse</th><th>AS(t)</th></tr>
+  <tr><td>t=0</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>0</td></tr>
+  <tr><td>t=1</td><td>1.0%</td><td>−5.0%</td><td>0.7×(1.0%−0.5%) + 0.3×(−5.0%) = −1.15%</td><td>2.5% (lagged smooth)</td><td>5%×(1+2×max(1%−2.5%,0)) = 5% (no excess)</td><td>≈ 2,900 − costs ≈ 2,700</td></tr>
+  <tr><td>t=2</td><td>1.0%</td><td>+2.0%</td><td>0.7×0.5% + 0.3×2.0% = 0.95%</td><td>1.6% (moving avg down)</td><td>5%×(1+2×max(1%−1.6%,0)) = 5% (no excess)</td><td>≈ 2,700×1.0095 + 3,000 − costs ≈ 5,626</td></tr>
+  <tr><td>t=3</td><td>1.0%</td><td>+3.0%</td><td>0.7×0.5% + 0.3×3.0% = 1.25%</td><td>1.07% (avg of −1.15%, 0.95%, 1.25%)</td><td>5%×(1+2×max(1%−1.07%,0)) = 5%</td><td>≈ 5,626×1.0125 + 3,000 − costs ≈ 8,696</td></tr>
+  <tr><th colspan="7" style="text-align:right; background:#1a2a3a;">PV(A) = Σ CF(t,A) × exp(−rfr×t) — surrender value close to AS → low lapse cost here, but discount factor large (low rfr) → PV(A) HIGH</th></tr>
+
+  <tr><th colspan="7" style="text-align:center; background:#1e3a5f; margin-top:1rem;">Scenario B — High Rate (rfr rises to 5%)</th></tr>
+  <tr><th>Year</th><th>rfr_short</th><th>equity_return</th><th>earned_rate i(t)</th><th>credited_rate</th><th>q_lapse</th><th>AS(t)</th></tr>
+  <tr><td>t=1</td><td>5.0%</td><td>+8.0%</td><td>0.7×(5%−2%) + 0.3×8% = 0.7×3%+2.4% = 4.5%</td><td>2.5% (lagged)</td><td>5%×(1+2×max(5%−2.5%,0)) = 5%×6 = 30% ← mass lapse!</td><td>Only 70% of policies remain; AS per survivor ≈ similar but fund shrinks</td></tr>
+  <tr><td>t=2</td><td>5.0%</td><td>+6.0%</td><td>4.3%</td><td>3.5% (rising)</td><td>5%×(1+2×max(5%−3.5%,0)) = 20%</td><td>Fund continues shrinking</td></tr>
+  <tr><td>t=3</td><td>5.0%</td><td>+5.0%</td><td>4.5%</td><td>4.2%</td><td>5%×(1+2×max(5%−4.2%,0)) = 13%</td><td>Surviving policyholders have higher AS</td></tr>
+  <tr><th colspan="7" style="text-align:right; background:#1a2a3a;">PV(B) = Σ CF(t,B) × exp(−5%×t) — mass lapse triggers large surrender outflows; discount factor small (high rfr) → PV(B) LOWER but surrender cost large</th></tr>
+</table>
+</div>
+
+<p style="font-size:0.93rem; margin-top:0.5rem;">
+  <strong>Key insight:</strong> In Scenario A, earned_rate turns negative in year 1 — the insurer cannot credit the guaranteed 2%, causing a capital drain.
+  In Scenario B, mass lapse forces the insurer to liquidate assets at market prices (possibly below book) to pay surrender values.
+  The deterministic scenario sits between these two extremes, but the <em>average of the bad outcomes</em> is worse than the midpoint — that gap is TVOG.
+</p>
+
+<!-- ── Deep Dive C: Python 数据流 ── -->
+<h5>Deep Dive C: Python Data Flow — From ESG Array to TVOG</h5>
+<pre class="codeblock">
+import numpy as np
+
+# ── 输入维度 ──
+# esg[variable, scenario, time_step]  shape: (5, N_scen, T)
+# variables: 0=rfr_short, 1=equity_return, 2=credit_spread, 3=fx_rate, 4=disc_factor
+
+N_scen, T = 1000, 40          # 1000 情景，投影 40 年
+
+# ── 资产端：earned_rate ──
+w_bond, w_equity = 0.70, 0.30
+credit_adj = 0.005             # 信用调整（扣除预期违约损失）
+
+# bond_return = rfr + credit_spread - credit_adj + mark-to-market change
+# 简化：假设已经从 ESG 提供 bond total return
+bond_return   = esg[0] + esg[2] - credit_adj   # shape: (N_scen, T)
+equity_return = esg[1]                           # shape: (N_scen, T)
+
+earned_rate = w_bond * bond_return + w_equity * equity_return  # (N_scen, T)
+
+# ── 负债端：Asset Share 递推 ──
+AS = np.zeros((N_scen, T+1))   # AS[s, t]
+P  = 3000                      # 年保费
+
+# 3 年移动平均 smoothing for credited rate
+def smoothed_rate(earned, t, window=3):
+    start = max(0, t - window + 1)
+    return np.mean(earned[:, start:t+1], axis=1)   # shape: (N_scen,)
+
+beta = 2.0
+base_lapse = 0.05
+guaranteed_rate = 0.02
+
+CF = np.zeros((N_scen, T))   # 现金流（负债方向：正 = 流出）
+
+for t in range(T):
+    i_t       = earned_rate[:, t]               # shape: (N_scen,)
+    cred_t    = smoothed_rate(earned_rate, t)   # shape: (N_scen,)
+    rfr_t     = esg[0, :, t]                    # shape: (N_scen,)
+
+    # DPB lapse：市场利率超过 credited rate 时超额退保
+    excess    = np.maximum(rfr_t - cred_t, 0)
+    q_lapse_t = base_lapse * (1 + beta * excess)   # (N_scen,)
+
+    # Asset Share 更新（简化：忽略死亡、费用）
+    AS[:, t+1] = AS[:, t] * (1 + i_t) + P
+
+    # 现金流：退保支出 = lapse率 × AS（或 SV floor，取大）
+    SV_floor  = 0.85 * AS[:, t+1]    # 假设退保价值 ≥ 85% AS
+    surrender_value = np.maximum(AS[:, t+1], SV_floor)
+    CF[:, t]  = q_lapse_t * surrender_value
+
+# ── 折现 ──
+disc = esg[4]   # discount_factor[s, t] = exp(-∫rfr dt)，ESG 直接输出
+PV   = np.sum(CF * disc, axis=1)   # shape: (N_scen,)
+
+# ── TVOG ──
+CE_stochastic    = np.mean(PV)
+CE_deterministic = run_deterministic_model()   # 单一最优情景的 PV
+
+TVOG = CE_stochastic - CE_deterministic
+print(f"TVOG = {TVOG:,.0f} HKD")
+print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
+</pre>
+
 <!-- ─── §9.7.1 Product Structure ─── -->
 <h4>§9.7.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
 
