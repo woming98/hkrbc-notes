@@ -2846,17 +2846,120 @@ ESG Output (per scenario s, per time step t)
 
 <!-- 9步计算路径 -->
 <h5>Per-Scenario Calculation Path (Steps 1–9)</h5>
-<ol style="font-size:0.93rem; line-height:2.1;">
-  <li><strong>ESG provides</strong> {rfr_short, equity_return, credit_spread} paths for scenario s</li>
-  <li><strong>Compute earned rate</strong> \(i(t,s) = w_{\text{bond}}\cdot(r_t^f + cs_t) + w_{\text{eq}}\cdot R_t^{\text{eq}} + \ldots\)</li>
-  <li><strong>Asset Share recursion</strong>: plug \(i(t,s)\) into \(AS_t = AS_{t-1}(1+i_t)+P_t-DB_t-SB_t-E_t-C_t-\text{Tax}_t-\text{PROF}_t\)</li>
-  <li><strong>Credited rate / bonus</strong>: apply smoothing function to \(i(t,s)\); compute Reversionary Bonus and Terminal Bonus from \(AS(t,s)\)</li>
-  <li><strong>DPB lapse</strong>: \(q^{\text{lapse}}(t,s) = q^{\text{base}}\times(1+\beta\cdot\max(r^{\text{mkt}}_t - r^{\text{credited}}_t,\,0))\)</li>
-  <li><strong>Cash flows</strong>: deaths, surrenders (at AS or SV floor), maturities — all path-dependent on AS(t,s)</li>
-  <li><strong>Discount</strong>: \(\mathrm{PV}(s) = \sum_t CF(t,s)\times e^{-\int_0^t r(u,s)\,du}\)</li>
-  <li><strong>Average</strong> across N scenarios: \(\mathrm{CE}_{\text{stochastic}} = \tfrac{1}{N}\sum_s \mathrm{PV}(s)\)</li>
-  <li><strong>TVOG</strong> \(= \mathrm{CE}_{\text{stochastic}} - \mathrm{CE}_{\text{deterministic}}\)</li>
-</ol>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 1 — ESG Input Extraction</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  For scenario <em>s</em>, extract monthly time series from the ESG output array:<br/>
+  <code>rfr_short[s,t]</code>, <code>equity_total_return[s,t]</code>, <code>credit_spread[s,t]</code>, <code>disc_factor[s,t]</code><br/>
+  The disc_factor is pre-computed by the ESG as \(D(t,s) = \exp\!\left(-\sum_{\tau=1}^{t} r(\tau,s)\cdot\Delta\tau\right)\) — no further integration needed.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 2 — Compute Earned Rate i(t,s)</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  The earned rate is the total return on the Par fund's asset portfolio in scenario s:
+  \[
+    i(t,s) = w_{\text{bond}}\cdot\underbrace{\bigl[r^f(t,s) + cs(t,s) - \text{EL} + \Delta P_{\text{MtM}}(t,s)\bigr]}_{\text{bond total return}}
+    + w_{\text{eq}}\cdot R^{\text{eq}}(t,s) + w_{\text{prop}}\cdot R^{\text{prop}}(t,s)
+  \]
+  where EL = expected credit loss (e.g. 30 bps), \(\Delta P_{\text{MtM}}\) = mark-to-market change from rate moves.<br/>
+  <em>Note: existing bonds suffer capital loss when rates rise; new bonds earn higher coupon. The net effect reverses over the portfolio duration.</em>
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 3 — Asset Share Recursion</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Propagate AS year by year, driven by <em>i(t,s)</em> from Step 2:
+  \[
+    AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
+  \]
+  Each deduction is scenario-independent <em>except</em> SB (surrender benefit, which links to AS level) and PROF (management can vary profit transfer under GL34 §9).
+  The AS path is <strong>fully path-dependent</strong> — you cannot skip time steps or vectorise across time.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 4 — Credited Rate &amp; Bonus Declaration</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Apply the smoothing rule to derive the credited rate from the earned rate:
+  \[
+    r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
+  \]
+  Reversionary Bonus (RB) is declared annually based on credited rate minus guaranteed rate minus expense loading.<br/>
+  Terminal Bonus (TB) is set as a function of <em>AS(t,s)</em> — typically: \(\mathrm{TB}(t,s) = \max(AS(t,s) - \mathrm{Sum\,Assured} - \text{Accrued\,RB},\;0)\).<br/>
+  <em>Key GL34 constraint</em>: the smoothing rule must be pre-defined and consistently applied across scenarios — management cannot change it scenario by scenario.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 5 — Dynamic Policyholder Behaviour (DPB) Lapse</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Lapse rate adjusts dynamically to the interest rate gap and TB expectation:
+  \[
+    q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
+    + \beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)
+    + \beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t+1,s)}{TB(t,s)},\;0\right)\right)
+  \]
+  The second term captures TB anticipation: policyholders surrender <em>early</em> if they expect TB to decline next year.<br/>
+  <em>Calibration</em>: β₁ ≈ 1.5–3.0, β₂ ≈ 1.0–2.0, estimated by regressing historical lapse rates against interest rate differentials.
+  Cap lapse at 100%; floor at base lapse / 2 (people do not stop lapsing entirely even when credited rate > market rate).
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 6 — Cash Flow Projection</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Aggregate all outflows and inflows in scenario s, year t:
+</p>
+<div class="tbl-wrap" style="margin-left:0; font-size:0.85rem;">
+<table>
+  <tr><th>Cash Flow Item</th><th>Formula</th><th>Scenario Dependency</th></tr>
+  <tr><td>Death benefit</td><td>q_death × max(Sum Assured, AS(t,s))</td><td>AS(t,s) path</td></tr>
+  <tr><td>Surrender benefit</td><td>q_lapse(t,s) × max(AS(t,s), SV_floor)</td><td>AS(t,s) + DPB lapse</td></tr>
+  <tr><td>Maturity benefit</td><td>At T: AS(T,s) + TB(T,s)</td><td>AS(T,s) path</td></tr>
+  <tr><td>Premium income</td><td>−P × (1 − q_lapse(t,s)) × In-force(t,s)</td><td>DPB lapse reduces in-force</td></tr>
+  <tr><td><strong>Net CF(t,s)</strong></td><td>Death + Surrender + Maturity − Premium</td><td>All path-dependent</td></tr>
+</table>
+</div>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 7 — Discount Cash Flows to t=0</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  \[
+    \mathrm{PV}(s) = \sum_{t=1}^{T} CF(t,s) \times D(t,s)
+    \quad\text{where}\quad D(t,s) = e^{-\sum_{\tau=1}^{t} r^f(\tau,s)\cdot\Delta\tau}
+  \]
+  Discount uses the <em>risk-free</em> rate from the ESG (Sch. 4 RFR), <strong>not</strong> the earned rate — a common mistake.
+  If Matching Adjustment applies, discount rate = RFR + MA; the MA itself may be scenario-dependent (Dynamic MA).
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 8 — Average Across Scenarios (Stochastic CE)</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  \[
+    \mathrm{CE}_{\text{stochastic}} = \frac{1}{N}\sum_{s=1}^{N} \mathrm{PV}(s)
+  \]
+  Typical N = 1,000–5,000 scenarios. Check convergence: plot running mean of PV(s) — if it stabilises by s = 500, N = 1,000 is sufficient.
+  For variance reduction, use antithetic variates: pair each scenario s with its mirror −Z, which halves effective N needed.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 9 — TVOG</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  \[
+    \mathrm{TVOG} = \mathrm{CE}_{\text{stochastic}} - \mathrm{CE}_{\text{deterministic}}
+  \]
+  The deterministic CE uses a single best-estimate path (IA Sch. 4 forward curve as at valuation date, static lapse = base lapse, no DPB).
+  TVOG is <strong>always ≥ 0</strong> by Jensen's inequality. If your model produces negative TVOG, it signals a bug — typically
+  the DPB lapse is moving in the wrong direction, or the discount rate used in deterministic ≠ stochastic runs.
+</p>
+</div>
 
 <!-- 直觉例子 -->
 <h5>Intuition: Why Low-Rate Scenarios Dominate TVOG</h5>
