@@ -2938,8 +2938,106 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 5 — Asset Share Recursion</strong></p>
+
+<!-- AS(0) 初始值 -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.4rem 0 0.2rem 0;"><strong>5.0 — Setting AS(0): Initial Value at Valuation Date</strong></p>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  For new policies: \(AS(0) = 0\). For in-force policies (the main HKRBC case), AS(0) must be derived from the Par Fund Net Assets (PFNA) and allocated to each policy / model point.
+</p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>What is Par Fund Net Assets (PFNA)?</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  The Par fund is a ring-fenced pool. PFNA is what remains after deducting external (non-policyholder) liabilities from total investment assets:
+  \[ \text{PFNA} = \text{Total Investment Assets (MtM)} - \text{External Liabilities} \]
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Asset Side (MtM under EBS)</th><th>Typical Weight</th><th>External Liabilities (deducted)</th></tr>
+  <tr><td>Government &amp; investment-grade bonds</td><td>50–70%</td><td>Tax payable (16.5% on investment income)</td></tr>
+  <tr><td>Equities</td><td>10–25%</td><td>Outstanding claims / reinsurance payables</td></tr>
+  <tr><td>Property (appraised value)</td><td>5–15%</td><td>Unpaid commissions &amp; expenses</td></tr>
+  <tr><td>Cash &amp; equivalents</td><td>5–10%</td><td>Other creditors</td></tr>
+  <tr><td colspan="3" style="color:#aaa; font-size:0.82rem;"><em>Note: Policy liabilities / AS are NOT deducted — AS is what PFNA is being allocated into</em></td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Three Methods to Estimate Per-Policy AS(0)</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Method</th><th>Formula</th><th>Accuracy</th><th>GL34</th></tr>
+  <tr>
+    <td><strong>1. Historical Roll-forward</strong></td>
+    <td>Roll each policy from inception using actual historical i, E, claims, PROF</td>
+    <td>Highest</td>
+    <td>Required for audit purposes</td>
+  </tr>
+  <tr>
+    <td><strong>2. Policy Value Proxy</strong></td>
+    <td>\(AS_i(0)^{\text{raw}} = \text{PFNA}\times V_i / \sum_j V_j\) where \(V_i\) = policy reserve</td>
+    <td>Medium</td>
+    <td>Acceptable as starting point</td>
+  </tr>
+  <tr>
+    <td><strong>3. Sum Assured × Duration Weight</strong></td>
+    <td>Coarse proxy; weighted by SA × policy age factor</td>
+    <td>Low</td>
+    <td>Quick estimate only</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Workflow: Model Point Aggregation + Fund-Level Scaling</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  Since Prophet projects at model point level (not individual policy), the per-policy AS(0) must be:
+  (a) averaged within each model point group, then (b) scaled to reconcile with PFNA:
+</p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
+# 1. Group policies into model points (by product / age band / sum assured band)
+#    Each model point j has: AS_j_raw (weighted avg of policy AS_i), in_force_count_j
+
+# 2. Portfolio-level sum before scaling
+AS_portfolio = sum(AS_j_raw * in_force_count_j  for j in model_points)
+
+# 3. Scaling factor (should be close to 1.0; GL34 flag if |α-1| > 5%)
+alpha = PFNA / AS_portfolio
+
+# 4. Final AS(0) per model point — feed into Prophet input file
+AS_j_final = AS_j_raw * alpha   # apply same α to all model points
+                                  # (or different α per product line if gap is concentrated)
+</pre>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Model Point</th><th>AS(0) raw</th><th>In-force count</th><th>Sub-total</th><th>AS(0) after α=1.044</th></tr>
+  <tr><td>MP-01 (30yr Endow, Age 35–44)</td><td>50,000</td><td>80,000</td><td>4,000M</td><td>52,200</td></tr>
+  <tr><td>MP-02 (WL Par, Age 45–54)</td><td>35,000</td><td>120,000</td><td>4,200M</td><td>36,540</td></tr>
+  <tr><td>MP-03 (WL Par, Age 55–64)</td><td>30,000</td><td>80,000</td><td>2,400M</td><td>31,320</td></tr>
+  <tr><td>… other MPs …</td><td>—</td><td>—</td><td>−350M</td><td>—</td></tr>
+  <tr><td><strong>Total</strong></td><td></td><td></td><td><strong>10,200M</strong></td><td></td></tr>
+  <tr><td colspan="5" style="color:#aaa;">PFNA = 10,650M → α = 10,650 / 10,200 = <strong>1.044</strong></td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Is α ≠ 1? Common Sources of Gap</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>Source</th><th>Explanation</th></tr>
+  <tr><td>Incomplete historical PROF records</td><td>Early-vintage policies may have missing profit transfer data in admin system</td></tr>
+  <tr><td>Model point aggregation smoothing</td><td>Averaging within groups loses within-group AS dispersion</td></tr>
+  <tr><td>Unallocated surplus</td><td>Fund may hold surplus not yet declared as bonus to any policy</td></tr>
+  <tr><td>MtM vs book value mismatch</td><td>PFNA uses MtM assets; historical roll-forward may use book-value earned rates</td></tr>
+</table>
+</div>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+  GL34 §4 requires α to be documented at each valuation date. If |α − 1| &gt; 5%, a written explanation is required. PFNA itself is scenario-independent in practice — companies use the actual valuation-date PFNA for all ESG scenarios rather than re-computing MtM PFNA per scenario.
+</p>
+
+<!-- AS recursion 正文 -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>5.1 — The Recursion (t = 1, 2, …, T)</strong></p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
-  Propagate AS year by year, driven by <em>i(t,s)</em> from Step 2:
+  With AS(0) set above, propagate forward year by year:
   \[
     AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
   \]
