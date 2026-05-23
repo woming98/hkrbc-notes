@@ -2909,7 +2909,35 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 3 — Asset Share Recursion</strong></p>
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 3 — Credited Rate &amp; Bonus Declaration</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Apply the smoothing rule to derive the credited rate from the earned rate:
+  \[
+    r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
+  \]
+  Reversionary Bonus (RB) is declared annually based on credited rate minus guaranteed rate minus expense loading.<br/>
+  Terminal Bonus (TB) is set as a function of <em>AS(t,s)</em> — typically: \(\mathrm{TB}(t,s) = \max(AS(t,s) - \mathrm{Sum\,Assured} - \text{Accrued\,RB},\;0)\).<br/>
+  <em>Key GL34 constraint</em>: the smoothing rule must be pre-defined and consistently applied across scenarios — management cannot change it scenario by scenario.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 4 — Dynamic Policyholder Behaviour (DPB) Lapse</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Lapse rate adjusts dynamically to the interest rate gap and TB expectation:
+  \[
+    q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
+    + \beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)
+    + \beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t+1,s)}{TB(t,s)},\;0\right)\right)
+  \]
+  The second term captures TB anticipation: policyholders surrender <em>early</em> if they expect TB to decline next year.<br/>
+  <em>Calibration</em>: β₁ ≈ 1.5–3.0, β₂ ≈ 1.0–2.0, estimated by regressing historical lapse rates against interest rate differentials.
+  Cap lapse at 100%; floor at base lapse / 2 (people do not stop lapsing entirely even when credited rate > market rate).
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 5 — Asset Share Recursion</strong></p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
   Propagate AS year by year, driven by <em>i(t,s)</em> from Step 2:
   \[
@@ -2999,27 +3027,12 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 </p>
 
 <p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.3rem 0;">
-  <strong>Important: Step Numbering ≠ Execution Order</strong>
+  <strong>Why AS Recursion Comes After DPB Lapse (Steps 3–4) in Execution Order</strong>
 </p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
-  Step 3 (AS) appears before Step 5 (DPB lapse) in this document, but the <em>actual within-year execution order</em> is the reverse —
-  AS(t,s) cannot be computed until q_lapse(t,s) is known, because SB_t depends on it.
-  The correct execution sequence within each year t is:
-</p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
-<table>
-  <tr><th>Exec Order</th><th>Doc Step</th><th>Computes</th><th>Requires</th></tr>
-  <tr><td>①</td><td>Step 2</td><td>i(t,s) earned rate</td><td>ESG outputs</td></tr>
-  <tr><td>②</td><td>Step 4</td><td>credited_rate(t,s) = smooth(i)</td><td>① i(t,s)</td></tr>
-  <tr><td>③</td><td>Step 5</td><td>q_lapse(t,s) = f(rfr, credited_rate)</td><td>① rfr_short &nbsp; ② credited_rate</td></tr>
-  <tr><td>④</td><td><strong>Step 3</strong></td><td><strong>AS(t,s)</strong> — now computable in one pass</td><td>① i(t,s) &nbsp; ③ q_lapse(t,s) — both known, no true circularity</td></tr>
-  <tr><td>⑤</td><td>Step 6</td><td>CF(t,s) cash flows</td><td>③ q_lapse &nbsp; ④ AS(t,s)</td></tr>
-  <tr><td>⑥</td><td>Step 7</td><td>PV(s) discounted</td><td>⑤ CF &nbsp; ESG disc_factor</td></tr>
-</table>
-</div>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
-  The remaining question is: once q_lapse(t,s) is known, which AS value should the surrender payment be based on?
-  That is where the three methods below differ:
+  AS(t,s) requires q_lapse(t,s) to compute SB_t. Since q_lapse is now computed in Step 4 (before this step),
+  AS(t,s) can be calculated in a single pass with no circularity.
+  The remaining question is which AS value the surrender payment SB should be based on — that is where the three methods below differ:
 </p>
 
 <!-- 方法一 -->
@@ -3100,34 +3113,6 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
   <tr><td><strong>3 — Closed Form</strong></td><td>AS(t) exact</td><td>Highest</td><td>No</td><td>✅ When SV = AS</td></tr>
 </table>
 </div>
-</div>
-
-<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 4 — Credited Rate &amp; Bonus Declaration</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
-  Apply the smoothing rule to derive the credited rate from the earned rate:
-  \[
-    r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
-  \]
-  Reversionary Bonus (RB) is declared annually based on credited rate minus guaranteed rate minus expense loading.<br/>
-  Terminal Bonus (TB) is set as a function of <em>AS(t,s)</em> — typically: \(\mathrm{TB}(t,s) = \max(AS(t,s) - \mathrm{Sum\,Assured} - \text{Accrued\,RB},\;0)\).<br/>
-  <em>Key GL34 constraint</em>: the smoothing rule must be pre-defined and consistently applied across scenarios — management cannot change it scenario by scenario.
-</p>
-</div>
-
-<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 5 — Dynamic Policyholder Behaviour (DPB) Lapse</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
-  Lapse rate adjusts dynamically to the interest rate gap and TB expectation:
-  \[
-    q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
-    + \beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)
-    + \beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t+1,s)}{TB(t,s)},\;0\right)\right)
-  \]
-  The second term captures TB anticipation: policyholders surrender <em>early</em> if they expect TB to decline next year.<br/>
-  <em>Calibration</em>: β₁ ≈ 1.5–3.0, β₂ ≈ 1.0–2.0, estimated by regressing historical lapse rates against interest rate differentials.
-  Cap lapse at 100%; floor at base lapse / 2 (people do not stop lapsing entirely even when credited rate > market rate).
-</p>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
