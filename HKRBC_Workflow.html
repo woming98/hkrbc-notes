@@ -3128,9 +3128,69 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 </p>
 
 <!-- AS recursion 正文 -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>5.1 — The Recursion (t = 1, 2, …, T)</strong></p>
+<!-- ── 两种 AS 架构 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.2rem 0;"><strong>5.1 — Two AS Rollforward Architectures</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  In practice two distinct AS architectures exist, serving different purposes:
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
+  <tr><td><strong>Recursion</strong></td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
+  <tr><td><strong>DIV_t</strong></td>
+      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
+      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
+  <tr><td><strong>Surrender Value</strong></td>
+      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
+      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
+  <tr><td><strong>AS meaning</strong></td>
+      <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
+      <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
+  <tr><td><strong>Primary use</strong></td>
+      <td>HKRBC TVOG stochastic projection</td>
+      <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
+  <tr><td><strong>TVOG suitability</strong></td>
+      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
+      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
+  CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
+  The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>SV Treatment</th><th>TVOG Result</th><th>Correct?</th></tr>
+  <tr><td>Static CSV table (scenario-independent)</td><td>≈ 0 — all scenarios pay same SV</td><td>❌</td></tr>
+  <tr><td>Dynamic: max(AS(t,s), GSV_floor)</td><td>Reflects option value — higher in stressed scenarios</td><td>✅</td></tr>
+  <tr><td>Architecture B with scenario-dependent DIV + SV</td><td>Equivalent to Architecture A if consistently applied</td><td>✅</td></tr>
+</table>
+</div>
+
+<!-- ── 术语说明 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Symbol</th><th>Full Name</th><th>Meaning in Par Context</th></tr>
+  <tr><td><strong>SA</strong></td><td>Sum Assured（保額）</td><td>The guaranteed death benefit written in the policy contract — the minimum floor for death benefit regardless of AS level. If AS &lt; SA (extreme low-rate scenario), insurer tops up from smoothing reserve or capital. TB = max(AS − SA − Accrued RB, 0): SA is the "already-promised" base that TB sits on top of.</td></tr>
+  <tr><td><strong>RB</strong></td><td>Reversionary Bonus（可逆紅利）</td><td>Annual bonus permanently added to guaranteed benefit; once declared cannot be taken back. Accrued RB = Σ of all past RB declarations.</td></tr>
+  <tr><td><strong>TB</strong></td><td>Terminal Bonus（終止紅利）</td><td>Non-guaranteed top-up paid at surrender/death/maturity; set to bridge the gap between SA + Accrued RB and AS. Volatile across scenarios.</td></tr>
+  <tr><td><strong>DIV</strong></td><td>Dividend / Cash Bonus（現金紅利）</td><td>Architecture B only: annual cash payment to policyholders, separate from the guaranteed benefit accumulation. Must be scenario-dependent for TVOG.</td></tr>
+  <tr><td><strong>GSV</strong></td><td>Guaranteed Surrender Value（保證退保價值）</td><td>Contractually guaranteed minimum SV written in policy schedule. SV = max(AS, GSV). GSV is usually &lt; AS in normal scenarios.</td></tr>
+</table>
+</div>
+
+<!-- ── 5.2 正文 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>5.2 — The Recursion (t = 1, 2, …, T)</strong></p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
-  With AS(0) set above, propagate forward year by year:
+  With AS(0) set above, propagate forward year by year (Architecture A shown):
   \[
     AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
   \]
