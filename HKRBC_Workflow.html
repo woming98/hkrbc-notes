@@ -1991,9 +1991,26 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 <h5>Approach A: Calibrate to Swaption Vol Surface (proper way)</h5>
 
 <div class="formula">
-  Minimise Σ<sub>k</sub> ( IV<sub>model</sub>(K<sub>k</sub>, T<sub>k</sub>; a, σ) − IV<sub>market</sub>(K<sub>k</sub>, T<sub>k</sub>) )<sup>2</sup>
-  <br/>
-  where IV = swaption implied volatility (Bachelier normal or Black-76 lognormal)
+  <div style="font-size:1.05rem; margin-bottom:0.6rem;">
+    <span style="font-style:italic;">minimise</span>
+    &nbsp;
+    <span style="font-size:1.2rem;">∑</span><sub style="font-size:0.75rem;">k</sub>
+    &nbsp;
+    <span style="font-size:1.1rem;">[</span>
+    &nbsp;IV<sub>model</sub>(K<sub>k</sub>, T<sub>k</sub> ; &thinsp;<em>a</em>, &thinsp;<em>σ</em>)
+    &nbsp;&minus;&nbsp;
+    IV<sub>market</sub>(K<sub>k</sub>, T<sub>k</sub>)
+    &nbsp;<span style="font-size:1.1rem;">]</span><sup>2</sup>
+  </div>
+  <div style="border-top:1px solid #555; padding-top:0.5rem; font-size:0.88rem; color:#ccc;">
+    <strong>IV</strong> = swaption implied volatility &nbsp;|&nbsp;
+    <strong>K<sub>k</sub></strong> = strike &nbsp;|&nbsp;
+    <strong>T<sub>k</sub></strong> = expiry &nbsp;|&nbsp;
+    <strong><em>a</em></strong> = mean reversion speed &nbsp;|&nbsp;
+    <strong><em>σ</em></strong> = short rate vol
+    <br/>
+    Convention: Bachelier (normal) vol preferred for near-zero / negative rate environments; Black-76 (lognormal) for positive rate regimes
+  </div>
 </div>
 
 <p style="font-size:0.93rem;">
