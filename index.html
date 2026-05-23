@@ -190,6 +190,7 @@ MathJax = {
   <a href="#alm-model-ma">§9.3 MA Engine 匹配調整引擎</a>
   <a href="#alm-model-pcr">§9.4 Stress &amp; PCR Engine 壓力測試</a>
   <a href="#alm-model-esg">§9.5 ESG 經濟情景模擬器</a>
+  <a href="#alm-model-tvog">§9.6 TVOG Deep-Dive 深度計算</a>
 
   <div class="nav-section">Appendix</div>
   <a href="#appendix-esg">A. ESG Minimum Requirements</a>
@@ -1675,11 +1676,399 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
   <ul style="margin:0; font-size:0.95rem;">
-    <li><strong>TVOG (Rule 19):</strong> Mandatory for contracts with contractual options or financial guarantees (e.g. minimum crediting rate, surrender guarantees). TVOG = stochastic CE − deterministic CE.</li>
+    <li><strong>TVOG (Rule 19):</strong> Mandatory for contracts with contractual options or financial guarantees (e.g. minimum crediting rate, surrender guarantees). TVOG = stochastic CE − deterministic CE. See §9.6 for full calculation.</li>
     <li><strong>Par fund dividend modelling:</strong> Crediting rate is path-dependent on investment return; needs stochastic scenarios.</li>
     <li><strong>Universal Life:</strong> Account value crediting linked to dynamic investment return.</li>
     <li><strong>Not used for PCR:</strong> HKRBC uses deterministic stresses for PCR (unlike Solvency II internal models). ESG is only for valuation of options &amp; guarantees within the EBS.</li>
   </ul>
+</div>
+
+<!-- ─── §9.6 TVOG Deep-Dive ─── -->
+<h3 id="alm-model-tvog">§9.6 TVOG Calculation Deep-Dive 時間價值深度計算</h3>
+
+<p>
+  TVOG (<strong>Time Value of Options and Guarantees</strong>, 選擇權與保證的時間價值) is one of the most technically demanding calculations under HKRBC.
+  Cap. 41R does not use the "TVOG" abbreviation directly — the official term is <em>"valuation of contractual options and financial guarantees"</em>
+  per Rule 19. The standard valuation methodology is the stochastic−deterministic difference approach.
+</p>
+
+<h4>§9.6.1 Core Definition &amp; Mathematical Foundation 核心定義與數學基礎</h4>
+
+<div class="formula">
+  TVOG = CE<sub>stochastic</sub> − CE<sub>deterministic</sub>
+  <br/>
+  <span style="font-size:0.85em; color:#6b7280;">where CE = current estimate (現時估計值) per Rule 16</span>
+</div>
+
+<ul>
+  <li><strong>Deterministic CE (確定式現時估計值):</strong> PV of cash flows under a single best-estimate path — the "expected" scenario.</li>
+  <li><strong>Stochastic CE (隨機式現時估計值):</strong> Arithmetic mean of PV of cash flows across N ≥ 1,000 risk-neutral economic scenarios.</li>
+</ul>
+
+<h4>Why TVOG ≠ 0 — Jensen's Inequality</h4>
+
+<p>The root cause of non-zero TVOG is <strong>asymmetric payoff</strong> from policyholder options and insurer guarantees. By Jensen's inequality, for a convex payoff function f(X):</p>
+
+<div class="formula">
+  E[f(X)] ≠ f(E[X])
+  <br/>
+  Deterministic CE = f(E[X]); &nbsp; Stochastic CE = E[f(X)]
+  <br/>
+  → TVOG = E[f(X)] − f(E[X]) ≥ 0 &nbsp;(typically positive — a cost to the insurer)
+</div>
+
+<h4>Intuitive Example: Universal Life with 2% Minimum Crediting Rate</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Investment Return Scenario</th><th>Actual Crediting Rate</th><th>Insurer Cost from Guarantee</th></tr>
+  <tr><td>+5% (good scenario)</td><td>5% (no floor triggered)</td><td>0 (guarantee out-of-the-money)</td></tr>
+  <tr><td>+1% (moderate adverse)</td><td><strong>2% (floor triggered)</strong></td><td>+1% (insurer absorbs 1%)</td></tr>
+  <tr><td>−2% (severe adverse)</td><td><strong>2%</strong></td><td>+4% (insurer absorbs 4%)</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.95rem;">
+  Under <em>deterministic</em> best-estimate (e.g. 4%), the guarantee never triggers → cost = 0.
+  Under <em>stochastic</em> with say 30% of scenarios having return &lt; 2%, the average guarantee cost is significantly positive.
+  This difference is TVOG.
+</p>
+
+<!-- ────── §9.6.2 7-Step Process ────── -->
+<h4>§9.6.2 End-to-End TVOG Calculation Process 端到端計算流程 (7 Steps)</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:8%">Step</th><th>Action</th><th>Key Considerations</th></tr>
+  <tr>
+    <td><strong>1</strong></td>
+    <td><strong>Identify all options &amp; guarantees</strong> in the contract</td>
+    <td>
+      <ul style="margin:0;">
+        <li>Financial guarantees: minimum crediting rate, GMxB family (GMAB/GMDB/GMIB/GMWB)</li>
+        <li>Contractual options: surrender, partial withdrawal, premium holiday, conversion</li>
+        <li>Embedded: par fund dividend smoothing, UL crediting rate floor</li>
+      </ul>
+    </td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td><strong>Prepare ESG scenarios</strong> (from §9.5)</td>
+    <td>
+      ≥1,000 risk-neutral scenarios; each scenario must pass martingale &amp; PV tests.
+      For HKRBC: risk-free curves per Sch. 4; cross-asset correlations per ESG calibration.
+    </td>
+  </tr>
+  <tr>
+    <td><strong>3</strong></td>
+    <td><strong>Re-project cash flows in every scenario</strong></td>
+    <td>
+      For each scenario s = 1, ..., N and each year t = 1, ..., T:<br/>
+      • Apply scenario-specific investment returns<br/>
+      • Trigger Dynamic Management Actions (crediting rate, dividend)<br/>
+      • Apply Dynamic Policyholder Behaviour (lapse depends on rate gap)<br/>
+      • Compute all CF: premium / claim / surrender / expense / commission<br/>
+      • Discount using scenario s's risk-free path
+    </td>
+  </tr>
+  <tr>
+    <td><strong>4</strong></td>
+    <td><strong>Compute Stochastic CE</strong></td>
+    <td>
+      $$CE_{stochastic} = \frac{1}{N} \sum_{s=1}^{N} PV_s$$
+      Standard error: SE = std(PV<sub>s</sub>) / √N
+    </td>
+  </tr>
+  <tr>
+    <td><strong>5</strong></td>
+    <td><strong>Compute Deterministic CE</strong></td>
+    <td>
+      Use the <em>mean path</em> of the ESG (i.e. the expected curve at each timepoint), NOT a separately-chosen "best estimate" scenario.
+      This ensures comparability with stochastic CE — the only difference becomes Jensen's inequality.
+    </td>
+  </tr>
+  <tr>
+    <td><strong>6</strong></td>
+    <td><strong>TVOG = Stochastic CE − Deterministic CE</strong></td>
+    <td>
+      For products with downside guarantees (most life products): TVOG &gt; 0<br/>
+      For products with no asymmetric features: TVOG ≈ 0 (just MC noise)
+    </td>
+  </tr>
+  <tr>
+    <td><strong>7</strong></td>
+    <td><strong>Validate</strong></td>
+    <td>
+      Martingale test on ESG: E[A<sub>T</sub>/B<sub>T</sub>] = A<sub>0</sub>; convergence test (run with N, 2N, check stability);
+      sensitivity test (small parameter change → small TVOG change)
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- ────── §9.6.3 Product-Specific Treatment ────── -->
+<h4>§9.6.3 Product-Specific TVOG Treatment 不同產品的TVOG特點</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Product Type</th><th>Key Guarantees / Options</th><th>TVOG Modelling Challenges</th><th>Typical TVOG Magnitude</th></tr>
+  <tr>
+    <td><strong>Participating (Par) 分紅</strong></td>
+    <td>Reversionary Bonus, Terminal Bonus, smoothed dividend, surrender benefits</td>
+    <td>
+      • Smoothing mechanism (5-10 yr moving average)<br/>
+      • Cap and floor on bonus rates<br/>
+      • Management actions documented under GL34<br/>
+      • Two-tier benefit (RB cumulative + TB one-off)
+    </td>
+    <td>Medium-Large (1-3% of CE)</td>
+  </tr>
+  <tr>
+    <td><strong>Universal Life (UL) 萬用壽險</strong></td>
+    <td>Minimum crediting rate floor, no-lapse guarantee, maturity guarantee</td>
+    <td>
+      • Crediting rate path-dependent on declared rates<br/>
+      • Account value rollup with policy charges<br/>
+      • Surrender penalty schedule
+    </td>
+    <td>Medium (0.5-2% of CE)</td>
+  </tr>
+  <tr>
+    <td><strong>Variable Annuity (VA) — GMxB 變額年金</strong></td>
+    <td>
+      GMAB (accumulation), GMDB (death), GMIB (income), GMWB (withdrawal)
+    </td>
+    <td>
+      • Path-dependent (ratchet, lookback, high-water-mark)<br/>
+      • American-style early exercise<br/>
+      • Dynamic hedging cost simulation<br/>
+      • Longstaff-Schwartz or nested MC required
+    </td>
+    <td>Large (3-10% of CE)</td>
+  </tr>
+  <tr>
+    <td><strong>Investment-Linked (ILP) 投資相連</strong></td>
+    <td>Usually none (unit-linked, NAV-based)</td>
+    <td>
+      • TVOG ≈ 0 unless maturity / surrender guarantee added<br/>
+      • Stochastic run still needed if any guarantee exists
+    </td>
+    <td>Near zero</td>
+  </tr>
+  <tr>
+    <td><strong>Term / Whole Life (Non-Par)</strong></td>
+    <td>Surrender option (if cash value), lapse</td>
+    <td>
+      • Mainly DPB-driven<br/>
+      • Modest TVOG from surrender option
+    </td>
+    <td>Small (0-0.5% of CE)</td>
+  </tr>
+</table>
+</div>
+
+<!-- ────── §9.6.4 Key Implementation Techniques ────── -->
+<h4>§9.6.4 Key Implementation Techniques 關鍵實作技術</h4>
+
+<h5>(a) Scenario Count &amp; Convergence 情景數與收斂</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Scenarios N</th><th>Typical SE</th><th>Use Case</th></tr>
+  <tr><td>1,000</td><td>±2-3%</td><td>IA minimum requirement; small portfolios</td></tr>
+  <tr><td>5,000</td><td>±1%</td><td>Mid-size insurer; standard production</td></tr>
+  <tr><td>10,000-50,000</td><td>±0.3-0.5%</td><td>Large insurer; complex VA portfolios</td></tr>
+</table>
+</div>
+
+<h5>(b) Variance Reduction 變異數縮減</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Technique</th><th>Variance Reduction</th><th>Implementation</th></tr>
+  <tr>
+    <td><strong>Antithetic Variates</strong></td>
+    <td>~50%</td>
+    <td>For each scenario s, also generate the "mirror" scenario with negated Brownian increments</td>
+  </tr>
+  <tr>
+    <td><strong>Control Variates</strong></td>
+    <td>70-90%</td>
+    <td>Use a closed-form proxy (e.g. Black-Scholes) as control; subtract its known bias</td>
+  </tr>
+  <tr>
+    <td><strong>Sobol Quasi-MC</strong></td>
+    <td>Convergence √N → N</td>
+    <td><code>scipy.stats.qmc.Sobol</code> — drop-in replacement for pseudo-random</td>
+  </tr>
+  <tr>
+    <td><strong>Importance Sampling</strong></td>
+    <td>Targeted (tail focus)</td>
+    <td>Difficult; useful for deep-out-of-the-money guarantees</td>
+  </tr>
+</table>
+</div>
+
+<h5>(c) Dynamic Management Actions 動態管理行動</h5>
+
+<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>def crediting_rate_decision(scenario_t, last_smoothed):
+    """Decide credited rate in scenario_t under Par fund management policy.
+       Must be consistent with board-approved policy (GL34 §6).
+    """
+    portfolio_return = scenario_t.investment_return
+    smoothed_return = 0.3 * portfolio_return + 0.7 * last_smoothed
+    
+    if portfolio_return &lt; 0:
+        crediting = max(GUARANTEED_FLOOR, smoothed_return - MGT_BUFFER)
+    else:
+        crediting = max(GUARANTEED_FLOOR, smoothed_return)
+    
+    return min(CREDITING_CAP, crediting)</code></pre>
+
+<h5>(d) Dynamic Policyholder Behaviour 動態保戶行為</h5>
+
+<div class="formula">
+  lapse<sub>t</sub> = base_lapse × ( 1 + β × max(market_rate<sub>t</sub> − credited_rate<sub>t</sub>, 0) )
+  <br/>
+  <span style="font-size:0.85em; color:#6b7280;">β = elasticity (typically 1.5-3.0), calibrated from historical lapse experience</span>
+</div>
+
+<h5>(e) Path-Dependent Calculation (Lookback / Ratchet)</h5>
+
+<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>high_water_mark = initial_av
+for t in range(1, T+1):
+    av_t = av_prev * (1 + investment_return_t) - policy_charges_t
+    high_water_mark = max(high_water_mark, av_t)
+    if t == maturity:
+        gmab_claim = max(0, high_water_mark - av_t)  # Lookback GMAB
+    av_prev = av_t</code></pre>
+
+<!-- ────── §9.6.5 Simplified Methods ────── -->
+<h4>§9.6.5 Simplified Approximation Methods 簡化方法</h4>
+
+<p>Full stochastic TVOG calculation is slow (hours per portfolio). For internal monitoring or quick estimates, closed-form approximations are widely used.</p>
+
+<h5>(a) Black-Scholes Approximation</h5>
+
+<p>For simple minimum return guarantees, TVOG ≈ value of European put option:</p>
+
+<div class="formula">
+  TVOG<sub>BS</sub> ≈ Σ<sub>t</sub> Notional<sub>t</sub> × P<sub>BS</sub>(K = Floor<sub>t</sub>, T = t, σ, r)
+  <br/>
+  where P<sub>BS</sub> is Black-Scholes put price
+</div>
+
+<h5>(b) Replicating Portfolio</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Guarantee Type</th><th>Replicating Instrument</th></tr>
+  <tr><td>Minimum return guarantee</td><td>European put on portfolio value</td></tr>
+  <tr><td>Cliquet (annual ratchet)</td><td>Series of forward-start puts</td></tr>
+  <tr><td>GMAB (accumulation)</td><td>European put at maturity</td></tr>
+  <tr><td>GMDB (rollup at fixed rate)</td><td>Compound put option</td></tr>
+  <tr><td>GMWB (withdrawal)</td><td>Asian put or basket of puts (complex)</td></tr>
+</table>
+</div>
+
+<h5>(c) When to Use Which Method</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Use Case</th><th>Recommended Method</th></tr>
+  <tr><td>Monthly ALM monitoring</td><td>Closed-form / replicating portfolio (speed)</td></tr>
+  <tr><td>Quarterly / annual HKRBC reporting</td><td>Full ESG stochastic (compliance)</td></tr>
+  <tr><td>New product pricing</td><td>Full stochastic + sensitivity / Greeks</td></tr>
+  <tr><td>ORSA multi-year projection</td><td>Closed-form (speed prioritised over precision)</td></tr>
+  <tr><td>VA hedging programme</td><td>Full stochastic + nested MC for hedge cost</td></tr>
+</table>
+</div>
+
+<!-- ────── §9.6.6 Common Pitfalls ────── -->
+<h4>§9.6.6 Common Pitfalls 常見建模陷阱</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Pitfall 陷阱</th><th>Consequence 後果</th><th>Solution 解決方法</th></tr>
+  <tr>
+    <td>Insufficient scenarios (e.g. N=500)</td>
+    <td>Noisy TVOG; result unstable across runs</td>
+    <td>Use ≥ 1,000 minimum; combine antithetic + Sobol</td>
+  </tr>
+  <tr>
+    <td>Risk-neutral calibration drift</td>
+    <td>Martingale test fails; TVOG biased</td>
+    <td>Re-calibrate ESG at each valuation date; validate all 5 tests</td>
+  </tr>
+  <tr>
+    <td>Wrong deterministic scenario choice</td>
+    <td>TVOG includes non-Jensen bias</td>
+    <td>Use ESG mean path, NOT a separate "best estimate" set</td>
+  </tr>
+  <tr>
+    <td>Overly aggressive DMA assumptions</td>
+    <td>IA challenges management action credibility</td>
+    <td>Document in board policy; back-test against historical practice (GL34 §6)</td>
+  </tr>
+  <tr>
+    <td>Path-dependent guarantee with plain MC</td>
+    <td>Significant under-estimation of TVOG</td>
+    <td>Longstaff-Schwartz for American options; nested MC for VA hedging</td>
+  </tr>
+  <tr>
+    <td>Multi-currency portfolio missing FX correlation</td>
+    <td>TVOG mis-stated</td>
+    <td>ESG must include correlated FX with IR and equity</td>
+  </tr>
+  <tr>
+    <td>Using real-world ESG instead of risk-neutral</td>
+    <td>TVOG not market-consistent → fails Rule 19(2)</td>
+    <td>Always use risk-neutral ESG for TVOG; real-world for ORSA only</td>
+  </tr>
+  <tr>
+    <td>Ignoring policyholder behaviour endogeneity</td>
+    <td>Lapse-driven guarantee cost mis-stated</td>
+    <td>Apply DPB rule consistently in every scenario</td>
+  </tr>
+</table>
+</div>
+
+<!-- ────── §9.6.7 TVOG in HKRBC EBS ────── -->
+<h4>§9.6.7 TVOG's Position in the HKRBC EBS 在經濟資產負債表中的位置</h4>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  EBS 經濟資產負債表 (Cap. 41R Part 2 &amp; Part 4)
+  ├── Assets (Market Value, Rule 34)
+  └── Insurance Liabilities (Rule 15)
+      ├── Current Estimate (Rule 16)
+      │   ├─ Deterministic CE (mean-path discounted cash flows)
+      │   └─ + TVOG (Rule 19) ← Mandatory add-on for contracts with options/guarantees
+      └── MOCE (Rule 25, "margin over current estimate")
+  </pre>
+</div>
+
+<p style="font-size:0.95rem;"><strong>Capital impact chain:</strong></p>
+
+<ul style="font-size:0.95rem;">
+  <li>Higher TVOG → higher CE → lower NAV → lower Capital Base</li>
+  <li>Under interest rate down stress: guarantees more likely to trigger → TVOG rises → contributes to IR Down PCR (Rule 47)</li>
+  <li>Under equity stress: VA GMxB TVOG can spike sharply → significant Equity PCR contribution (Rule 49)</li>
+  <li>TVOG is NOT recalculated in every PCR stress separately — it is part of CE under each stressed valuation</li>
+</ul>
+
+<h4>§9.6.8 Practical Production Setup 實務生產配置</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Aspect</th><th>Typical Setup</th></tr>
+  <tr><td>Scenario Engine</td><td>Moody's B&amp;H / Conning GEMS / WTW STAR / self-built Python</td></tr>
+  <tr><td>CF Projection Model</td><td>Prophet ALS (stochastic mode) / AXIS / RiskAgility</td></tr>
+  <tr><td>Run Time</td><td>1,000-5,000 scenarios × 100 yrs × 500K policies ≈ 12-36 hours on grid (50-100 nodes)</td></tr>
+  <tr><td>Frequency</td><td>Quarterly (HKRBC reporting); annually (ORSA)</td></tr>
+  <tr><td>Validation</td><td>5-test ESG validation + product-level convergence test + sensitivity analysis</td></tr>
+  <tr><td>Sign-off</td><td>Chief Actuary + Investment Officer (joint for Par fund / VA)</td></tr>
+</table>
 </div>
 
 <hr />
