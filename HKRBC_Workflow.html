@@ -2864,8 +2864,47 @@ ESG Output (per scenario s, per time step t)
     i(t,s) = w_{\text{bond}}\cdot\underbrace{\bigl[r^f(t,s) + cs(t,s) - \text{EL} + \Delta P_{\text{MtM}}(t,s)\bigr]}_{\text{bond total return}}
     + w_{\text{eq}}\cdot R^{\text{eq}}(t,s) + w_{\text{prop}}\cdot R^{\text{prop}}(t,s)
   \]
-  where EL = expected credit loss (e.g. 30 bps), \(\Delta P_{\text{MtM}}\) = mark-to-market change from rate moves.<br/>
-  <em>Note: existing bonds suffer capital loss when rates rise; new bonds earn higher coupon. The net effect reverses over the portfolio duration.</em>
+</p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.3rem 0;"><strong>Where does EL come from?</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  EL (Expected Loss) is a <strong>static parameter</strong>, not from ESG. It is calibrated by the credit team per rating band:
+  \[\text{EL} = \text{PD} \times \text{LGD}\]
+</p>
+<div class="tbl-wrap" style="margin: 0.3rem 0 0.8rem 0; font-size:0.83rem;">
+<table>
+  <tr><th>Rating</th><th>PD (annual)</th><th>LGD</th><th>EL (typical)</th></tr>
+  <tr><td>AAA</td><td>0.01%</td><td>40%</td><td>~0.004%</td></tr>
+  <tr><td>AA</td><td>0.03%</td><td>40%</td><td>~0.012%</td></tr>
+  <tr><td>A</td><td>0.08%</td><td>45%</td><td>~0.036%</td></tr>
+  <tr><td>BBB</td><td>0.20%</td><td>45%</td><td>~0.090%</td></tr>
+  <tr><td>BB</td><td>1.00%</td><td>50%</td><td>~0.500%</td></tr>
+</table>
+</div>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Source: Moody's / S&P historical default studies, or internal credit model.
+  EL is subtracted from the credit spread because credit_spread already embeds default compensation — EL removes the expected loss portion, leaving only the risk premium that is actually earned on average.
+</p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.3rem 0;"><strong>Where does ΔP<sub>MtM</sub> come from?</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  ΔP<sub>MtM</sub> is <strong>derived from the ESG rfr_short and credit_spread paths</strong> using the duration approximation:
+  \[
+    \frac{\Delta P}{P} \approx -D_{\text{mod}} \cdot \Delta y + \tfrac{1}{2}\cdot\text{Conv}\cdot(\Delta y)^2,
+    \qquad \Delta y = \Delta r^f(t,s) + \Delta cs(t,s)
+  \]
+  where \(D_{\text{mod}}\) (modified duration, e.g. 7.5 yrs) and Conv (convexity, e.g. 80) are properties of the existing bond portfolio — <em>not</em> from ESG, but from the asset model.
+</p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.6rem;">
+# Python: compute MtM contribution per scenario per timestep
+delta_y   = (rfr_short[s,t] - rfr_short[s,t-1]) + (credit_spread[s,t] - credit_spread[s,t-1])
+D_mod     = 7.5      # portfolio modified duration (from asset model, not ESG)
+convexity = 80       # portfolio convexity
+MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
+# MtM is then added into bond_total_return alongside coupon and reinvestment yield
+</pre>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
+  <em>Practical note: large insurers (e.g. AIA, Prudential) price each bond from the full discounted cash flow, CUSIP by CUSIP, rather than using the duration approximation. The approximation is sufficient for ESG-based modelling and scenario analysis.</em>
 </p>
 </div>
 
