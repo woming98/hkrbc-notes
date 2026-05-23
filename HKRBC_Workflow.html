@@ -1971,34 +1971,16 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 # f(0,t) 同時也是 ESG Martingale Test 的基準（§9.5.A.8）
 </pre>
 
-<!-- 常見問題 -->
-<h5>五、香港從業者常見問題</h5>
+<!-- Key Notes -->
+<h5>五、Key Notes</h5>
 
-<div class="tbl-wrap">
-<table>
-  <tr><th>問題</th><th>正確做法</th></tr>
-  <tr>
-    <td>IA 公佈的是 par yield 還是 zero rate？</td>
-    <td>直接是 <strong>spot zero rate（連續複利）</strong>，無需再 bootstrap，可直接算 discount factor</td>
-  </tr>
-  <tr>
-    <td>LLP 以外的曲線需要自己外推嗎？</td>
-    <td>不需要，IA 公佈的 Sch. 4 曲線已涵蓋至足夠長期限（如 100 年），LLP 後已含 Smith-Wilson 外推結果</td>
-  </tr>
-  <tr>
-    <td>ESG 模擬要用哪條曲線作 t=0 基準？</td>
-    <td>用估值基準日的 Sch. 4 曲線；確保 ESG 在 t=0 的 E[P(0,T)] = Sch. 4 的 P(0,T)（Martingale Test）</td>
-  </tr>
-  <tr>
-    <td>內部 ALM 壓力測試如何處理？</td>
-    <td>可自行用 Bloomberg IRS 報價做 bootstrap，或直接引用 Bloomberg SWDF 函數輸出，不受 Sch. 4 限制</td>
-  </tr>
-  <tr>
-    <td>Bond bootstrap（固定收益）和 yield curve bootstrap 是同一件事嗎？</td>
-    <td>不同：bond bootstrap 指從 par yield 推 zero rate（固定收益傳統概念）；HKRBC ESG 語境下 bootstrap 指「構建完整連續 zero curve」，因 IA 已給出 zero rate，主要工作是插值和提取 forward rate</td>
-  </tr>
-</table>
-</div>
+<ul style="font-size:0.93rem; line-height:2;">
+  <li>IA publishes <strong>spot zero rates (continuously compounded)</strong> directly — not par yields. No further bootstrap needed; plug straight into discount factor P(0,T) = e<sup>−r·T</sup>.</li>
+  <li>The Sch. 4 curve already covers maturities beyond the LLP (Smith-Wilson tail included). <strong>No manual extrapolation required</strong> for regulatory reporting.</li>
+  <li>For ESG, the Sch. 4 curve at the valuation date is the t=0 anchor. The Martingale Test verifies that E[P(0,T)] across all scenarios equals the Sch. 4 market price.</li>
+  <li>For internal ALM stress tests or ORSA, companies may build their own curve from Bloomberg IRS quotes — <strong>not bound by Sch. 4</strong> in that context.</li>
+  <li>"Bond bootstrap" (par yield → zero rate, classic fixed income concept) is different from "yield curve construction" in the ESG context. Since IA already provides zero rates, the main ESG task is interpolation and forward rate extraction — not bootstrapping from scratch.</li>
+</ul>
 
 
 <!-- ─── §9.5.A.2 Parameter Selection ─── -->
