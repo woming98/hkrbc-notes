@@ -1811,7 +1811,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <p style="font-size:0.93rem;">
   <strong>Smith-Wilson 為何是香港標準：</strong>IA 採用 Smith-Wilson 方法（與歐洲 Solvency II 一致）對 LLP 以外的曲線進行外推，
   核心優勢在於保證遠期曲線收斂至 UFR，避免長尾震盪，且參數具有完整可審計性。
-  Nelson-Siegel 和三次樣條在 LLP 以外的長尾穩定性均不及 Smith-Wilson，故<strong>在 HKRBC 監管申報下不被使用</strong>。
+  Nelson-Siegel and other interpolation methods cannot guarantee convergence to UFR in the tail, hence <strong>not used for HKRBC regulatory reporting beyond LLP</strong>.
 </p>
 
 <!-- Smith-Wilson 公式 -->
@@ -1892,68 +1892,6 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 </table>
 </div>
 
-<!-- Cubic Spline 補充說明 -->
-<h5>六、Appendix: What is Cubic Spline Interpolation?</h5>
-
-<p style="font-size:0.93rem;">
-  Cubic spline is the standard interpolation method used <strong>within</strong> the LLP to fill in rates between the discrete market tenors published by IA.
-  It is <em>not</em> used beyond the LLP — that role belongs to Smith-Wilson.
-</p>
-
-<h6 style="margin-top:0.8rem;">Intuition</h6>
-<p style="font-size:0.93rem;">
-  Imagine a thin flexible ruler (physically called a "spline") pinned down at a few fixed points —
-  it naturally bends into the smoothest possible curve between those pins.
-  Cubic spline is exactly that, expressed mathematically.
-  In the yield curve context, IA's Sch. 4 only provides rates at discrete tenors (1Y, 2Y, 3Y, 5Y, 7Y, 10Y, 15Y),
-  but an ESG needs a rate for <em>every month</em> in the projection.
-  Cubic spline fills in those gaps.
-</p>
-
-<h6 style="margin-top:0.8rem;">The Math</h6>
-<p style="font-size:0.93rem;">
-  Between each pair of adjacent nodes [t<sub>i</sub>, t<sub>i+1</sub>], a cubic polynomial is fitted:
-</p>
-<div class="formula">
-  r(t) = a<sub>i</sub> + b<sub>i</sub>(t − t<sub>i</sub>) + c<sub>i</sub>(t − t<sub>i</sub>)<sup>2</sup> + d<sub>i</sub>(t − t<sub>i</sub>)<sup>3</sup>
-  <br/>
-  subject to: C⁰ continuity (no jumps) · C¹ continuity (no kinks) · C² continuity (smooth curvature)
-</div>
-
-<h6 style="margin-top:0.8rem;">Why It Fails Beyond the LLP</h6>
-<div class="tbl-wrap">
-<table>
-  <tr><th>Problem</th><th>What Happens</th></tr>
-  <tr>
-    <td><strong>No convergence guarantee</strong></td>
-    <td>Beyond LLP there are no market quotes to anchor the spline — it extrapolates arbitrarily</td>
-  </tr>
-  <tr>
-    <td><strong>Runge's phenomenon</strong></td>
-    <td>In data-sparse regions the spline can oscillate wildly, producing negative forward rates</td>
-  </tr>
-  <tr>
-    <td><strong>No UFR target</strong></td>
-    <td>The spline has no idea where rates "should" end up; Smith-Wilson explicitly forces convergence to the IA-prescribed UFR</td>
-  </tr>
-</table>
-</div>
-
-<div class="tbl-wrap" style="margin-top:0.6rem;">
-<table>
-  <tr><th>Tool</th><th>Analogy</th><th>Right Place to Use</th></tr>
-  <tr>
-    <td><strong>Cubic Spline</strong></td>
-    <td>"Draw the smoothest curve through known points"</td>
-    <td><strong>Within</strong> LLP — interpolation between market tenors ✅</td>
-  </tr>
-  <tr>
-    <td><strong>Smith-Wilson</strong></td>
-    <td>"Extrapolate purposefully, converging to UFR"</td>
-    <td><strong>Beyond</strong> LLP — IA-required tail extrapolation ✅</td>
-  </tr>
-</table>
-</div>
 
 <!-- ─── §9.5.A.2 Parameter Selection ─── -->
 <h4>§9.5.A.2 Step 2: Parameter Selection 參數選擇</h4>
