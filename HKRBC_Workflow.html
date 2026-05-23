@@ -3174,6 +3174,75 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 </table>
 </div>
 
+<!-- ── Architecture A 的隐含红利理解 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
+</p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  <strong>Answer: dividends are deferred, not eliminated.</strong>
+  In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
+  At exit (surrender / maturity / death), the policyholder receives:
+  \[
+    SV = \max\!\bigl(AS(t,s),\; GSV_{\text{floor}}\bigr)
+  \]
+  \[
+    TB(t,s) = \max\!\bigl(AS(t,s) - SA - \text{Accrued RB},\; 0\bigr)
+  \]
+  TB is exactly the "crystallised dividends" — everything the fund accumulated above the guaranteed floor, paid out in one lump sum.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
+  <tr><td><strong>Each year</strong></td>
+      <td>Dividend stays inside AS, compounds with fund return</td>
+      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
+  <tr><td><strong>At surrender / maturity</strong></td>
+      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
+      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
+  <tr><td><strong>Total policyholder value</strong></td>
+      <td>= SV (lump sum at exit)</td>
+      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
+  <tr><td><strong>Economically equivalent?</strong></td>
+      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
+  So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
+  the insurer's floor guarantee is clearly visible as an option.
+  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
+</p>
+
+<!-- ── Prophet 实务分工 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A — TVOG / RBC Model</th><th>Architecture B — Bonus Projection Model</th></tr>
+  <tr><td><strong>Prophet model</strong></td><td>HKRBC stochastic run</td><td>Bonus recommendation / management projection</td></tr>
+  <tr><td><strong>Scenarios</strong></td><td>1,000 ESG paths × full projection</td><td>1–5 management scenarios (best estimate ± stress)</td></tr>
+  <tr><td><strong>SV in Prophet</strong></td>
+      <td><code>SV = MAX(AS_THEORETICAL, GSV_FLOOR)</code> — fully path-dependent</td>
+      <td><code>SV = CSV_TABLE[POL_YEAR]</code> or dynamic</td></tr>
+  <tr><td><strong>DPB lapse</strong></td><td>Full β₁ + β₂ formula</td><td>Simplified or static</td></tr>
+  <tr><td><strong>Dividend output</strong></td><td>TB implicit in SB/MB flows at exit</td><td>DIV_t explicit output used for GL34 bonus sustainability report</td></tr>
+  <tr><td><strong>Run frequency</strong></td><td>Quarterly (RBC reporting)</td><td>Annually (bonus recommendation to board)</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  <strong>Why not merge into one model?</strong>
+  (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
+  (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
+  (3) Validation differs: Architecture A is validated via martingale test; Architecture B via historical dividend sustainability back-test.<br/>
+  <em>Small companies with limited IT resources sometimes use Architecture A only, and produce a separate Excel bonus projection workbook for the board.</em>
+</p>
+
 <!-- ── 术语说明 ── -->
 <p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
