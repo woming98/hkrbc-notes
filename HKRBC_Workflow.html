@@ -2954,40 +2954,64 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 <pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
 # Prophet variable pseudo-code
 
-RFR_SHORT    = ESG_FACTOR("rfr_short", T, S)       # from ESG scenario file
+RFR_SHORT     = ESG_FACTOR("rfr_short", T, S)                          # from ESG file
 CREDITED_RATE = AVG(EARNED_RATE[-2], EARNED_RATE[-1], EARNED_RATE[0])  # 3-yr smooth
 
 # β₁ — interest rate substitution effect
 IR_EXCESS = MAX(RFR_SHORT - CREDITED_RATE, 0)
 
 # β₂ — TB lock-in anticipation
-# Prophet cannot look forward to T+1, so use one of these approximations:
-TB_CURRENT  = TERMINAL_BONUS[0]       # TB at time T (already computed in Step 3)
-TB_EXPECTED = TERMINAL_BONUS[-1]      # Approx 1: use prior year TB as proxy for TB_exp(t+1)
-# OR: TB_EXPECTED = 3-year moving avg trend of TB
-# OR: TB_EXPECTED = management-declared expected TB (input assumption file)
+# IMPORTANT: TB(t-1) as proxy for TB_exp(t+1) gives WRONG direction —
+#   when rates fall, TB(t) < TB(t-1) → β₂ term = 0, but lapse should be high.
+# Three correct approaches below:
 
-TB_DROP = MAX((TB_CURRENT - TB_EXPECTED) / MAX(TB_CURRENT, 0.001), 0)
+# Approach A: Use credited rate vs guaranteed rate as trigger (recommended)
+TB_DROPPING     = IF(CREDITED_RATE < GUARANTEED_RATE, 1, 0)
+TB_DROP_APPROX  = MAX(1 - CREDITED_RATE / GUARANTEED_RATE, 0)  # severity of drop
 
-# Full DPB multiplier
-DPB_MULT = 1 + BETA_1 * IR_EXCESS + BETA_2 * TB_DROP
+# Approach B: Two-pass (det first, then stoch uses det TB as TB_exp)
+# TB_EXP = TB_DET[T+1]   # pre-computed from deterministic run (pass 1)
+# TB_DROP_APPROX = MAX((TERMINAL_BONUS[0] - TB_EXP) / MAX(TERMINAL_BONUS[0], 0.001), 0)
 
-# Apply caps and floors (GL34 and experience study constraints)
+# Approach C: Set β₂ = 0 (simplest — skip TB term entirely)
+# Use when TB anticipation is hard to calibrate or β₂ = 0 is actuary judgement
+
+# Full DPB multiplier (using Approach A)
+DPB_MULT = 1 + BETA_1 * IR_EXCESS + BETA_2 * TB_DROP_APPROX * TB_DROPPING
+
+# Apply caps and floors
 LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
                   lower = BASE_LAPSE / 2,   # floor: lapse never drops to zero
                   upper = 1.0)              # cap: cannot exceed 100%
 </pre>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: The Practical Challenge</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  Since Prophet projects forward step-by-step, TB(t+1) is unknown at time t. Three approximations used in practice:
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: Why It Is Hard and How to Handle It</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  Prophet projects step-by-step — TB(t+1) is unknown at time t. Using TB(t−1) as a proxy gives the <strong>wrong direction</strong>:
+  when rates fall and TB is declining, TB(t) &lt; TB(t−1), making the β₂ term zero — exactly when lapse pressure should be highest.
+  The three practical approaches are:
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
-  <tr><th>Approximation</th><th>Formula</th><th>When to Use</th></tr>
-  <tr><td><strong>Prior-year TB</strong></td><td>TB_exp = TB(t−1)</td><td>Default; suitable when TB is relatively stable</td></tr>
-  <tr><td><strong>Smoothed trend</strong></td><td>TB_exp = 3-yr moving average of TB</td><td>Better for stress scenarios with sustained rate moves</td></tr>
-  <tr><td><strong>Management declaration</strong></td><td>TB_exp = company-announced expected TB (input file)</td><td>Most GL34-compliant; updated each valuation quarter</td></tr>
+  <tr><th>Approach</th><th>Method</th><th>Direction Correct?</th><th>When to Use</th></tr>
+  <tr>
+    <td><strong>A — credited vs guaranteed trigger</strong></td>
+    <td>β₂ fires when credited_rate &lt; guaranteed_rate; severity = (1 − credited/guaranteed)</td>
+    <td>✅ Yes — fires in low-rate scenarios</td>
+    <td>Recommended default; no look-ahead needed</td>
+  </tr>
+  <tr>
+    <td><strong>B — two-pass (det → stoch)</strong></td>
+    <td>Run deterministic pass first to get TB_det(t+1); use as TB_exp in stochastic pass</td>
+    <td>✅ Yes</td>
+    <td>Most GL34-compliant; requires two Prophet runs per quarter</td>
+  </tr>
+  <tr>
+    <td><strong>C — set β₂ = 0</strong></td>
+    <td>Omit TB anticipation entirely; rely on β₁ to capture rate-driven lapse</td>
+    <td>N/A</td>
+    <td>Most common in practice; safe when TB anticipation is unobservable historically</td>
+  </tr>
 </table>
 </div>
 
