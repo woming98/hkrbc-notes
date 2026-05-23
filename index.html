@@ -183,6 +183,14 @@ MathJax = {
   <a href="#alm-cs">§8.2 CS Risk &amp; Dynamic MA</a>
   <a href="#alm-summary">§8.3 Capital vs Return Trade-off</a>
 
+  <div class="nav-section">ALM Modelling 建模方法論</div>
+  <a href="#alm-model">§9 ALM Modelling Methodology 總覽</a>
+  <a href="#alm-model-liab">§9.1 Liability CF Model 負債現金流</a>
+  <a href="#alm-model-asset">§9.2 Asset Valuation 資產估值</a>
+  <a href="#alm-model-ma">§9.3 MA Engine 匹配調整引擎</a>
+  <a href="#alm-model-pcr">§9.4 Stress &amp; PCR Engine 壓力測試</a>
+  <a href="#alm-model-esg">§9.5 ESG 經濟情景模擬器</a>
+
   <div class="nav-section">Appendix</div>
   <a href="#appendix-esg">A. ESG Minimum Requirements</a>
   <a href="#appendix-ref">B. Reference Documents 參考文件</a>
@@ -1154,6 +1162,528 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </div>
 
 <hr />
+
+<!-- ══ §9 ALM Modelling Methodology ══ -->
+<h2 id="alm-model">§9 ALM Modelling Methodology under HKRBC 香港風險資本框架下的ALM建模方法論</h2>
+
+<p>
+  This section documents the <strong>five modelling building blocks</strong> required to implement HKRBC ALM in practice.
+  Each block has well-defined inputs, algorithms, and output deliverables. Together they form the end-to-end pipeline
+  from raw market data and policy data through to the final Capital Adequacy Ratio (CAR).
+</p>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <strong>End-to-End Modelling Pipeline 建模流水線</strong>
+  <pre style="background:transparent; border:none; padding:0; margin:0.5rem 0 0; font-size:0.85rem; color:#1f2937;">
+  ┌──────────────┐    ┌──────────────┐    ┌─────────────┐    ┌─────────────────┐    ┌──────────────┐
+  │ §9.1 Liab CF │    │ §9.2 Asset   │    │ §9.3 MA     │    │ §9.4 Stress &amp;  │    │ §9.5 ESG     │
+  │   Model      │ →  │   Valuation  │ →  │   Engine    │ →  │   PCR Engine    │ ←  │  (TVOG只用)   │
+  │  (Prophet)   │    │  (OAS/MtM)   │    │  (Sch.5)    │    │  (Rule 37-86)   │    │              │
+  └──────────────┘    └──────────────┘    └─────────────┘    └─────────────────┘    └──────────────┘
+        ↓                    ↓                   ↓                    ↓                     ↓
+  Guaranteed CF        Asset spread,        MA bps per          PCA (prescribed         Stochastic
+  Mass Lapse CF        asset duration       portfolio           capital amount)         scenarios
+  Lapse Up CF          per-bond CF                              CAR = CB / PCA          for TVOG
+  </pre>
+</div>
+
+<!-- ─── §9.1 Liability CF Model ─── -->
+<h3 id="alm-model-liab">§9.1 Liability Cash Flow Model 負債現金流模型</h3>
+
+<p><strong>目的 Purpose:</strong> Project all guaranteed and discretionary cash flows over the lifetime of the policy portfolio, segmented by currency × MA portfolio × Homogeneous Risk Group (HRG, Rule 53).</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:22%">Building Block</th><th>Methodology &amp; Key Outputs</th><th>HKRBC Reference</th></tr>
+  <tr>
+    <td><strong>Cash Flow Segmentation</strong></td>
+    <td>
+      Split projected CFs into:<br/>
+      • <strong>Guaranteed CF</strong> (used in MA &amp; ACS% calc)<br/>
+      • <strong>Discretionary CF (FDB)</strong> (used for LAC(FDB), TVOG)<br/>
+      • <strong>Premium CF</strong> (offsets liability CF in ACS%)<br/>
+      • <strong>Expense CF</strong> (allocated by region for Expense Risk)
+    </td>
+    <td><span class="ref">Rule 17, 18</span></td>
+  </tr>
+  <tr>
+    <td><strong>Effective Duration</strong></td>
+    <td>
+      Numerical derivative method (±1 bp twist):<br/>
+      $$D_{eff} = \frac{CE(r-\Delta) - CE(r+\Delta)}{2 \cdot CE(r) \cdot \Delta}$$
+      Must be computed under both <em>RFR</em> and <em>RFR + MA</em> discount rate (the latter for DF calc in MA engine).
+    </td>
+    <td><span class="ref sched">Sch. 5 §2</span></td>
+  </tr>
+  <tr>
+    <td><strong>Lapse Scenario CFs</strong></td>
+    <td>
+      Re-project under three scenarios:<br/>
+      • <strong>Base:</strong> Best estimate lapse rates<br/>
+      • <strong>Lapse Up:</strong> lapse × 1.40 (×1.40 to surrender rate)<br/>
+      • <strong>Mass Lapse:</strong> 30% one-off in Year 1<br/>
+      Output 3 sets of liability CFs (used by ACS% engine in §9.3).
+    </td>
+    <td><span class="ref">Rule 59</span>; <span class="ref sched">Sch. 5 §7</span></td>
+  </tr>
+  <tr>
+    <td><strong>Dynamic Policyholder Behaviour</strong></td>
+    <td>
+      Lapse / partial withdrawal / annuitisation rates may depend on (interest rate − crediting rate) gap.<br/>
+      Common functional form: <em>lapse = base_lapse × (1 + β × (market_rate − credited_rate))</em>
+    </td>
+    <td><span class="ref">Rule 20</span></td>
+  </tr>
+  <tr>
+    <td><strong>Management Actions</strong></td>
+    <td>
+      Bonus / crediting rate adjustment rules under stress; required for LAC(FDB) credibility.<br/>
+      Must be documented in board-approved policy and applied consistently across scenarios.
+    </td>
+    <td><span class="ref">Rule 21, 43</span></td>
+  </tr>
+</table>
+</div>
+
+<h4>Typical Implementation Stack</h4>
+<ul>
+  <li><strong>Commercial Models:</strong> Prophet (Sungard), AXIS (Moody's), RiskAgility FM (WTW), MG-ALFA (Milliman)</li>
+  <li><strong>Run Time:</strong> 500K policies × 100 yrs × 5 currencies × 30+ scenarios ≈ 24-48 hours per quarter (parallel grid computing)</li>
+  <li><strong>Output Format:</strong> Annual CF arrays per (scenario × MA portfolio × cash flow type), exported to CSV / Parquet</li>
+</ul>
+
+<!-- ─── §9.2 Asset Valuation Model ─── -->
+<h3 id="alm-model-asset">§9.2 Asset Valuation &amp; Cash Flow Model 資產估值與現金流模型</h3>
+
+<p><strong>目的 Purpose:</strong> Value each asset at market value, project its future cash flows, and derive the two key MA inputs: <em>asset spread</em> and <em>asset duration</em>.</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Algorithm</th><th>Mathematical Specification</th><th>Implementation Notes</th></tr>
+  <tr>
+    <td><strong>Asset Classification</strong><br/>(Sch. 5 §3 Table 1)</td>
+    <td>
+      Map each asset into:<br/>
+      • Eligible: Sovereign, Corporate, ABS, Other debt, Loans, Investment income receivable<br/>
+      • Non-eligible: Equity, Convertible bond (issuer/3P call), Derivative, Property, etc.<br/>
+      • Non-invested: Cash equivalent, affiliate investments, policy loans
+    </td>
+    <td>Lookup table keyed on instrument type code</td>
+  </tr>
+  <tr>
+    <td><strong>Asset Spread (Z-Spread) Solver</strong></td>
+    <td>
+      Solve numerically for <em>z</em> such that:<br/>
+      $$P_{dirty} = \sum_{t} \frac{CF_t}{(1 + r_t^{RFR} + z)^t}$$
+      Newton-Raphson: \(z_{n+1} = z_n - \frac{f(z_n)}{f'(z_n)}\)
+    </td>
+    <td><code>scipy.optimize.brentq</code> or Newton; converges in 3-5 iterations</td>
+  </tr>
+  <tr>
+    <td><strong>Asset Duration (Effective)</strong></td>
+    <td>
+      Numerical derivative w.r.t. spread:<br/>
+      $$D_{asset} = \frac{P(z-1bp) - P(z+1bp)}{2 \cdot P(z) \cdot 1bp}$$
+      For callable bonds: cash flows depend on z (call exercise) — duration is reduced.
+    </td>
+    <td>Need price function that handles call schedule</td>
+  </tr>
+  <tr>
+    <td><strong>Make-Whole Call (MWC) Spread</strong></td>
+    <td>
+      Solve for MWC spread s such that:<br/>
+      Call Price = PV of remaining CF discounted at (Treasury rate + s)<br/>
+      Compare against <strong>Maximal MWC Spread</strong> (Sch. 5 §4 Table 2: 30/40/60/80 bps by rating).
+    </td>
+    <td>If solved s &gt; cap: choose <em>(a)</em> redeem at first call date OR <em>(b)</em> partial MV recognition (ratio = X/Y)</td>
+  </tr>
+  <tr>
+    <td><strong>ABS / MBS Modelling</strong></td>
+    <td>
+      Prepayment model (PSA / SMM curve) + waterfall logic for tranching.<br/>
+      Output: prepayment-adjusted CFs, OAS, option-adjusted duration.
+    </td>
+    <td>Industry: Bloomberg YAS / Intex / RiskFront</td>
+  </tr>
+  <tr>
+    <td><strong>Private Credit Valuation</strong></td>
+    <td>
+      For illiquid assets: DCF + benchmark spread (similar issuer/rating).<br/>
+      Must justify "no observable market price" exception under Rule 34.
+    </td>
+    <td>Internal pricing committee approval required</td>
+  </tr>
+</table>
+</div>
+
+<h4>Why This Step Matters for MA</h4>
+<p style="font-size:0.95rem;">
+  Asset spread and asset duration are <strong>direct inputs to Schedule 5 §5</strong> (adjusted spread) and <strong>§8</strong> (DF / asset dollar duration).
+  Wrong spread by 5 bps → MA off by ~3-4 bps → can swing capital ratio by 2-5 percentage points for a large insurer.
+  This is why the IA requires <em>spread validation against multiple data sources</em> (Bloomberg, ICE, broker quotes).
+</p>
+
+<!-- ─── §9.3 MA Engine ─── -->
+<h3 id="alm-model-ma">§9.3 MA Engine 匹配調整引擎 (Schedule 5 Implementation)</h3>
+
+<p><strong>目的 Purpose:</strong> Combine asset and liability inputs to compute the final MA (bps) per portfolio. This is the <strong>technical core of HKRBC modelling</strong>.</p>
+
+<h4>End-to-End Algorithm 完整算法步驟</h4>
+
+<div class="callout" style="background:#fef9c3; border-left-color:#d97706;">
+  <strong>⚠️ Key Implementation Challenge:</strong> MA is an <em>implicit solution</em> — it appears on both sides of the equation:
+  MA → affects liability discount → affects liability dollar duration → affects DF → affects MA.
+  Requires <strong>fixed-point iteration</strong> (Sch. 5 §8(2) allows ±10 bps tolerance between estimated and final MA).
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:8%">Step</th><th>Calculation</th><th>Inputs Needed</th><th>Sch. 5 Ref</th></tr>
+  <tr>
+    <td><strong>1</strong></td>
+    <td>
+      For each eligible asset i:<br/>
+      adjusted_spread<sub>i</sub> = asset_spread<sub>i</sub> × (1 − RC%<sub>i</sub>)<br/>
+      where RC%<sub>i</sub> from §5 Table 4 by credit rating band
+    </td>
+    <td>From §9.2: asset_spread, credit rating band</td>
+    <td>§5</td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td>
+      Weight: ω<sub>i</sub> = MV<sub>i</sub> × asset_duration<sub>i</sub> / Σ<sub>j</sub>(MV<sub>j</sub> × asset_duration<sub>j</sub>)<br/>
+      Portfolio adjusted spread = Σ ω<sub>i</sub> × adjusted_spread<sub>i</sub>
+    </td>
+    <td>From §9.2: MV, asset_duration per asset</td>
+    <td>§5(2)</td>
+  </tr>
+  <tr>
+    <td><strong>3</strong></td>
+    <td>
+      Compute ACS% for each scenario {Base, Lapse Up, Mass Lapse}:<br/>
+      For t = 1, ..., LLP:<br/>
+      &nbsp;&nbsp;Excess<sub>t</sub> = Excess<sub>t-1</sub> + Asset_CF<sub>t</sub> − Liab_Net_CF<sub>t</sub> + max(Excess<sub>t-1</sub>,0)×r<sub>t</sub><br/>
+      &nbsp;&nbsp;PV_Shortfall<sub>t</sub> = |Excess<sub>t</sub>| × Π(1+r<sub>s</sub>)<sup>-1</sup> if Excess&lt;0 else 0<br/>
+      ACS%<sub>scen</sub> = max<sub>t</sub>(PV_Shortfall) / MV_Eligible
+    </td>
+    <td>Asset CF (§9.2), Liab CF for 3 scenarios (§9.1)</td>
+    <td>§7</td>
+  </tr>
+  <tr>
+    <td><strong>4</strong></td>
+    <td>
+      PF = max(0, 1 − max(ACS%<sub>Base</sub>, ACS%<sub>Lapse Up</sub>, ACS%<sub>Mass Lapse</sub>))
+    </td>
+    <td>ACS% from Step 3</td>
+    <td>§6</td>
+  </tr>
+  <tr>
+    <td><strong>5</strong></td>
+    <td>
+      <em>Initial guess:</em> MA<sub>0</sub> = portfolio_adjusted_spread × 0.5 (or use last period MA)<br/>
+      Compute Liability Dollar Duration with discount = RFR + MA<sub>0</sub><br/>
+      Compute Asset Dollar Duration<br/>
+      DF = min(EA%, A$D / L$D), floored at 0
+    </td>
+    <td>Eff. Duration (§9.1), MV (§9.2)</td>
+    <td>§8</td>
+  </tr>
+  <tr>
+    <td><strong>6</strong></td>
+    <td>
+      Application Ratio: AR = PF × DF<br/>
+      Adjusted Spread Component = AR × portfolio_adjusted_spread
+    </td>
+    <td>—</td>
+    <td>§6</td>
+  </tr>
+  <tr>
+    <td><strong>7</strong></td>
+    <td>
+      Weighted CPS = Σ ω<sub>i</sub> × (CPS_lookup<sub>i</sub> − RC<sub>i</sub>)<br/>
+      where CPS_lookup from §9 Table 5 by maturity bucket × rating band<br/>
+      CPS Component = weighted_CPS × PF × A$D / L$D
+    </td>
+    <td>From §9.2: maturity, rating per asset</td>
+    <td>§9</td>
+  </tr>
+  <tr>
+    <td><strong>8</strong></td>
+    <td>
+      Qualified LTA (only if Rule 24(3) met — physical segregation + Par/UL):<br/>
+      LTA = 100 bps × min(equity_proportion, cap)
+    </td>
+    <td>Asset MV by class (§9.2)</td>
+    <td>§10</td>
+  </tr>
+  <tr>
+    <td><strong>9</strong></td>
+    <td>
+      MA<sub>new</sub> = AR × adjusted_spread + CPS_component + LTA<br/>
+      Check: |MA<sub>new</sub> − MA<sub>0</sub>| &lt; 10 bps?<br/>
+      If YES → DONE. If NO → set MA<sub>0</sub> = MA<sub>new</sub>, go back to Step 5.
+    </td>
+    <td>—</td>
+    <td>§8(2)</td>
+  </tr>
+</table>
+</div>
+
+<h4>Reference Python Pseudo-code</h4>
+<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code>def ma_engine(assets, liabilities, scenarios, tol_bps=10, max_iter=20):
+    # --- Step 1-2: Asset Side ---
+    for a in assets.eligible:
+        a.adj_spread = a.asset_spread * (1 - RC_TABLE[a.rating_band])
+    w = np.array([a.mv * a.duration for a in assets.eligible])
+    w /= w.sum()
+    port_adj_spread = (w * np.array([a.adj_spread for a in assets.eligible])).sum()
+    
+    # --- Step 3-4: PF (only computed once, scenario CFs are fixed) ---
+    acs = {scen: compute_acs(assets, liabilities[scen]) for scen in scenarios}
+    pf = max(0, 1 - max(acs.values()))
+    
+    # --- Step 5-9: Fixed-point iteration on MA ---
+    ma_old = port_adj_spread * 0.5  # initial guess
+    for it in range(max_iter):
+        l_dollar_dur = liabilities.base.dollar_duration(discount_rate=RFR + ma_old)
+        a_dollar_dur = sum(a.mv * a.duration for a in assets.eligible)
+        ea_pct = sum(a.mv for a in assets.eligible) / assets.invested_mv
+        df = max(0, min(ea_pct, a_dollar_dur / l_dollar_dur))
+        ar = pf * df
+        
+        cps_weighted = sum(w[i] * (CPS_TABLE[a.bucket][a.rating_band] - RC_TABLE[a.rating_band])
+                           for i, a in enumerate(assets.eligible))
+        cps_comp = cps_weighted * pf * (a_dollar_dur / l_dollar_dur)
+        
+        lta = 100 if assets.qualifies_lta else 0
+        lta *= min(assets.equity_proportion, assets.lta_cap)
+        
+        ma_new = ar * port_adj_spread + cps_comp + lta
+        if abs(ma_new - ma_old) &lt; tol_bps:
+            return ma_new
+        ma_old = ma_new
+    raise ConvergenceError("MA did not converge within tolerance")</code></pre>
+
+<!-- ─── §9.4 Stress & PCR Engine ─── -->
+<h3 id="alm-model-pcr">§9.4 Stress Scenario &amp; PCR Engine 壓力測試與資本引擎</h3>
+
+<p><strong>目的 Purpose:</strong> Apply each prescribed stress, compute ΔNAV = risk capital amount, aggregate using correlation matrices, and arrive at the final Prescribed Capital Amount (PCA).</p>
+
+<h4>Stress Scenario Inventory (30+ scenarios)</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Module</th><th>Stress</th><th>Asset Re-val</th><th>MA Re-calc</th><th>Liab Re-val</th><th>Rule</th></tr>
+  <tr><td rowspan="5"><strong>Market</strong></td><td>IR Up parallel shift</td><td>✓</td><td>✓ Rule 46</td><td>✓ (new MA + new RFR)</td><td>47</td></tr>
+  <tr><td>IR Down parallel shift</td><td>✓</td><td>✓</td><td>✓</td><td>47</td></tr>
+  <tr><td>Credit Spread widening</td><td>✓ (spread up)</td><td>✓ (Dynamic MA, RC% unchanged)</td><td>✓ via new MA</td><td>48</td></tr>
+  <tr><td>Equity (+CCA)</td><td>✓</td><td>—</td><td>—</td><td>49</td></tr>
+  <tr><td>Property, FX</td><td>✓</td><td>—</td><td>—</td><td>50, 51</td></tr>
+  <tr><td rowspan="6"><strong>Life</strong></td><td>Mortality up</td><td>—</td><td>—</td><td>✓</td><td>54</td></tr>
+  <tr><td>Longevity down</td><td>—</td><td>—</td><td>✓</td><td>55</td></tr>
+  <tr><td>Life CAT (one-off)</td><td>—</td><td>—</td><td>✓</td><td>56</td></tr>
+  <tr><td>Morbidity (4 sub-categories)</td><td>—</td><td>—</td><td>✓</td><td>57</td></tr>
+  <tr><td>Expense (4 regions)</td><td>—</td><td>—</td><td>✓</td><td>58</td></tr>
+  <tr><td>Lapse: Level / Trend / Mass</td><td>—</td><td>—</td><td>✓ max of three</td><td>59</td></tr>
+  <tr><td><strong>GI</strong></td><td>Reserve / Premium / NatCat</td><td>factor-based, no full re-val</td><td>—</td><td>—</td><td>60-80</td></tr>
+  <tr><td><strong>CDRC</strong></td><td>Counterparty default</td><td>factor × exposure</td><td>—</td><td>—</td><td>81</td></tr>
+  <tr><td><strong>Op Risk</strong></td><td>—</td><td>formula-based</td><td>—</td><td>—</td><td>86</td></tr>
+</table>
+</div>
+
+<h4>Aggregation Algorithm 聚合算法</h4>
+
+<div class="formula">
+  RCA<sub>aggregate</sub> = √( <strong>w<sup>T</sup> Σ w</strong> ) &nbsp; where Σ is correlation matrix (Sch. 7), w is RCA vector
+  <br/><br/>
+  PCA = RCA<sub>aggregate</sub> − LAC(FDB) − LAC(DT) + RCA<sub>OP</sub> &nbsp; <span class="ref">Rule 37(1)</span>
+</div>
+
+<p style="font-size:0.95rem;">Aggregation is done at <strong>two levels</strong>:</p>
+<ol style="font-size:0.95rem;">
+  <li><strong>Within module</strong> (e.g. Sch. 7 Table 3 for Market, Table 4 for Life) — combine sub-risks into module-level RCA</li>
+  <li><strong>Across modules</strong> (Sch. 7 Table 2) — combine Market / Life / GI / CDRC RCAs into RCA<sub>aggregate</sub></li>
+</ol>
+
+<h4>LAC Engine 損失吸收引擎</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Component</th><th>Algorithm</th><th>Reference</th></tr>
+  <tr>
+    <td><strong>LAC(FDB)</strong></td>
+    <td>
+      1. Run base scenario: PV(FDB)<sub>base</sub><br/>
+      2. Run aggregated stress: PV(FDB)<sub>stress</sub> (after management action reduces bonuses)<br/>
+      3. LAC(FDB) = max(PV(FDB)<sub>base</sub> − PV(FDB)<sub>stress</sub>, 0)<br/>
+      4. Cap at <em>aggregate FDB reduction from base to minimum guaranteed</em>; excess added back to PCA per Rule 37(1)(d)
+    </td>
+    <td><span class="ref">Rule 43</span></td>
+  </tr>
+  <tr>
+    <td><strong>LAC(DT)</strong></td>
+    <td>
+      1. Compute stressed loss position<br/>
+      2. Apply effective tax rate (capped at statutory rate, e.g. 16.5% HK)<br/>
+      3. Tax saving = loss × effective tax rate<br/>
+      4. Must demonstrate realisability: future taxable income projection over reasonable horizon
+    </td>
+    <td><span class="ref">Rule 44</span></td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.5 ESG ─── -->
+<h3 id="alm-model-esg">§9.5 Economic Scenario Generator (ESG) 經濟情景模擬器</h3>
+
+<p><strong>目的 Purpose:</strong> Generate ≥1,000 market-consistent and arbitrage-free economic scenarios for TVOG (Rule 19) and stochastic ALM analyses.
+  Used <em>only</em> for valuation of contractual options and financial guarantees — <strong>not</strong> for PCR stress scenarios (which are deterministic).</p>
+
+<h4>Risk Factor Coverage 風險因子覆蓋</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Risk Factor</th><th>Common Models</th><th>Calibration Targets</th><th>Why this model</th></tr>
+  <tr>
+    <td><strong>Nominal Interest Rate</strong> 名義利率</td>
+    <td>
+      • <strong>Hull-White 1-Factor</strong> (HW1F): simplest, single mean-reversion<br/>
+      • <strong>Hull-White 2-Factor</strong> (HW2F / G2++)<br/>
+      • <strong>LIBOR Market Model</strong> (LMM): industry standard for sophisticated users
+    </td>
+    <td>
+      • Initial swap / risk-free yield curve (Sch. 4)<br/>
+      • Swaption volatility surface (at-the-money grid)<br/>
+      • Mean reversion parameter α from historical
+    </td>
+    <td>HW2F captures slope/level decorrelation; LMM models each forward rate directly</td>
+  </tr>
+  <tr>
+    <td><strong>Equity Return</strong> 股票回報</td>
+    <td>
+      • <strong>Constant Vol Black-Scholes</strong>: simplest, calibrate to ATM<br/>
+      • <strong>Heston Stochastic Vol</strong>: captures vol surface curvature<br/>
+      • <strong>Local Vol (Dupire)</strong>: fits surface exactly but less stable
+    </td>
+    <td>
+      • Spot equity index level<br/>
+      • Implied vol surface (strikes × maturities)<br/>
+      • Dividend yield curve
+    </td>
+    <td>Heston is industry standard for ESG; preserves vol smile</td>
+  </tr>
+  <tr>
+    <td><strong>Credit Spread</strong> 信用利差</td>
+    <td>
+      • <strong>CIR (Cox-Ingersoll-Ross)</strong> for spread dynamics<br/>
+      • <strong>Jump-diffusion</strong> for default events
+    </td>
+    <td>
+      • Initial credit spread by rating band<br/>
+      • Historical spread volatility<br/>
+      • Default probabilities (Sch. 6 mapping)
+    </td>
+    <td>CIR ensures positive spreads; jumps capture credit events</td>
+  </tr>
+  <tr>
+    <td><strong>FX Rate</strong> 匯率</td>
+    <td>Garman-Kohlhagen / GBM with stochastic vol</td>
+    <td>FX forward curve + FX option vol surface</td>
+    <td>Multi-currency MA portfolios need FX scenarios</td>
+  </tr>
+  <tr>
+    <td><strong>Property Return</strong> 房地產</td>
+    <td>Block stochastic / proxy to equity with lag</td>
+    <td>Limited market data; use property fund returns + REIT vol</td>
+    <td>Lack of liquid market — use proxy</td>
+  </tr>
+  <tr>
+    <td><strong>Inflation</strong></td>
+    <td>2-factor real + nominal model</td>
+    <td>Inflation-linked bond curve (if available)</td>
+    <td>Needed for expense risk modelling</td>
+  </tr>
+</table>
+</div>
+
+<h4>Calibration Methodology 校準方法</h4>
+
+<p>The ESG must be <strong>simultaneously market-consistent and arbitrage-free</strong>. Calibration is typically a 4-step process:</p>
+
+<ol style="font-size:0.95rem;">
+  <li><strong>Yield Curve Bootstrapping:</strong> Build the RFR curve from swap quotes / government bonds (Sch. 4 Table 1 prescribed curves for HKD, USD, RMB, etc.). Apply Smith-Wilson or Nelson-Siegel-Svensson interpolation beyond Last Liquid Point.</li>
+  <li><strong>Cross-Asset Correlation:</strong> Estimate covariance matrix from historical data; apply Cholesky decomposition <em>L L<sup>T</sup> = Σ</em>. Use <strong>correlated standard normals</strong> Z<sup>*</sup> = L · Z to drive correlated Brownian motions.</li>
+  <li><strong>Parameter Calibration:</strong> Minimise sum of squared errors between model-implied prices and market prices:
+    $$\min_{\theta} \sum_k \left( P_k^{model}(\theta) - P_k^{market} \right)^2$$
+    Typically calibrated separately per asset class, then validated for cross-asset consistency.
+  </li>
+  <li><strong>Scenario Generation:</strong> Monte Carlo simulation, typically 5,000-10,000 scenarios × 100 years × monthly time steps. Use antithetic variates and low-discrepancy sequences (Sobol) for variance reduction.</li>
+</ol>
+
+<h4>Validation Framework 驗證框架</h4>
+
+<p>The IA requires ESG validation along five dimensions <span class="ref circ">IA Circular 12 Jun 2024, App. 1</span>:</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Test</th><th>What it checks</th><th>Acceptance Criterion</th></tr>
+  <tr>
+    <td><strong>Martingale Test</strong></td>
+    <td>Discounted asset prices should equal initial value in expectation: E[P<sub>T</sub>/B<sub>T</sub>] = P<sub>0</sub></td>
+    <td>Within 0.5% of initial price; t-stat &lt; 2</td>
+  </tr>
+  <tr>
+    <td><strong>PV Test</strong></td>
+    <td>Average present value of zero-coupon bond = market price</td>
+    <td>Within 1 bp at each maturity</td>
+  </tr>
+  <tr>
+    <td><strong>Market Price Test</strong></td>
+    <td>Re-price calibration instruments (e.g. swaptions): model vs market</td>
+    <td>Within 5% of market price</td>
+  </tr>
+  <tr>
+    <td><strong>Moment Test</strong></td>
+    <td>Empirical mean / variance / skew of generated scenarios match model parameters</td>
+    <td>Within 2 standard errors</td>
+  </tr>
+  <tr>
+    <td><strong>Distribution Test</strong></td>
+    <td>Quantile-quantile plot for log-returns; tail behaviour reasonable</td>
+    <td>No systematic deviation in tails (1%/99%)</td>
+  </tr>
+</table>
+</div>
+
+<h4>Industry Toolkit 行業常用工具</h4>
+
+<ul style="font-size:0.95rem;">
+  <li><strong>Commercial ESG:</strong>
+    <ul>
+      <li>Moody's <strong>B&amp;H Economic Scenario Generator</strong> (most common in Asia/HK)</li>
+      <li>Conning <strong>GEMS</strong></li>
+      <li>WTW <strong>STAR ESG</strong></li>
+      <li>Milliman <strong>MG-ALFA ESG module</strong></li>
+    </ul>
+  </li>
+  <li><strong>Open Source / Self-Built:</strong> Python (<code>QuantLib-Python</code>) + custom calibration scripts; only feasible for small/medium insurers</li>
+  <li><strong>Typical Cost:</strong> Commercial license HKD 500K-2M/year; self-build saves cost but requires PhD-level quant team</li>
+</ul>
+
+<h4>Why ESG Matters for HKRBC</h4>
+
+<div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
+  <ul style="margin:0; font-size:0.95rem;">
+    <li><strong>TVOG (Rule 19):</strong> Mandatory for contracts with contractual options or financial guarantees (e.g. minimum crediting rate, surrender guarantees). TVOG = stochastic CE − deterministic CE.</li>
+    <li><strong>Par fund dividend modelling:</strong> Crediting rate is path-dependent on investment return; needs stochastic scenarios.</li>
+    <li><strong>Universal Life:</strong> Account value crediting linked to dynamic investment return.</li>
+    <li><strong>Not used for PCR:</strong> HKRBC uses deterministic stresses for PCR (unlike Solvency II internal models). ESG is only for valuation of options &amp; guarantees within the EBS.</li>
+  </ul>
+</div>
+
+<hr />
+
 <h2 id="appendix-esg">Appendix A: ESG Minimum Requirements <span class="ref">Cap. 41R Rule 19(2)</span> <span class="ref circ">IA Circular 12 Jun 2024, Appendix 1</span></h2>
 
 <p>
