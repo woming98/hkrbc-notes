@@ -228,6 +228,7 @@ MathJax = {
   <a href="#alm-model-esg">§9.5 ESG 經濟情景模擬器</a>
   <a href="#alm-model-tvog">§9.6 TVOG Deep-Dive 深度計算</a>
   <a href="#alm-model-par">§9.7 Par fund TVOG 分紅基金</a>
+  <a href="#alm-model-prophet">§9.8 Prophet 端到端工作流</a>
 
   <div class="nav-section">Appendix</div>
   <a href="#appendix-esg">A. ESG Minimum Requirements</a>
@@ -2775,6 +2776,512 @@ def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
   <tr><td>Sign-off</td><td>Chief Actuary + Independent Actuary review (GL34 §8) + Board (bonus declaration aspect)</td></tr>
 </table>
 </div>
+
+<hr />
+
+<!-- ════════ §9.8 Prophet End-to-End Workflow ════════ -->
+<h2 id="alm-model-prophet">§9.8 Par TVOG in Prophet — End-to-End Production Workflow 分紅TVOG在Prophet的完整實作工作流</h2>
+
+<p>
+  This section translates the Asset Share TVOG methodology (§9.7.4) into a concrete <strong>end-to-end Prophet production workflow</strong>.
+  Prophet (by FIS / Sungard) is the dominant actuarial modelling platform in Hong Kong, used by AIA, Prudential, AXA, Manulife, China Life and others.
+  The workflow below covers all 7 phases from upstream data to final IA-ready TVOG report.
+</p>
+
+<h3 id="prophet-overview">§9.8.1 Workflow Overview 7-Phase Pipeline</h3>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <pre class="diagram">
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │ Phase 1: Data Preparation 數據準備                                    │
+  │   PAS extract → MPF (Model Point File)                              │
+  │   Custodian / Bloomberg → Asset File                                 │
+  │   Assumption updates (mort, lapse, expense)                          │
+  │   ESG calibration → Scenario File (.GSI / .ECN)                     │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 2: Prophet Library &amp; Config Setup 模型配置                     │
+  │   Library version (e.g. PROPHET_HK_PAR_v25.1)                       │
+  │   Asset Share variable code                                          │
+  │   Dividend declaration rule code                                     │
+  │   Run setting (.RUN file) — stochastic mode                          │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 3: Pre-Run Validation 開跑前驗證                                │
+  │   Single-scenario sanity check                                       │
+  │   Static validation (assets ≈ liabilities at t=0)                    │
+  │   Reconcile vs prior quarter                                         │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 4: Deterministic Run 確定式跑                                   │
+  │   Run with ESG mean-path scenario only (1 scenario)                  │
+  │   Output: CE_deterministic per cohort                                │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 5: Stochastic Production Run 隨機式跑 (Grid Computing)         │
+  │   1,000-5,000 scenarios × 100 years × all cohorts                    │
+  │   Parallel on Pacer Grid (50-100 nodes); 12-36 hours                 │
+  │   Output: PV per scenario per cohort                                 │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 6: Post-Processing &amp; TVOG Calc 後處理                          │
+  │   CE_stochastic = mean(PV_s); TVOG = CE_stoch − CE_det               │
+  │   Attribution: TVOG_floor / cap / smoothing / surrender              │
+  │   Convergence test (N=1000 vs N=5000)                                │
+  ├──────────────────────────────────────────────────────────────────────┤
+  │ Phase 7: Validation &amp; GL34 Reporting 驗證與監管報告                  │
+  │   AA recommendation memo                                             │
+  │   Independent Actuary review (GL34 §8)                               │
+  │   IA quarterly filing + Board reporting                              │
+  └──────────────────────────────────────────────────────────────────────┘</pre>
+</div>
+
+<!-- ─── §9.8.2 Phase 1 ─── -->
+<h3 id="prophet-phase1">§9.8.2 Phase 1: Data Preparation 數據準備</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Input Type</th><th>Source</th><th>Prophet Format</th><th>Key Validation</th></tr>
+  <tr>
+    <td><strong>Model Point File (MPF)</strong></td>
+    <td>PAS (Policy Admin System) extract</td>
+    <td>.RPT or .PRO file: one row per cohort with all policy attributes (SA, premium, vested RB, issue date, etc.)</td>
+    <td>Total inforce SA, premium, count reconciles to PAS GL totals; <strong>asset share per cohort must rollforward correctly from last period</strong></td>
+  </tr>
+  <tr>
+    <td><strong>Asset Data</strong></td>
+    <td>Custodian feed + Bloomberg AAPI</td>
+    <td>Asset MPF: bond CFs, ratings, market value, asset_spread, asset_duration (per §9.2)</td>
+    <td>Total MV reconciles to custodian; spread spot-check vs Bloomberg YAS</td>
+  </tr>
+  <tr>
+    <td><strong>Best Estimate Assumptions</strong></td>
+    <td>Annual experience study + management overlay</td>
+    <td>.TAB files (mortality, lapse base, expense per region, COI rates)</td>
+    <td>Sign-off by Appointed Actuary</td>
+  </tr>
+  <tr>
+    <td><strong>ESG Scenarios</strong></td>
+    <td>Moody's B&amp;H / Conning GEMS / WTW STAR</td>
+    <td>.GSI or .ECN scenario file: rates, equity, credit spread, FX per year per scenario</td>
+    <td>5-test validation (martingale / PV / market / moment / distribution) per §9.5</td>
+  </tr>
+  <tr>
+    <td><strong>Dividend Policy Parameters</strong></td>
+    <td>Board-approved bonus philosophy doc (GL34 §6.7)</td>
+    <td>Variables in library: smoothing_alpha, rb_share, tb_share, cap, floor</td>
+    <td>Same as last quarter unless board re-approval</td>
+  </tr>
+  <tr>
+    <td><strong>Opening Asset Share</strong></td>
+    <td>Prior quarter MPF rollforward + independent reconciliation (GL34 §4)</td>
+    <td>Field in MPF: <code>OPEN_AS</code> per cohort</td>
+    <td>Reconciles to fund GL net of last period bonus declaration</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.8.3 Phase 2 Library Setup ─── -->
+<h3 id="prophet-phase2">§9.8.3 Phase 2: Prophet Library Setup &amp; Asset Share Variable Code 庫設置與變量代碼</h3>
+
+<p>The Asset Share calculation in Prophet is implemented as a set of <strong>user-defined variables</strong> in the library (.LIB file).
+Below is a representative pseudo-code skeleton in Prophet's variable language:</p>
+
+<pre class="codeblock"><code>'═════════════════════════════════════════════════════════════════
+' VARIABLE: ASSET_SHARE
+' Type: Numeric, Aggregation = Sum, Output Level = Cohort × Scenario × Year
+'═════════════════════════════════════════════════════════════════
+ASSET_SHARE = IF (t = 1) THEN
+                  OPEN_AS                  ' from MPF input field
+              ELSE
+                  ASSET_SHARE_PRV * (1 + EARNED_RATE_NET)
+                  + PREMIUM_INCOME
+                  - DEATH_OUTGO
+                  - SURR_OUTGO
+                  - EXPENSE_ALLOCATED
+                  - COI_CHARGE
+                  - TAX_FUND
+                  - PROFIT_CHARGE_SH        ' shareholder transfer per §6
+              END IF
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: EARNED_RATE_NET (driven by ESG scenario s)
+'═════════════════════════════════════════════════════════════════
+EARNED_RATE_NET = (INV_INC + REALIZED_GL + UNREALIZED_GL) / AVG_ASSET
+                  - INV_EXPENSE_RATE
+   ' Driven by ESG scenario through ASSET_RETURN_S(t, s) lookup
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: SMOOTHED_RATE (5-year exponential)
+'═════════════════════════════════════════════════════════════════
+SMOOTHED_RATE = IF (t = 1) THEN
+                    EARNED_RATE_NET
+                ELSE
+                    SMOOTHING_ALPHA * EARNED_RATE_NET
+                    + (1 - SMOOTHING_ALPHA) * SMOOTHED_RATE_PRV
+                END IF
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: TOTAL_BONUS_RATE (GL34 §6 governed declaration rule)
+'═════════════════════════════════════════════════════════════════
+DISTRIBUTABLE = MAX(ASSET_SHARE - GTD_LIAB - SMOOTHING_BUFFER, 0)
+TARGET_RATE   = MIN(SMOOTHED_RATE - GTD_RATE, DIVIDEND_CAP)
+TOTAL_BONUS_RATE = MAX(0, MIN(TARGET_RATE,
+                              DISTRIBUTABLE / SA_INFORCE))
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: RB_RATE_T, TB_RATE_T  (RB vested, TB discretionary)
+'═════════════════════════════════════════════════════════════════
+RB_RATE_T = RB_SHARE_PCT * TOTAL_BONUS_RATE         ' e.g. 40%
+TB_RATE_T = TB_SHARE_PCT * TOTAL_BONUS_RATE         ' e.g. 60%
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: VESTED_RB_BAL  (cumulative — once declared, vested)
+'═════════════════════════════════════════════════════════════════
+VESTED_RB_BAL = IF (t = 1) THEN
+                    OPEN_VESTED_RB
+                ELSE
+                    VESTED_RB_BAL_PRV + RB_RATE_T * SA_INFORCE
+                END IF
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: DYNAMIC_LAPSE_RATE (DPB with TB anticipation)
+'═════════════════════════════════════════════════════════════════
+RATE_GAP = MAX(MARKET_RATE - SMOOTHED_RATE, 0)
+TB_DECLINE_SIG = MAX((TB_RATE_T_PRV - TB_RATE_T) / TB_RATE_T_PRV, 0)
+DYNAMIC_LAPSE_RATE = BASE_LAPSE_TABLE * (1 + BETA1 * RATE_GAP
+                                            + BETA2 * TB_DECLINE_SIG)
+
+'═════════════════════════════════════════════════════════════════
+' VARIABLE: CASH FLOWS for the cohort in this scenario-year
+'═════════════════════════════════════════════════════════════════
+DEATH_OUTGO = (SA_INFORCE + VESTED_RB_BAL) * MORTALITY_RATE
+SURR_OUTGO  = (SA_INFORCE * GTD_CV_PCT
+               + VESTED_RB_BAL
+               + TB_RATE_T * SA_INFORCE)      ' TB paid at surrender
+              * DYNAMIC_LAPSE_RATE
+MATURITY_OUTGO = IF (t = POL_TERM) THEN
+                     SA_INFORCE + VESTED_RB_BAL + TB_RATE_T * SA_INFORCE
+                 ELSE 0 END IF</code></pre>
+
+<p style="font-size:0.88rem; color:var(--muted);">
+  Real Prophet code uses Prophet-specific syntax (e.g., <code>PRJ_</code> prefix, <code>RPT_</code> variables, <code>LOOKUP</code> functions);
+  this is a methodology illustration. A full production library can have 200-500 such variables.
+</p>
+
+<!-- ─── §9.8.4 Phase 3 Pre-Run Validation ─── -->
+<h3 id="prophet-phase3">§9.8.4 Phase 3: Pre-Run Validation 開跑前驗證</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Validation</th><th>Method</th><th>Acceptance Criterion</th></tr>
+  <tr>
+    <td><strong>Single-scenario sanity check</strong></td>
+    <td>Run 1 scenario, eyeball CF projection</td>
+    <td>CFs reasonable, no negative claims, asset depletes monotonically</td>
+  </tr>
+  <tr>
+    <td><strong>Static balance test</strong></td>
+    <td>At t=0: AS<sub>0</sub> should reconcile with prior period closing AS + bonus declared</td>
+    <td>Difference &lt; 0.1% of fund value</td>
+  </tr>
+  <tr>
+    <td><strong>Roll-forward test</strong></td>
+    <td>Compare current quarter MPF to prior quarter MPF + 1 quarter rollforward</td>
+    <td>Movements explained: premium, claims, bonus, FX, model changes</td>
+  </tr>
+  <tr>
+    <td><strong>Cohort coverage</strong></td>
+    <td>Sum of cohort SA should reconcile to fund total SA</td>
+    <td>&lt; 0.01% discrepancy</td>
+  </tr>
+  <tr>
+    <td><strong>ESG scenarios load test</strong></td>
+    <td>Sample 5 scenarios; check rate paths plausible</td>
+    <td>No negative rates beyond model floor; equity paths within ESG calibrated bounds</td>
+  </tr>
+  <tr>
+    <td><strong>Library version control</strong></td>
+    <td>Git diff vs last quarter's library</td>
+    <td>All code changes signed off by AA</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.8.5 Phase 4-5 Runs ─── -->
+<h3 id="prophet-phase45">§9.8.5 Phase 4 &amp; 5: Deterministic + Stochastic Production Runs 確定式與隨機式</h3>
+
+<h4>Phase 4 — Deterministic Run (1 scenario, fast)</h4>
+
+<ul>
+  <li><strong>Input:</strong> ESG <em>mean path</em> scenario file (single .GSI with 1 scenario containing the per-timepoint expected value)</li>
+  <li><strong>Output:</strong> CE<sub>deterministic</sub> per cohort, per fund, per currency</li>
+  <li><strong>Run time:</strong> ~30 min on single node for 500K policies</li>
+  <li><strong>Purpose:</strong> Baseline for TVOG denominator; also used as "best estimate CE" in PCR base run</li>
+</ul>
+
+<h4>Phase 5 — Stochastic Production Run (N scenarios, slow)</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Configuration</th><th>Typical Setup</th><th>Notes</th></tr>
+  <tr><td>Scenarios</td><td>1,000 (minimum) or 5,000 (industry standard)</td><td>Variance reduction: antithetic + Sobol</td></tr>
+  <tr><td>Projection horizon</td><td>100 years (or until last policy maturity)</td><td>Annual or quarterly time steps</td></tr>
+  <tr><td>Compute platform</td><td>Prophet Pacer Grid (50-100 nodes)</td><td>Distributed across cohorts × scenarios</td></tr>
+  <tr><td>Run time</td><td>12-36 hours per quarter per fund</td><td>Scales linearly with scenario count</td></tr>
+  <tr><td>Output</td><td>PV<sub>s</sub> per scenario, per cohort, per cash flow type</td><td>Stored in Prophet results database (RDF)</td></tr>
+  <tr><td>Output size</td><td>500K policies × 5K scenarios ≈ 200-500 GB raw</td><td>Compressed and archived for audit</td></tr>
+</table>
+</div>
+
+<h4>Sample Prophet Run Configuration File (.RUN)</h4>
+
+<pre class="codeblock"><code>[Run Settings]
+RUN_NAME            = HKRBC_Q4_2025_PARFUND_STOCH_5K
+RUN_TYPE            = STOCHASTIC
+SCENARIO_FILE       = ESG_MoodysBH_Q4_2025_5000scn.GSI
+SCENARIOS           = 5000
+ANTITHETIC          = ON
+PROJECTION_YEARS    = 100
+TIME_STEP           = MONTHLY
+MODEL_POINT_FILE    = HKD_PAR_FUND_A_2025Q4.RPT
+LIBRARY             = PROPHET_HK_PAR_v25.4
+TABLE_DIR           = .\TABLES\2025Q4\
+DISCOUNT_BASIS      = RFR_SCENARIO            ' use per-scenario RFR path
+OUTPUT_LEVEL        = COHORT, SCENARIO, YEAR
+OUTPUT_VARIABLES    = ASSET_SHARE, GTD_LIAB, VESTED_RB_BAL, &amp;
+                      DEATH_OUTGO, SURR_OUTGO, MATURITY_OUTGO, &amp;
+                      DISCOUNT_FACTOR, PV_CF
+
+[Distributed Computing]
+GRID                = PACER_HK_PROD_50NODES
+SPLIT_BY            = SCENARIO
+RESTART_ON_FAIL     = ON</code></pre>
+
+<!-- ─── §9.8.6 Phase 6 Post-Processing ─── -->
+<h3 id="prophet-phase6">§9.8.6 Phase 6: Post-Processing &amp; TVOG Calculation 後處理</h3>
+
+<h4>Step-by-step Post-Processing</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Step</th><th>Operation</th><th>Output</th></tr>
+  <tr>
+    <td><strong>1</strong></td>
+    <td>Extract PV<sub>s</sub> from Prophet RDF, one row per (cohort, scenario)</td>
+    <td>Tidy DataFrame</td>
+  </tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td>Stochastic CE per cohort = mean(PV<sub>s</sub> over all scenarios)</td>
+    <td>CE<sub>stoch</sub> per cohort</td>
+  </tr>
+  <tr>
+    <td><strong>3</strong></td>
+    <td>Deterministic CE per cohort = PV from Phase 4 run</td>
+    <td>CE<sub>det</sub> per cohort</td>
+  </tr>
+  <tr>
+    <td><strong>4</strong></td>
+    <td><strong>TVOG per cohort = CE<sub>stoch</sub> − CE<sub>det</sub></strong></td>
+    <td>TVOG figure</td>
+  </tr>
+  <tr>
+    <td><strong>5</strong></td>
+    <td>Aggregate cohort TVOGs to fund total</td>
+    <td>Fund-level TVOG</td>
+  </tr>
+  <tr>
+    <td><strong>6</strong></td>
+    <td>Standard error: SE = std(PV<sub>s</sub>) / √N per cohort</td>
+    <td>SE metrics</td>
+  </tr>
+  <tr>
+    <td><strong>7</strong></td>
+    <td>Convergence test: re-aggregate using first N=1000 only; compare to N=5000</td>
+    <td>Convergence ratio</td>
+  </tr>
+  <tr>
+    <td><strong>8</strong></td>
+    <td>Attribution: re-run with one option turned off at a time (floor / cap / smoothing / surrender)</td>
+    <td>TVOG components</td>
+  </tr>
+  <tr>
+    <td><strong>9</strong></td>
+    <td>Sensitivity: ±10% lapse, ±50 bps RFR, ±20% equity vol</td>
+    <td>Sensitivity grid</td>
+  </tr>
+</table>
+</div>
+
+<h4>Sample Python Post-Processing Script</h4>
+
+<pre class="codeblock"><code>import pandas as pd
+import numpy as np
+
+# ── Load Prophet output (extracted from RDF) ──
+df_stoch = pd.read_parquet('PROPHET_RDF/HKRBC_Q4_2025_STOCH_5K.parquet')
+# Columns: cohort_id, scenario, year, pv_cf
+
+df_det = pd.read_parquet('PROPHET_RDF/HKRBC_Q4_2025_DET_MEAN.parquet')
+# Columns: cohort_id, year, pv_cf
+
+# ── Step 1-2: Stochastic CE per cohort ──
+ce_stoch = (df_stoch.groupby(['cohort_id', 'scenario'])['pv_cf'].sum()
+                    .groupby('cohort_id').mean())
+
+# ── Step 3: Deterministic CE per cohort ──
+ce_det = df_det.groupby('cohort_id')['pv_cf'].sum()
+
+# ── Step 4: TVOG per cohort ──
+tvog = ce_stoch - ce_det
+tvog_pct = tvog / ce_det * 100
+
+# ── Step 5: Fund-level TVOG ──
+fund_tvog = tvog.sum()
+fund_tvog_pct = fund_tvog / ce_det.sum() * 100
+
+# ── Step 6: Standard error per cohort ──
+pv_by_scen = df_stoch.groupby(['cohort_id', 'scenario'])['pv_cf'].sum()
+se = pv_by_scen.groupby('cohort_id').std() / np.sqrt(5000)
+relative_se = se / ce_stoch.abs() * 100
+
+# ── Step 7: Convergence test ──
+ce_stoch_1k = (pv_by_scen.unstack().iloc[:, :1000].mean(axis=1))
+convergence_diff = (ce_stoch - ce_stoch_1k) / ce_stoch * 100
+
+# ── Build summary report ──
+report = pd.DataFrame({
+    'CE_Deterministic': ce_det,
+    'CE_Stochastic':    ce_stoch,
+    'TVOG':             tvog,
+    'TVOG_%':           tvog_pct,
+    'StdErr_%':         relative_se,
+    'Conv_Diff_%':      convergence_diff,
+}).round(2)
+
+report.to_excel('TVOG_Q4_2025_Summary.xlsx')
+
+print(f"Fund-level TVOG: HKD {fund_tvog/1e6:.1f}M ({fund_tvog_pct:.2f}% of CE)")
+print(f"Average cohort SE: {relative_se.mean():.2f}%")
+print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code></pre>
+
+<!-- ─── §9.8.7 Phase 7 Validation ─── -->
+<h3 id="prophet-phase7">§9.8.7 Phase 7: Validation &amp; GL34 Reporting 驗證與監管報告</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Output Deliverable</th><th>Audience</th><th>GL34 / Cap. 41R Reference</th></tr>
+  <tr>
+    <td><strong>TVOG Calculation Memo</strong> (methodology, assumptions, results, attribution)</td>
+    <td>Appointed Actuary, Audit, IA</td>
+    <td><span class="ref">Cap. 41R Rule 19</span>; <span class="ref circ">IA Circular App. 1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Asset Share Rollforward Reconciliation</strong> (prior CE → CE_stoch this period)</td>
+    <td>AA, Independent Actuary, Audit</td>
+    <td><span class="ref circ">GL34 §4 (Opening Balance), §6.6 (tracking)</span></td>
+  </tr>
+  <tr>
+    <td><strong>Bonus Declaration Recommendation</strong> (from AS surplus)</td>
+    <td>Appointed Actuary → Board</td>
+    <td><span class="ref circ">GL34 §6.8</span></td>
+  </tr>
+  <tr>
+    <td><strong>ESG Validation Report</strong> (5-test results)</td>
+    <td>Internal Risk Committee + IA on request</td>
+    <td><span class="ref circ">IA Circular App. 1</span></td>
+  </tr>
+  <tr>
+    <td><strong>Convergence &amp; Sensitivity Analysis</strong></td>
+    <td>Internal validation; AA sign-off package</td>
+    <td>Best practice / IA expectation</td>
+  </tr>
+  <tr>
+    <td><strong>Independent Actuary Report</strong> (annual)</td>
+    <td>IA</td>
+    <td><span class="ref circ">GL34 §8, §9</span></td>
+  </tr>
+  <tr>
+    <td><strong>HKRBC Quarterly Return</strong> (EBS with TVOG embedded in CE)</td>
+    <td>IA</td>
+    <td><span class="ref">Cap. 41R Part 2 &amp; Part 4</span></td>
+  </tr>
+  <tr>
+    <td><strong>Board Bonus Policy Compliance Statement</strong></td>
+    <td>Board of Directors</td>
+    <td><span class="ref circ">GL34 §1.4, §6.7</span></td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.8.8 Common Production Issues ─── -->
+<h3 id="prophet-issues">§9.8.8 Common Production Issues 常見生產問題</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Issue</th><th>Root Cause</th><th>Mitigation</th></tr>
+  <tr>
+    <td>Grid run hangs / fails midway</td>
+    <td>Memory leak, node failure, ESG scenario disk I/O</td>
+    <td>Restart-on-fail flag, split scenarios into smaller chunks (e.g. 500 per batch)</td>
+  </tr>
+  <tr>
+    <td>Stochastic CE materially different from prior quarter</td>
+    <td>ESG re-calibration, model code change, MPF data shift</td>
+    <td>Run "change explainer" — turn changes on one-at-a-time, isolate driver</td>
+  </tr>
+  <tr>
+    <td>Asset Share opening balance mismatch</td>
+    <td>Cohort restructure / new business added without proper roll</td>
+    <td>Independent reconciliation against custodian + AA approval</td>
+  </tr>
+  <tr>
+    <td>TVOG too high vs benchmark</td>
+    <td>Overly conservative DPB; insufficient management action; small smoothing buffer</td>
+    <td>Sensitivity test on β<sub>2</sub> (TB anticipation), validate management action against historical</td>
+  </tr>
+  <tr>
+    <td>TVOG too low vs benchmark</td>
+    <td>Overly aggressive management action; missing surrender option modelling</td>
+    <td>GL34 §6 PRE check; back-test management action against last 5 years</td>
+  </tr>
+  <tr>
+    <td>Convergence diff &gt; 5%</td>
+    <td>Insufficient scenarios for deep out-of-the-money guarantees</td>
+    <td>Increase N to 10,000 or apply importance sampling for tail</td>
+  </tr>
+  <tr>
+    <td>Negative Asset Share in stressed scenarios</td>
+    <td>Adverse path triggers severe reserve buildup &gt; AS</td>
+    <td>Capital support tracking (GL34 §7); AS floor at 0 in PROF charge</td>
+  </tr>
+  <tr>
+    <td>Library code change unapproved</td>
+    <td>Developer mid-quarter fix without proper version control</td>
+    <td>Git lockdown during production run; AA must sign off any code change</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.8.9 End-to-End Run Calendar ─── -->
+<h3 id="prophet-calendar">§9.8.9 Quarterly Production Calendar 季度生產日曆</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Day After Quarter-End</th><th>Activity</th><th>Owner</th></tr>
+  <tr><td>D + 1 to D + 5</td><td>PAS extract, asset feed reconciliation, MPF assembly</td><td>IT + Valuation team</td></tr>
+  <tr><td>D + 5</td><td>ESG re-calibration (Moody's / Conning)</td><td>ALM / Capital team</td></tr>
+  <tr><td>D + 5 to D + 7</td><td>Library deployment, pre-run validation</td><td>Modelling team</td></tr>
+  <tr><td>D + 7</td><td>Deterministic run + sanity check</td><td>Valuation team</td></tr>
+  <tr><td>D + 7 to D + 10</td><td>Stochastic production run on grid (12-36 hours per fund)</td><td>Modelling + IT</td></tr>
+  <tr><td>D + 10 to D + 12</td><td>Post-processing, attribution, sensitivity, convergence</td><td>Valuation team</td></tr>
+  <tr><td>D + 12 to D + 15</td><td>AA memo, peer review, methodology QA</td><td>Appointed Actuary office</td></tr>
+  <tr><td>D + 15 to D + 18</td><td>Independent Actuary review (GL34 §8)</td><td>External party</td></tr>
+  <tr><td>D + 18 to D + 25</td><td>Board reporting, IA quarterly submission</td><td>CFO / Company Secretary</td></tr>
+  <tr><td>D + 28 (regulatory deadline)</td><td>HKRBC quarterly return filed with IA</td><td>Finance / Compliance</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.93rem; color:var(--muted); margin-top:1rem;">
+  Typical large insurer quarter close: 4-6 calendar weeks of intense work. Year-end close: 6-10 weeks
+  (additional audit, independent professional report under GL34 §9, board approval of full-year bonus declaration).
+</p>
 
 <hr />
 
