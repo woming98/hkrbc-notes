@@ -676,13 +676,13 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </div>
 
 <div class="formula">
-  PCA = RCA<sub>aggregate</sub> − LAC(FDB) [Rule 43] − LAC(DT) [Rule 44] + RCA<sub>operational risk</sub> [Rule 86]
-  &nbsp; <span class="ref">Rule 37(1)</span>
-  <br/>
-  RCA<sub>aggregate</sub> = √( Σ<sub>x,y</sub> ρ<sub>xy</sub> × RCA<sub>x</sub> × RCA<sub>y</sub> )
-  &nbsp; <span class="ref">Rule 37(1)(c) &amp; Sch. 7 Table 2</span>
-  <br/>
-  <span style="font-size:0.85em; color:#6b7280;">where RCA = risk capital amount (風險資本額); LAC = loss absorbing capacity (損失吸收能力); FDB = future discretionary benefits (未來酌情利益)</span>
+  \[
+    \mathrm{PCA} = \mathrm{RCA}_{\text{aggregate}} - \mathrm{LAC(FDB)} - \mathrm{LAC(DT)} + \mathrm{RCA}_{\text{op risk}}
+  \]
+  \[
+    \mathrm{RCA}_{\text{aggregate}} = \sqrt{\sum_{x,y} \rho_{xy} \cdot \mathrm{RCA}_x \cdot \mathrm{RCA}_y}
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">RCA = risk capital amount 風險資本額 &nbsp;|&nbsp; LAC = loss absorbing capacity 損失吸收能力 &nbsp;|&nbsp; FDB = future discretionary benefits 未來酌情利益 &nbsp;<span class="ref">Rule 37(1)(c) &amp; Sch. 7 Table 2</span></div>
 </div>
 
 <div class="tbl-wrap">
@@ -811,7 +811,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </p>
 
 <div class="formula">
-  PCR<sub>Counterparty</sub> = Σ<sub>i</sub> Exposure<sub>i</sub> × Risk Factor<sub>i</sub>
+  \[ \mathrm{RCA}_{\text{Counterparty}} = \sum_{i} \mathrm{Exposure}_i \times \mathrm{RiskFactor}_i \]
 </div>
 
 <div class="tbl-wrap">
@@ -835,22 +835,30 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <div class="card">
   <h4>Life Non-Linked Business 非聯結人壽業務</h4>
   <div class="formula">
-    OP<sub>Total</sub> = OP<sub>Prem</sub> + OP<sub>PremGrowth</sub> + OP<sub>Liab</sub>
-    <br/><br/>
-    OP<sub>Prem</sub> = 4% × Prem<sub>t</sub> &nbsp;&nbsp; (current year gross written premium 當期毛保費)
-    <br/>
-    OP<sub>PremGrowth</sub> = 4% × max(0, Prem<sub>t</sub> − 1.2 × Prem<sub>t−1</sub>) &nbsp;&nbsp; (premium growth beyond 20% threshold)
-    <br/>
-    OP<sub>Liab</sub> = 0.45% × (CE<sub>t</sub> + CE<sub>t−1</sub> + CE<sub>t−2</sub>) / 3 &nbsp;&nbsp; (3-year average current estimate 三年均值)
+    \[
+      \mathrm{OP}_{\text{Total}} = \mathrm{OP}_{\text{Prem}} + \mathrm{OP}_{\text{PremGrowth}} + \mathrm{OP}_{\text{Liab}}
+    \]
+    \[
+      \mathrm{OP}_{\text{Prem}} = 4\% \times P_t \qquad \text{(gross written premium)}
+    \]
+    \[
+      \mathrm{OP}_{\text{PremGrowth}} = 4\% \times \max(0,\; P_t - 1.2 \times P_{t-1}) \qquad \text{(growth beyond 20\% threshold)}
+    \]
+    \[
+      \mathrm{OP}_{\text{Liab}} = 0.45\% \times \frac{CE_t + CE_{t-1} + CE_{t-2}}{3} \qquad \text{(3-year avg current estimate)}
+    \]
   </div>
   <p style="margin-top:0.7rem">
     <strong>Life Linked Business 聯結人壽業務</strong>: No premium factor; liability factor = 0.40% of 3-year average current estimate.<br/>
     <strong>Class H (Pension) 養老業務</strong>: Follows Life Linked treatment for QIS 2.
   </p>
   <div class="formula" style="margin-top:0.8rem">
-    PCR<sub>OP</sub> = max( Floor, min( Cap, OP<sub>Total</sub> ) )
-    <br/>
-    Cap = PCR<sub>before_OP</sub> × 30% &nbsp;|&nbsp; Floor = HKD 15,000 thousand (life insurers)
+    \[
+      \mathrm{RCA}_{\text{OP}} = \max\!\Bigl(\text{Floor},\; \min\!\bigl(\text{Cap},\; \mathrm{OP}_{\text{Total}}\bigr)\Bigr)
+    \]
+    \[
+      \text{Cap} = \mathrm{RCA}_{\text{pre-OP}} \times 30\% \qquad \text{Floor} = \text{HKD } 15{,}000\text{k (life)}
+    \]
   </div>
   <p style="margin-top:0.5rem; font-size:0.9rem; color:var(--muted)">
     PCR<sub>OP</sub> is added <em>after</em> risk aggregation: PCR<sub>final</sub> = PCR<sub>aggregate</sub> − LAC + PCR<sub>OP</sub>
@@ -1125,9 +1133,10 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </p>
 
 <div class="formula" style="font-size:0.95rem;">
-  Net ΔNAV<sub>IR stress</sub> ≈ ( Duration<sub>assets</sub> − Duration<sub>liabilities</sub> ) × ΔRate × Portfolio Value
-  <br/>
-  <span style="font-size:0.85em; color:#6b7280;">If asset duration = liability duration → Net ΔNAV ≈ 0 → IR PCR ≈ 0</span>
+  \[
+    \Delta\mathrm{NAV}_{\text{IR stress}} \approx (\mathcal{D}_{\text{assets}} - \mathcal{D}_{\text{liabilities}}) \times \Delta r \times V
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">If \(\mathcal{D}_{\text{assets}} = \mathcal{D}_{\text{liabilities}}\) → \(\Delta\mathrm{NAV} \approx 0\) → IR RCA \(\approx 0\)</div>
 </div>
 
 <div class="tbl-wrap" style="margin-top:1rem;">
@@ -1535,9 +1544,14 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <h4>Aggregation Algorithm 聚合算法</h4>
 
 <div class="formula">
-  RCA<sub>aggregate</sub> = √( <strong>w<sup>T</sup> Σ w</strong> ) &nbsp; where Σ is correlation matrix (Sch. 7), w is RCA vector
-  <br/><br/>
-  PCA = RCA<sub>aggregate</sub> − LAC(FDB) − LAC(DT) + RCA<sub>OP</sub> &nbsp; <span class="ref">Rule 37(1)</span>
+  \[
+    \mathrm{RCA}_{\text{aggregate}} = \sqrt{\mathbf{w}^{\!\top} \Sigma\, \mathbf{w}}
+    \qquad \Sigma = \text{correlation matrix (Sch. 7)},\quad \mathbf{w} = \text{RCA vector}
+  \]
+  \[
+    \mathrm{PCA} = \mathrm{RCA}_{\text{aggregate}} - \mathrm{LAC(FDB)} - \mathrm{LAC(DT)} + \mathrm{RCA}_{\text{OP}}
+    \quad \text{\small Rule 37(1)}
+  \]
 </div>
 
 <p style="font-size:0.95rem;">Aggregation is done at <strong>two levels</strong>:</p>
@@ -1868,11 +1882,12 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <!-- 主公式 -->
 <div class="formula">
-  <strong>P(0, T) = UFR anchor + market correction</strong>
-  <br/><br/>
-  P(0, T) &nbsp;=&nbsp; <span style="color:#f9c74f;">e<sup>−UFR · T</sup></span>
-  &nbsp;+&nbsp;
-  <span style="color:#90e0ef;">Σ<sub>i=1..N</sub> ξ<sub>i</sub> · W(T, t<sub>i</sub>)</span>
+  <div style="text-align:center; font-weight:600; margin-bottom:0.5rem;">P(0, T) = UFR anchor + market correction</div>
+  \[
+    P(0,\,T) = \underbrace{e^{-\mathrm{UFR}\cdot T}}_{\text{UFR anchor}}
+    \;+\;
+    \underbrace{\sum_{i=1}^{N} \xi_i \cdot W(T,\,t_i)}_{\text{market correction}}
+  \]
 </div>
 
 <!-- 逐項解釋 -->
@@ -1901,7 +1916,12 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <h6 style="margin-top:1rem;">The Kernel Function W(T, u)</h6>
 
 <div class="formula">
-  W(T, u) = e<sup>−UFR(T+u)</sup> · [ α · min(T, u) − 0.5·e<sup>α·min(T,u)</sup> + 0.5·e<sup>−α·min(T,u)</sup> ]
+  \[
+    W(T,\,u) = e^{-\mathrm{UFR}(T+u)}
+    \Bigl[\,\alpha\cdot\min(T,u)
+    - \tfrac{1}{2}e^{\,\alpha\min(T,u)}
+    + \tfrac{1}{2}e^{-\alpha\min(T,u)}\Bigr]
+  \]
 </div>
 
 <div class="tbl-wrap" style="margin-top:0.6rem;">
@@ -2032,7 +2052,9 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 </p>
 
 <div class="formula">
-  θ(t) = ∂f(0, t)/∂t + a · f(0, t) + (σ<sup>2</sup>/2a)(1 − e<sup>−2at</sup>)
+  \[
+    \theta(t) = \frac{\partial f(0,t)}{\partial t} + a\cdot f(0,t) + \frac{\sigma^2}{2a}\!\left(1 - e^{-2at}\right)
+  \]
 </div>
 
 <p style="font-size:0.93rem;">where f(0, t) = instantaneous forward rate at time 0 for maturity t (from Step 1's curve).</p>
@@ -2050,10 +2072,17 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 <p>HW1F has an <strong>exact discretization</strong> (rare luxury — most models need Euler-Maruyama approximation):</p>
 
 <div class="formula">
-  r(t + Δt) = r(t) · e<sup>−aΔt</sup> + M(t, t+Δt) + V(Δt)<sup>1/2</sup> · Z<br/>
-  M(t, t+Δt) = α(t+Δt) − α(t) · e<sup>−aΔt</sup>  &nbsp; <em>(conditional mean)</em><br/>
-  V(Δt) = σ<sup>2</sup> · (1 − e<sup>−2aΔt</sup>) / (2a)  &nbsp; <em>(conditional variance)</em><br/>
-  Z ~ N(0, 1)  &nbsp; <em>standard normal shock</em>
+  \[
+    r(t+\Delta t) = r(t)\,e^{-a\Delta t} + M(t,\,t{+}\Delta t) + \sqrt{V(\Delta t)}\cdot Z
+  \]
+  \[
+    M(t,\,t{+}\Delta t) = \alpha(t{+}\Delta t) - \alpha(t)\,e^{-a\Delta t}
+    \qquad\text{(conditional mean)}
+  \]
+  \[
+    V(\Delta t) = \frac{\sigma^2}{2a}\!\left(1 - e^{-2a\Delta t}\right)
+    \qquad\text{(conditional variance)},\quad Z\sim\mathcal{N}(0,1)
+  \]
 </div>
 
 <p style="font-size:0.93rem;"><strong>Time step choice:</strong></p>
@@ -2112,9 +2141,13 @@ f0t = -lnP_interp(t_grid, 1)  # .derivative(1) = d/dt
 <p>For 2 factors (IR, Equity) with correlation ρ:</p>
 
 <div class="formula">
-  Σ = ⎛ 1  ρ ⎞ ,  L = chol(Σ) = ⎛ 1            0       ⎞<br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;⎝ ρ  1 ⎠ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;⎝ ρ  √(1−ρ²) ⎠<br/><br/>
-  Z<sub>correlated</sub> = L · Z<sub>independent</sub>
+  \[
+    \Sigma = \begin{pmatrix} 1 & \rho \\ \rho & 1 \end{pmatrix},\qquad
+    L = \operatorname{chol}(\Sigma) = \begin{pmatrix} 1 & 0 \\ \rho & \sqrt{1-\rho^2} \end{pmatrix}
+  \]
+  \[
+    \mathbf{Z}_{\text{correlated}} = L\,\mathbf{Z}_{\text{independent}}
+  \]
 </div>
 
 <p style="font-size:0.93rem;">For k factors, build the k×k correlation matrix Σ, take Cholesky factor L (numpy: <code>np.linalg.cholesky(Sigma)</code>),
@@ -2342,9 +2375,10 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <h4>§9.6.1 Core Definition &amp; Mathematical Foundation 核心定義與數學基礎</h4>
 
 <div class="formula">
-  TVOG = CE<sub>stochastic</sub> − CE<sub>deterministic</sub>
-  <br/>
-  <span style="font-size:0.85em; color:#6b7280;">where CE = current estimate (現時估計值) per Rule 16</span>
+  \[
+    \mathrm{TVOG} = \mathrm{CE}_{\text{stochastic}} - \mathrm{CE}_{\text{deterministic}}
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">CE = current estimate 現時估計值 per Rule 16</div>
 </div>
 
 <ul>
@@ -2357,11 +2391,17 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <p>The root cause of non-zero TVOG is <strong>asymmetric payoff</strong> from policyholder options and insurer guarantees. By Jensen's inequality, for a convex payoff function f(X):</p>
 
 <div class="formula">
-  E[f(X)] ≠ f(E[X])
-  <br/>
-  Deterministic CE = f(E[X]); &nbsp; Stochastic CE = E[f(X)]
-  <br/>
-  → TVOG = E[f(X)] − f(E[X]) ≥ 0 &nbsp;(typically positive — a cost to the insurer)
+  \[
+    \mathbb{E}[f(X)] \neq f\!\left(\mathbb{E}[X]\right)
+  \]
+  \[
+    \text{Deterministic CE} = f\!\left(\mathbb{E}[X]\right),\qquad
+    \text{Stochastic CE} = \mathbb{E}[f(X)]
+  \]
+  \[
+    \Rightarrow\; \mathrm{TVOG} = \mathbb{E}[f(X)] - f\!\left(\mathbb{E}[X]\right) \;\geq\; 0
+    \quad\text{(typically positive — a cost to the insurer)}
+  \]
 </div>
 
 <h4>Intuitive Example: Universal Life with 2% Minimum Crediting Rate</h4>
@@ -2575,9 +2615,10 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <h5>(d) Dynamic Policyholder Behaviour 動態保戶行為</h5>
 
 <div class="formula">
-  lapse<sub>t</sub> = base_lapse × ( 1 + β × max(market_rate<sub>t</sub> − credited_rate<sub>t</sub>, 0) )
-  <br/>
-  <span style="font-size:0.85em; color:#6b7280;">β = elasticity (typically 1.5-3.0), calibrated from historical lapse experience</span>
+  \[
+    q^{\text{lapse}}_t = q^{\text{base}} \times \Bigl(1 + \beta\cdot\max(r^{\text{market}}_t - r^{\text{credited}}_t,\;0)\Bigr)
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">\(\beta\) = lapse elasticity, typically 1.5–3.0, calibrated from historical experience</div>
 </div>
 
 <h5>(e) Path-Dependent Calculation (Lookback / Ratchet)</h5>
@@ -2600,9 +2641,10 @@ for t in range(1, T+1):
 <p>For simple minimum return guarantees, TVOG ≈ value of European put option:</p>
 
 <div class="formula">
-  TVOG<sub>BS</sub> ≈ Σ<sub>t</sub> Notional<sub>t</sub> × P<sub>BS</sub>(K = Floor<sub>t</sub>, T = t, σ, r)
-  <br/>
-  where P<sub>BS</sub> is Black-Scholes put price
+  \[
+    \mathrm{TVOG}_{\text{BS}} \approx \sum_{t} N_t \cdot P_{\text{BS}}\!\left(K = \mathrm{Floor}_t,\;T=t,\;\sigma,\;r\right)
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">\(P_{\text{BS}}\) = Black-Scholes put price</div>
 </div>
 
 <h5>(b) Replicating Portfolio</h5>
@@ -2779,7 +2821,9 @@ for t in range(1, T+1):
 <h5>(a) Asset Earned Rate 資產回報率投影</h5>
 
 <div class="formula" style="font-size:0.95rem;">
-  Earned Rate<sub>t</sub> = (Investment Income<sub>t</sub> + Realized Gain<sub>t</sub> + Unrealized Gain<sub>t</sub>) / Avg Asset<sub>t</sub>
+  \[
+    i_t = \frac{\text{Investment Income}_t + \text{Realized Gain}_t + \text{Unrealized Gain}_t}{\text{Avg Asset}_t}
+  \]
 </div>
 
 <ul>
@@ -2848,8 +2892,12 @@ for t in range(1, T+1):
 <h5>(e) Dynamic Policyholder Behaviour with TB Anticipation</h5>
 
 <div class="formula" style="font-size:0.93rem;">
-  lapse<sub>t</sub> = base_lapse × ( 1 + β<sub>1</sub> × max(market_rate − credited_rate, 0)<br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ β<sub>2</sub> × max((TB<sub>t</sub> − TB<sub>t+1</sub><sup>expected</sup>) / TB<sub>t</sub>, 0) )
+  \[
+    q^{\text{lapse}}_t = q^{\text{base}} \times \left(1
+    + \beta_1\cdot\max(r^{\text{mkt}} - r^{\text{credited}},\,0)
+    + \beta_2\cdot\max\!\left(\frac{TB_t - TB_{t+1}^{\text{exp}}}{TB_t},\,0\right)
+    \right)
+  \]
 </div>
 
 <p style="font-size:0.93rem;">
@@ -2906,7 +2954,9 @@ for t in range(1, T+1):
 <h5>(a) Core Asset Share Formula 核心公式</h5>
 
 <div class="formula">
-  AS<sub>t</sub> = AS<sub>t-1</sub> × (1 + i<sub>t</sub>) + P<sub>t</sub> − DB<sub>t</sub> − SB<sub>t</sub> − E<sub>t</sub> − C<sub>t</sub> − Tax<sub>t</sub> − PROF<sub>t</sub>
+  \[
+    AS_t = AS_{t-1}\,(1+i_t) + P_t - DB_t - SB_t - E_t - C_t - \mathrm{Tax}_t - \mathrm{PROF}_t
+  \]
 </div>
 
 <p style="font-size:0.93rem;">Each component is governed by a specific GL34 section — this is what makes the model audit-ready:</p>
@@ -3037,13 +3087,18 @@ for t in range(1, T+1):
 <p>The economic value of the Par fund liability can be expressed in terms of Asset Share:</p>
 
 <div class="formula" style="font-size:0.95rem;">
-  Liability Value<sub>Par</sub> = E[ AS<sub>T</sub> × Discount<sub>T</sub> ] &nbsp; <em>(if fund pays out the full AS at terminal)</em><br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ max(GL<sub>T</sub> − AS<sub>T</sub>, 0) × Discount<sub>T</sub> ] &nbsp; <em>(put option on AS — TVOG floor)</em><br/>
-  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ value of early exercise (surrender option on AS) ] &nbsp; <em>(American option — TVOG surrender)</em>
+  \[
+    V_{\text{Par}} =
+    \underbrace{\mathbb{E}\!\left[AS_T \cdot D_T\right]}_{\text{terminal AS payout}}
+    +\underbrace{\mathbb{E}\!\left[\max(GL_T - AS_T,\,0)\cdot D_T\right]}_{\text{guarantee floor (put on AS)}}
+    +\underbrace{\mathbb{E}\!\left[\text{early exercise value}\right]}_{\text{surrender option (American put)}}
+  \]
 </div>
 
 <div class="formula" style="font-size:0.95rem; margin-top:0.5rem;">
-  <strong>TVOG<sub>Par</sub> = Liability Value<sub>Par</sub> − Deterministic CE</strong>
+  \[
+    \mathrm{TVOG}_{\text{Par}} = V_{\text{Par}} - \mathrm{CE}_{\text{deterministic}}
+  \]
 </div>
 
 <p style="font-size:0.93rem;">
@@ -3185,7 +3240,9 @@ for t in range(1, T+1):
 <h4>§9.7.6 TVOG Component Decomposition 來源拆解</h4>
 
 <div class="formula">
-  TVOG<sub>Par</sub> = TVOG<sub>floor</sub> − TVOG<sub>cap</sub> + TVOG<sub>smoothing</sub> + TVOG<sub>surrender option</sub>
+  \[
+    \mathrm{TVOG}_{\text{Par}} = \mathrm{TVOG}_{\text{floor}} - \mathrm{TVOG}_{\text{cap}} + \mathrm{TVOG}_{\text{smoothing}} + \mathrm{TVOG}_{\text{surrender}}
+  \]
 </div>
 
 <div class="tbl-wrap">
