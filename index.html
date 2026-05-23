@@ -191,6 +191,7 @@ MathJax = {
   <a href="#alm-model-pcr">§9.4 Stress &amp; PCR Engine 壓力測試</a>
   <a href="#alm-model-esg">§9.5 ESG 經濟情景模擬器</a>
   <a href="#alm-model-tvog">§9.6 TVOG Deep-Dive 深度計算</a>
+  <a href="#alm-model-par">§9.7 Par fund TVOG 分紅基金</a>
 
   <div class="nav-section">Appendix</div>
   <a href="#appendix-esg">A. ESG Minimum Requirements</a>
@@ -2068,6 +2069,426 @@ for t in range(1, T+1):
   <tr><td>Frequency</td><td>Quarterly (HKRBC reporting); annually (ORSA)</td></tr>
   <tr><td>Validation</td><td>5-test ESG validation + product-level convergence test + sensitivity analysis</td></tr>
   <tr><td>Sign-off</td><td>Chief Actuary + Investment Officer (joint for Par fund / VA)</td></tr>
+</table>
+</div>
+
+<!-- ════════ §9.7 Par fund TVOG Deep-Dive ════════ -->
+<h3 id="alm-model-par">§9.7 Par fund TVOG Deep-Dive 分紅基金時間價值深度計算</h3>
+
+<p>
+  Participating (Par) fund TVOG is the <strong>most complex TVOG calculation</strong> under HKRBC.
+  It combines (a) multi-layered guarantees, (b) dynamic dividend smoothing, (c) management discretion
+  governed by GL34, and (d) policyholder surrender option that interacts with Terminal Bonus.
+  Par TVOG can easily reach <strong>1-3% of Current Estimate</strong>, materially impacting capital.
+</p>
+
+<!-- ─── §9.7.1 Product Structure ─── -->
+<h4>§9.7.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │ Layer 3: Terminal Bonus (TB) ─ paid at maturity / surrender / death │  ← Largest, most flexible
+  │          Non-vested, fully discretionary                            │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │ Layer 2: Reversionary Bonus (RB) ─ declared yearly, cumulative      │  ← Once declared → vested
+  │          Vested RB becomes guaranteed (cannot be clawed back)       │
+  ├─────────────────────────────────────────────────────────────────────┤
+  │ Layer 1: Guaranteed Benefit (SA + Guaranteed Cash Value)            │  ← Hard floor
+  │          Must be paid regardless of investment performance          │
+  └─────────────────────────────────────────────────────────────────────┘
+  </pre>
+</div>
+
+<h4>TVOG Sources — Multiple Embedded Options</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Embedded Option / Guarantee</th><th>Trigger</th><th>Beneficiary</th><th>TVOG Sign</th></tr>
+  <tr><td>Guaranteed SA / Cash Value</td><td>Investment underperforms</td><td>Policyholder</td><td>+ (cost to insurer)</td></tr>
+  <tr><td>Vested RB cannot be reduced</td><td>Always (asymmetric)</td><td>Policyholder</td><td>+</td></tr>
+  <tr><td>Dividend smoothing</td><td>Volatile markets</td><td>Both (double-edged)</td><td>± (typically small +)</td></tr>
+  <tr><td>Surrender with TB</td><td>Policyholder chooses optimal exit</td><td>Policyholder</td><td>+</td></tr>
+  <tr><td>Cap on bonus rate</td><td>Investment outperforms</td><td>Insurer / shareholder</td><td>− (offset)</td></tr>
+</table>
+</div>
+
+<h4>Why Par TVOG Is More Complex Than UL TVOG</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Feature</th><th>UL TVOG</th><th><strong>Par TVOG</strong></th></tr>
+  <tr><td>Crediting / dividend rate</td><td>Declared by insurer, with floor</td><td><strong>Declared with smoothing + GL34-governed discretion</strong></td></tr>
+  <tr><td>Surrender impact</td><td>Take Account Value (simple)</td><td><strong>Triggers TB payout — timing-dependent</strong></td></tr>
+  <tr><td>Bonus structure</td><td>Single crediting rate</td><td><strong>RB (vested) + TB (discretionary) — asymmetric</strong></td></tr>
+  <tr><td>Management actions</td><td>Annual rate decision</td><td><strong>Annual RB + periodic TB reset, both documented</strong></td></tr>
+  <tr><td>Regulatory oversight</td><td>Standard Rule 19</td><td><strong>GL34 prescribes management action governance</strong></td></tr>
+  <tr><td>ESG factor sensitivity</td><td>Primarily IR</td><td><strong>IR + equity + credit spread + FX all material</strong></td></tr>
+</table>
+</div>
+
+<!-- ─── §9.7.2 Key Assumptions ─── -->
+<h4>§9.7.2 Key Modelling Assumptions 關鍵建模假設</h4>
+
+<h5>(a) Asset Earned Rate 資產回報率投影</h5>
+
+<div class="formula" style="font-size:0.95rem;">
+  Earned Rate<sub>t</sub> = (Investment Income<sub>t</sub> + Realized Gain<sub>t</sub> + Unrealized Gain<sub>t</sub>) / Avg Asset<sub>t</sub>
+</div>
+
+<ul>
+  <li><strong>Asset mix:</strong> Fixed by ALM strategy (e.g. 70% bond / 20% equity / 10% property)</li>
+  <li><strong>Reinvestment:</strong> Specify which curve point new investments use (Sch. 4 RFR + asset spread)</li>
+  <li><strong>Fair value basis:</strong> Under HKRBC EBS, all gains (realized + unrealized) enter earned rate</li>
+</ul>
+
+<h5>(b) Smoothing Mechanism 平滑機制 (Three Common Methods)</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Method</th><th>Formula</th><th>Pros / Cons</th></tr>
+  <tr>
+    <td><strong>Simple Moving Average</strong></td>
+    <td>$$Smoothed_t = \frac{1}{n}\sum_{i=0}^{n-1} Earned_{t-i}$$ (n = 3-10 years)</td>
+    <td>Simple but slow to react</td>
+  </tr>
+  <tr>
+    <td><strong>Exponential Smoothing</strong></td>
+    <td>$$Smoothed_t = \alpha \cdot Earned_t + (1-\alpha) \cdot Smoothed_{t-1}$$ (α = 0.2-0.4)</td>
+    <td>Responsive, single parameter</td>
+  </tr>
+  <tr>
+    <td><strong>Asset Share Smoothing</strong> (industry standard)</td>
+    <td>$$AS_t = AS_{t-1}(1+i_t) + P_t - DB_t - SB_t - E_t - PROF_t$$<br/>Bonus = f(AS, Reserve, Smoothing Buffer)</td>
+    <td>Fairest to PRE (Policyholders' Reasonable Expectations); GL34 preferred</td>
+  </tr>
+</table>
+</div>
+
+<h5>(c) Dividend Declaration Rule 分紅宣派規則 (GL34 §6 governed)</h5>
+
+<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.82rem; overflow-x:auto;"><code># Each year t in each scenario s:
+1. free_surplus = Asset(t) - Liability(t) - Min Solvency Capital
+2. target_div = long_term_expected_earned_rate - guaranteed_rate
+3. actual_div = smoothing(earned_rate, target_div)
+4. Apply cap / floor:
+     - Floor: RB cannot go negative (0% is the floor); TB can drop to 0
+     - Cap: bonus rate cannot exceed earned rate + buffer
+5. Split RB vs TB:
+     - RB rate = conservative, sustainable portion (e.g. 40% of target)
+     - TB rate = surplus-driven portion (e.g. 60% of target)
+6. Management buffer: hold back some surplus for future smoothing</code></pre>
+
+<h5>(d) RB vs TB Distinction — Critically Important</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Bonus Type</th><th>Vesting</th><th>Reversibility</th><th>Path Dependency</th></tr>
+  <tr>
+    <td><strong>Reversionary Bonus (RB)</strong></td>
+    <td>Once declared, immediately vested</td>
+    <td>Cannot be clawed back (becomes guaranteed liability)</td>
+    <td>Cumulative — adds to SA permanently</td>
+  </tr>
+  <tr>
+    <td><strong>Terminal Bonus (TB)</strong></td>
+    <td>Paid only at maturity / surrender / death</td>
+    <td>Fully adjustable any time before payout</td>
+    <td><strong>Path-dependent — value depends on surrender timing</strong></td>
+  </tr>
+</table>
+</div>
+
+<h5>(e) Dynamic Policyholder Behaviour with TB Anticipation</h5>
+
+<div class="formula" style="font-size:0.93rem;">
+  lapse<sub>t</sub> = base_lapse × ( 1 + β<sub>1</sub> × max(market_rate − credited_rate, 0)<br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ β<sub>2</sub> × max((TB<sub>t</sub> − TB<sub>t+1</sub><sup>expected</sup>) / TB<sub>t</sub>, 0) )
+</div>
+
+<p style="font-size:0.93rem;">
+  The second term captures <strong>TB anticipation effect</strong> — policyholders surrender early to lock in
+  current TB level if they expect TB to decline. β<sub>1</sub> ≈ 1.5-3.0, β<sub>2</sub> ≈ 1.0-2.0 (calibrated from historical experience).
+</p>
+
+<!-- ─── §9.7.3 10-Step Process ─── -->
+<h4>§9.7.3 End-to-End Calculation Process 完整計算流程 (10 Steps)</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:6%">Step</th><th>Action</th><th>Output</th></tr>
+  <tr><td><strong>1</strong></td><td>Prepare ESG scenarios (≥1,000 risk-neutral, covering IR/equity/credit/FX)</td><td>Scenario matrix</td></tr>
+  <tr>
+    <td><strong>2</strong></td>
+    <td>
+      For each scenario s, year t, project:<br/>
+      (a) Asset value roll-forward<br/>
+      (b) Earned rate calculation<br/>
+      (c) Apply smoothing → smoothed rate<br/>
+      (d) Apply dividend rule → RB rate, TB rate<br/>
+      (e) Update vested RB (accumulates to liability)<br/>
+      (f) Compute TB reserve (based on current expected surplus)<br/>
+      (g) Apply DPB-adjusted lapse (with TB anticipation)<br/>
+      (h) Compute all CFs: premium, claim, surrender, expense<br/>
+      (i) Pay TB at surrender / death / maturity events
+    </td>
+    <td>Year-by-year CF</td>
+  </tr>
+  <tr><td><strong>3</strong></td><td>Discount all CFs to t=0 using scenario s's RFR path<br/>PV<sub>s</sub> = Σ CF<sub>t</sub> × DF<sub>t</sub></td><td>PV per scenario</td></tr>
+  <tr><td><strong>4</strong></td><td>Stochastic CE = (1/N) × Σ PV<sub>s</sub></td><td>CE<sub>stoch</sub></td></tr>
+  <tr><td><strong>5</strong></td><td>Deterministic CE: re-run the same projection ONCE using ESG mean-path scenario</td><td>CE<sub>det</sub></td></tr>
+  <tr><td><strong>6</strong></td><td><strong>TVOG<sub>Par</sub> = CE<sub>stoch</sub> − CE<sub>det</sub></strong></td><td>TVOG figure</td></tr>
+  <tr><td colspan="3" style="background:#fef9c3;"><strong>Optional Attribution (Steps 7-10): decompose TVOG sources</strong></td></tr>
+  <tr><td><strong>7</strong></td><td>Re-run without floors → isolate TVOG<sub>floor</sub> (guarantee cost)</td><td>Guarantee TVOG</td></tr>
+  <tr><td><strong>8</strong></td><td>Re-run without smoothing → isolate TVOG<sub>smoothing</sub></td><td>Smoothing TVOG</td></tr>
+  <tr><td><strong>9</strong></td><td>Re-run without dynamic surrender → isolate TVOG<sub>surrender</sub></td><td>Surrender option TVOG</td></tr>
+  <tr><td><strong>10</strong></td><td>Re-run without cap → isolate TVOG<sub>cap</sub> (offset)</td><td>Cap benefit</td></tr>
+</table>
+</div>
+
+<!-- ─── §9.7.4 Asset Share Model ─── -->
+<h4>§9.7.4 Asset Share Model — The Industry Standard 資產份額模型</h4>
+
+<p>
+  Asset Share (AS) represents <strong>the theoretical accumulated share each policy "should" have</strong>
+  if it were managed on a standalone basis. It is the foundation of fair dividend declaration under GL34 and is the
+  most defensible TVOG modelling approach for Par funds.
+</p>
+
+<div class="formula">
+  AS<sub>t</sub> = AS<sub>t-1</sub> × (1 + i<sub>t</sub>) + P<sub>t</sub> − DB<sub>t</sub> − SB<sub>t</sub> − E<sub>t</sub> − PROF<sub>t</sub>
+</div>
+
+<p style="font-size:0.93rem;">
+  Where: <code>i<sub>t</sub></code> = earned rate, <code>P<sub>t</sub></code> = premium, <code>DB<sub>t</sub></code> = death benefit,
+  <code>SB<sub>t</sub></code> = surrender benefit, <code>E<sub>t</sub></code> = expenses + commissions, <code>PROF<sub>t</sub></code> = profit margin to shareholders.
+</p>
+
+<h5>TVOG Decomposition via Asset Share</h5>
+
+<div class="formula" style="font-size:0.95rem;">
+  TVOG<sub>Par</sub> = E[ max(Guaranteed Liability − AS, 0) ] &nbsp;<em>(put option on AS)</em><br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; + E[ value of surrender option on AS ] &nbsp;<em>(American option)</em>
+</div>
+
+<!-- ─── §9.7.5 Stochastic-on-Stochastic ─── -->
+<h4>§9.7.5 Stochastic-on-Stochastic (Nested MC) 雙重隨機</h4>
+
+<div class="callout" style="background:#fef9c3; border-left-color:#d97706;">
+  <strong>When Required:</strong> If management action depends on <em>current fair value</em> (not just current earned rate),
+  the inner loop must re-value liability at every outer point — leading to nested MC (1,000 × 1,000 = 1,000,000 simulations per policy).
+</div>
+
+<p style="font-size:0.93rem;">Common workarounds to avoid nested MC computational explosion:</p>
+
+<ul style="font-size:0.93rem;">
+  <li><strong>Least-Squares Monte Carlo (LSMC, Longstaff-Schwartz):</strong> Regress continuation values on state variables; replaces inner MC with polynomial fit. Industry standard for VA hedging and complex Par.</li>
+  <li><strong>Replicating Portfolio (RP):</strong> Find a portfolio of vanilla options that replicates liability cash flows. Once calibrated, RP can be valued in closed form at any state.</li>
+  <li><strong>Proxy Models / Curve Fitting / Gaussian Process Regression:</strong> Build a fast surrogate for inner valuation using ML techniques.</li>
+</ul>
+
+<!-- ─── §9.7.6 TVOG Decomposition ─── -->
+<h4>§9.7.6 TVOG Component Decomposition 來源拆解</h4>
+
+<div class="formula">
+  TVOG<sub>Par</sub> = TVOG<sub>floor</sub> − TVOG<sub>cap</sub> + TVOG<sub>smoothing</sub> + TVOG<sub>surrender option</sub>
+</div>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Component</th><th>Nature</th><th>Typical Sign</th><th>Magnitude Driver</th></tr>
+  <tr><td><strong>TVOG<sub>floor</sub></strong></td><td>Cost of guaranteed minimum (put option to PH)</td><td>+ (large)</td><td>Interest rate level, asset volatility</td></tr>
+  <tr><td><strong>TVOG<sub>cap</sub></strong></td><td>Benefit of bonus cap (call option to insurer)</td><td>− (offset)</td><td>Cap level, asset upside vol</td></tr>
+  <tr><td><strong>TVOG<sub>smoothing</sub></strong></td><td>Long-term cost of dividend smoothing</td><td>+ (small but persistent)</td><td>Smoothing parameter, asset volatility</td></tr>
+  <tr><td><strong>TVOG<sub>surrender option</sub></strong></td><td>PH selects optimal exit timing for TB</td><td>+ (medium)</td><td>TB volatility, surrender penalty, β<sub>2</sub></td></tr>
+</table>
+</div>
+
+<!-- ─── §9.7.7 ALM Feedback Loop ─── -->
+<h4>§9.7.7 Asset-Liability Feedback Loop 資產負債回饋循環</h4>
+
+<p>
+  Par fund TVOG calculation has a <strong>unique feedback loop</strong> not present in other product TVOG calculations.
+  The chain runs as follows in each stress scenario:
+</p>
+
+<div class="callout" style="background:#f0fdf4; border-left-color:#16a34a;">
+  <pre style="background:transparent; border:none; padding:0; margin:0; font-size:0.85rem; color:#1f2937;">
+  IR Down stress
+    → Asset value ↑ (bonds rally)
+    → Guaranteed liability ↑ (lower discount rate)
+    → Fund surplus change is ambiguous
+    → Affects current year's dividend declaration
+    → Affects subsequent RB / TB pattern
+    → Affects policyholder surrender behaviour (via DPB)
+    → Feeds back to asset rebalancing decision
+    → Asset duration shifts
+    → Repeats next year
+  </pre>
+</div>
+
+<p style="font-size:0.93rem;">
+  This feedback must be modelled sequentially within each scenario — <strong>no shortcuts allowed</strong>.
+  Locking dividends at base-case levels and running stress separately leads to material TVOG misstatement.
+</p>
+
+<!-- ─── §9.7.8 GL34 Impact ─── -->
+<h4>§9.7.8 GL34 Impact on Par TVOG GL34對分紅TVOG的影響 <span class="ref circ">GL34, effective 1 Jul 2024</span></h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>GL34 Requirement</th><th>TVOG Impact</th></tr>
+  <tr><td><strong>§3 Asset &amp; Liability Identification</strong></td><td>Par fund must be <em>physically segregated</em>; TVOG only uses this fund's asset return — cannot pool with non-Par</td></tr>
+  <tr><td><strong>§4 Asset Share Fairness</strong></td><td>Dividend declaration rule must be fair to policyholders; asset share calculation is the audit basis</td></tr>
+  <tr><td><strong>§5 Expenses &amp; Charges</strong></td><td>Cost allocation to par fund must be fair, equitable, reasonable — affects asset earned rate</td></tr>
+  <tr><td><strong>§6 Bonus Philosophy Document</strong></td><td>Management action rule must be board-approved and consistent over time — can't be tweaked to reduce TVOG opportunistically</td></tr>
+  <tr><td><strong>§7 PRE (Policyholders' Reasonable Expectations)</strong></td><td>TVOG calculation must reflect PRE — overly aggressive management actions challenged by IA</td></tr>
+  <tr><td><strong>§8 Independent Actuarial Review</strong></td><td>Material TVOG changes require independent actuary sign-off</td></tr>
+  <tr><td><strong>Eligibility for MA</strong></td><td>Physical segregation under GL34 is a precondition for Par fund's MA portfolio eligibility under Cap. 41R Rule 24(3) — and for qualified LTA</td></tr>
+</table>
+</div>
+
+<!-- ─── §9.7.9 Simplified Python Implementation ─── -->
+<h4>§9.7.9 Simplified Python Implementation 簡化Python實作</h4>
+
+<pre style="background:#1e293b; color:#e2e8f0; padding:1rem; border-radius:6px; font-size:0.78rem; overflow-x:auto;"><code>import numpy as np
+
+def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
+                  rb_share=0.4, tb_share=0.6, beta1=2.0, beta2=1.5):
+    """Compute Par fund TVOG (simplified illustration).
+    
+    scenarios:  np.array shape (N, T), per-year earned rate
+    policy:     dict with SA, guaranteed_rate, base_lapse, qx[], etc.
+    """
+    N, T = scenarios.shape
+    pv_per_scenario = np.zeros(N)
+    
+    for s in range(N):
+        # Initialize
+        asset = policy['initial_asset']
+        vested_rb = 0  # cumulative RB (vested → guaranteed)
+        smoothed_rate = scenarios[s, 0]
+        last_inforce = 1.0
+        cf_per_year = np.zeros(T)
+        
+        for t in range(T):
+            earned_t = scenarios[s, t]
+            
+            # ─── Smoothing ───
+            smoothed_rate = (smoothing_alpha * earned_t
+                             + (1 - smoothing_alpha) * smoothed_rate)
+            
+            # ─── Dividend declaration (with cap/floor) ───
+            target_div = max(smoothed_rate - policy['guaranteed_rate'], 0)
+            target_div = min(target_div, policy['div_cap'])
+            
+            # ─── Split into RB (vested) and TB (discretionary) ───
+            rb_rate_t = rb_share * target_div
+            tb_rate_t = tb_share * target_div
+            vested_rb += rb_rate_t * policy['SA']
+            
+            # ─── DPB with TB anticipation ───
+            rate_gap = max(scenarios[s, t] - smoothed_rate, 0)
+            tb_decline = max((tb_rate_t - tb_share * target_div), 0)  # proxy
+            lapse_t = policy['base_lapse'] * (1 + beta1 * rate_gap + beta2 * tb_decline)
+            
+            # ─── Cash flows ───
+            death_outflow = (policy['SA'] + vested_rb) * policy['qx'][t]
+            surr_outflow = ((policy['SA'] * policy['guaranteed_cv_pct']
+                             + vested_rb
+                             + tb_rate_t * policy['SA'])
+                            * lapse_t)
+            
+            cf_t = -(death_outflow + surr_outflow) * last_inforce
+            cf_per_year[t] = cf_t
+            
+            last_inforce *= (1 - policy['qx'][t] - lapse_t)
+            asset = asset * (1 + earned_t) + cf_t
+        
+        # ─── Discount using scenario's risk-free path ───
+        df = np.cumprod(1 / (1 + scenarios[s, :]))
+        pv_per_scenario[s] = np.sum(cf_per_year * df)
+    
+    ce_stochastic = pv_per_scenario.mean()
+    
+    # Deterministic CE: use mean path (single run)
+    mean_path = scenarios.mean(axis=0, keepdims=True)
+    ce_deterministic, _, _ = par_fund_tvog(mean_path, policy, smoothing_alpha,
+                                            rb_share, tb_share, beta1, beta2)
+    
+    tvog = ce_stochastic - ce_deterministic
+    return ce_stochastic, ce_deterministic, tvog</code></pre>
+
+<p style="font-size:0.85rem; color:var(--muted);">
+  Note: production code is typically 10-50x more complex (handles multi-currency, cohort segmentation,
+  full asset modelling, replicating portfolio shortcuts for nested MC, etc.).
+</p>
+
+<!-- ─── §9.7.10 Common Pitfalls ─── -->
+<h4>§9.7.10 Common Pitfalls Specific to Par TVOG 分紅TVOG常見陷阱</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Pitfall</th><th>Consequence</th><th>Solution</th></tr>
+  <tr>
+    <td>Smoothing buffer too generous</td>
+    <td>TVOG artificially suppressed; IA challenge</td>
+    <td>Buffer parameter validated against historical bonus history</td>
+  </tr>
+  <tr>
+    <td>Arbitrary RB / TB split (e.g. 50/50)</td>
+    <td>TVOG result unstable across reporting periods</td>
+    <td>Board-approved split rule, documented in bonus policy</td>
+  </tr>
+  <tr>
+    <td>Asset share mis-calculation</td>
+    <td>Systematic TVOG bias</td>
+    <td>Model AS per cohort separately; reconcile to fund total</td>
+  </tr>
+  <tr>
+    <td>Overly aggressive management action</td>
+    <td>GL34 violation; PRE breach</td>
+    <td>Back-test against 5-10 yrs actual management decisions</td>
+  </tr>
+  <tr>
+    <td>Surrender model ignores TB anticipation</td>
+    <td>Significant TVOG under-estimation</td>
+    <td>DPB rule must include β<sub>2</sub> term on TB trajectory</td>
+  </tr>
+  <tr>
+    <td>Cap / floor set unreasonably</td>
+    <td>TVOG exhibits step changes across scenarios</td>
+    <td>Sensitivity test for continuity across cap/floor boundary</td>
+  </tr>
+  <tr>
+    <td>Cohort aggregation</td>
+    <td>Old vs new policies mixed; misleading TVOG</td>
+    <td>Run TVOG per cohort, then aggregate; cohort = (issue year, product code, fund)</td>
+  </tr>
+  <tr>
+    <td>Skipping ALM feedback loop</td>
+    <td>TVOG materially mis-stated</td>
+    <td>Strict time-step sequencing — no parallel shortcuts</td>
+  </tr>
+  <tr>
+    <td>Ignoring fund-level constraints</td>
+    <td>Capital relief overstated</td>
+    <td>Apply fund solvency floor to dividend declaration rule</td>
+  </tr>
+</table>
+</div>
+
+<h4>§9.7.11 Production Considerations 實務生產要點</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Aspect</th><th>Typical Setup</th></tr>
+  <tr><td>Model granularity</td><td>Per cohort × per fund × per currency (often 20-100 segments)</td></tr>
+  <tr><td>Stochastic runs</td><td>5,000-10,000 scenarios (Par needs more than UL due to multiple sources)</td></tr>
+  <tr><td>Tools</td><td>Prophet ALS (Par module) / AXIS / RiskAgility ESG mode; replicating portfolio via internal Python</td></tr>
+  <tr><td>Run time</td><td>1-2 days per fund per quarter on grid (50-100 nodes)</td></tr>
+  <tr><td>Validation</td><td>Convergence test + attribution (Step 7-10) + back-testing against actual bonus declarations</td></tr>
+  <tr><td>Sign-off</td><td>Chief Actuary + Independent Actuary review (GL34 §8) + Board (bonus declaration aspect)</td></tr>
 </table>
 </div>
 
