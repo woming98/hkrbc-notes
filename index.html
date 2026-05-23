@@ -226,6 +226,7 @@ MathJax = {
   <a href="#alm-model-ma">§9.3 MA Engine 匹配調整引擎</a>
   <a href="#alm-model-pcr">§9.4 Stress &amp; PCR Engine 壓力測試</a>
   <a href="#alm-model-esg">§9.5 ESG 經濟情景模擬器</a>
+  <a href="#esg-practitioner">§9.5.A ESG Practitioner Guide 從零實作</a>
   <a href="#alm-model-tvog">§9.6 TVOG Deep-Dive 深度計算</a>
   <a href="#alm-model-par">§9.7 Par fund TVOG 分紅基金</a>
   <a href="#alm-model-prophet">§9.8 Prophet 端到端工作流</a>
@@ -1720,6 +1721,424 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
     <li><strong>Not used for PCR:</strong> HKRBC uses deterministic stresses for PCR (unlike Solvency II internal models). ESG is only for valuation of options &amp; guarantees within the EBS.</li>
   </ul>
 </div>
+
+<!-- ════════ §9.5.A ESG Practitioner Step-by-Step Guide ════════ -->
+<h3 id="esg-practitioner">§9.5.A ESG From-Scratch Methodology — Practitioner Step-by-Step Guide 從零實作方法論</h3>
+
+<p>
+  The §9.5 overview presented the conceptual menu of ESG models. This subsection gives the <strong>practitioner-level methodology</strong>
+  — a step-by-step decision and implementation path that takes you from "I understand the formulas" to "I can build a working ESG from scratch."
+  Code implementation is the easier part; the hard part is making correct choices at every decision point. Below is the decision &amp; methodology framework.
+</p>
+
+<!-- ─── §9.5.A.0 Model Selection Decision Tree ─── -->
+<h4>§9.5.A.0 Step 0: Model Selection Decision Tree 模型選擇決策樹</h4>
+
+<div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
+  <pre class="diagram">
+  ┌────────────────────────────────────────────────────────────────────┐
+  │ Q1. What is the purpose?                                            │
+  │   • Regulatory TVOG (Rule 19)        → market-consistent, RN        │
+  │   • Internal ALM monitoring          → can use real-world           │
+  │   • Capital planning / ORSA          → real-world projection        │
+  │                                                                      │
+  │ Q2. What risk factors are MATERIAL to your liability portfolio?     │
+  │   • Pure Non-Par Term/Endowment       → IR only is enough           │
+  │   • UL with crediting floor          → IR + maybe credit            │
+  │   • Par Fund (mixed asset)           → IR + Equity + Credit         │
+  │   • VA / GMxB                        → IR + Equity + Vol surface    │
+  │                                                                      │
+  │ Q3. Complexity vs feasibility trade-off:                            │
+  │   Quick prototype → HW1F + GBM Equity                               │
+  │   Production HK   → HW2F (G2++) + Heston Equity + CIR Credit        │
+  │   Industry top    → LMM + SLV Equity + Multi-factor credit          │
+  │                                                                      │
+  │ Recommended starting point for personal portfolio / new build:      │
+  │   ⭐ HW1F (IR) + GBM (Equity, ρ-correlated with IR)                 │
+  │   Reason: closed-form formulas for validation; 2 parameters each;   │
+  │           sufficient for Par fund TVOG with reasonable accuracy.    │
+  └────────────────────────────────────────────────────────────────────┘</pre>
+</div>
+
+<!-- ─── §9.5.A.1 Yield Curve Bootstrapping ─── -->
+<h4>§9.5.A.1 Step 1: Yield Curve Bootstrapping 收益率曲線構建</h4>
+
+<p><strong>Goal:</strong> Build the initial risk-free zero rate curve r(t) for t ∈ [0, 100 years], from observable market instruments.</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Method</th><th>Inputs</th><th>Pros / Cons</th><th>HKRBC Compliance</th></tr>
+  <tr>
+    <td><strong>Direct interpolation</strong></td>
+    <td>HKRBC Sch. 4 Table 1 prescribed curve (provided by IA)</td>
+    <td>✅ Compliant by construction<br/>❌ Less flexibility</td>
+    <td><span class="ref sched">Cap. 41R Sch. 4</span> — official starting point</td>
+  </tr>
+  <tr>
+    <td><strong>Bootstrap from swap quotes</strong></td>
+    <td>HKD IRS rates (1Y-30Y)</td>
+    <td>✅ Market-consistent<br/>⚠️ Must reconcile with Sch. 4</td>
+    <td>Should match IA-specified curve at key tenors</td>
+  </tr>
+  <tr>
+    <td><strong>Nelson-Siegel-Svensson (NSS)</strong></td>
+    <td>6 parameters fit by least squares to bond yields</td>
+    <td>✅ Smooth, parsimonious<br/>❌ Tail behaviour can be unstable</td>
+    <td>Used for extrapolation beyond Last Liquid Point</td>
+  </tr>
+  <tr>
+    <td><strong>Smith-Wilson</strong></td>
+    <td>Liquid swap rates + Ultimate Forward Rate (UFR)</td>
+    <td>✅ Solvency II standard<br/>✅ Stable long-tail</td>
+    <td>Used by IA for HKD curve beyond LLP per Sch. 4</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.93rem;"><strong>Key checkpoints:</strong></p>
+<ul style="font-size:0.93rem;">
+  <li>Curve must be defined for <em>every t in projection horizon</em> (100 years), not just at the market tenors</li>
+  <li>Use <strong>cubic spline</strong> or <strong>monotonic interpolation</strong> to avoid oscillation</li>
+  <li>Compute and store the <strong>instantaneous forward rate f(0, t) = −d ln P(0, t) / dt</strong> — needed for HW1F drift</li>
+  <li>Validate: re-price the input swaps; error should be &lt; 1 bp at each tenor</li>
+</ul>
+
+<!-- ─── §9.5.A.2 Parameter Selection ─── -->
+<h4>§9.5.A.2 Step 2: Parameter Selection 參數選擇</h4>
+
+<p>For HW1F you need two parameters: <strong>a (mean reversion speed)</strong> and <strong>σ (short rate volatility)</strong>. Two approaches:</p>
+
+<h5>Approach A: Calibrate to Swaption Vol Surface (proper way)</h5>
+
+<div class="formula">
+  Minimise Σ<sub>k</sub> ( IV<sub>model</sub>(K<sub>k</sub>, T<sub>k</sub>; a, σ) − IV<sub>market</sub>(K<sub>k</sub>, T<sub>k</sub>) )<sup>2</sup>
+  <br/>
+  where IV = swaption implied volatility (Bachelier normal or Black-76 lognormal)
+</div>
+
+<p style="font-size:0.93rem;">
+  Use closed-form HW1F swaption pricing (Jamshidian's trick decomposes a swaption into a portfolio of options on zero-coupon bonds).
+  Solve via <code>scipy.optimize.least_squares</code>.
+</p>
+
+<h5>Approach B: Pick Plausible Defaults (quick start)</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Parameter</th><th>Typical Range</th><th>Industry Default for HKD</th><th>Sensitivity</th></tr>
+  <tr><td><strong>a</strong> (mean reversion)</td><td>0.01 - 0.10</td><td>~ 0.05</td><td>Higher a → faster convergence to long-run mean → less long-end vol</td></tr>
+  <tr><td><strong>σ</strong> (short rate vol)</td><td>0.005 - 0.015 (50-150 bps)</td><td>~ 0.010 (100 bps)</td><td>Higher σ → more dispersion → larger TVOG</td></tr>
+  <tr><td><strong>ρ</strong> (IR-Equity correlation)</td><td>−0.3 to +0.3</td><td>~ +0.2</td><td>Higher ρ → equity rises when rates rise</td></tr>
+  <tr><td><strong>σ<sub>S</sub></strong> (equity vol)</td><td>0.15 - 0.30</td><td>~ 0.18 (18%)</td><td>Higher σ<sub>S</sub> → larger equity-driven TVOG</td></tr>
+</table>
+</div>
+
+<!-- ─── §9.5.A.3 Theta(t) Derivation ─── -->
+<h4>§9.5.A.3 Step 3: Drift Function θ(t) — Curve-Fitting Trick 漂移函數推導</h4>
+
+<p>
+  Hull-White's key insight: <strong>by choosing θ(t) appropriately, the model exactly reproduces the initial yield curve</strong>.
+  This is why HW1F is so popular for ESG. The required θ(t):
+</p>
+
+<div class="formula">
+  θ(t) = ∂f(0, t)/∂t + a · f(0, t) + (σ<sup>2</sup>/2a)(1 − e<sup>−2at</sup>)
+</div>
+
+<p style="font-size:0.93rem;">where f(0, t) = instantaneous forward rate at time 0 for maturity t (from Step 1's curve).</p>
+
+<p style="font-size:0.93rem;"><strong>Practical computation:</strong></p>
+<ul style="font-size:0.93rem;">
+  <li>Use <strong>numerical differentiation</strong>: ∂f/∂t ≈ (f(t+Δt) − f(t))/Δt with Δt = 0.01 yr</li>
+  <li>Pre-compute θ(t) at all simulation grid points before MC; store as array</li>
+  <li><strong>Alternative formulation</strong>: use α(t) = f(0,t) + (σ²/2a²)(1 − e<sup>−at</sup>)<sup>2</sup>; then r(t) = x(t) + α(t) where x(t) is a mean-zero OU process. This avoids θ entirely and is numerically more stable.</li>
+</ul>
+
+<!-- ─── §9.5.A.4 Discretization ─── -->
+<h4>§9.5.A.4 Step 4: Discretization 連續模型離散化</h4>
+
+<p>HW1F has an <strong>exact discretization</strong> (rare luxury — most models need Euler-Maruyama approximation):</p>
+
+<div class="formula">
+  r(t + Δt) = r(t) · e<sup>−aΔt</sup> + M(t, t+Δt) + V(Δt)<sup>1/2</sup> · Z<br/>
+  M(t, t+Δt) = α(t+Δt) − α(t) · e<sup>−aΔt</sup>  &nbsp; <em>(conditional mean)</em><br/>
+  V(Δt) = σ<sup>2</sup> · (1 − e<sup>−2aΔt</sup>) / (2a)  &nbsp; <em>(conditional variance)</em><br/>
+  Z ~ N(0, 1)  &nbsp; <em>standard normal shock</em>
+</div>
+
+<p style="font-size:0.93rem;"><strong>Time step choice:</strong></p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Δt</th><th>Pros</th><th>Cons</th></tr>
+  <tr><td>Monthly (1/12)</td><td>Industry standard; balances accuracy &amp; speed</td><td>Loses intra-month dynamics</td></tr>
+  <tr><td>Quarterly (1/4)</td><td>Faster; aligns with reporting cycle</td><td>Path-dependent payoffs less accurate</td></tr>
+  <tr><td>Daily (1/252)</td><td>Most accurate</td><td>50x slower than monthly</td></tr>
+</table>
+</div>
+
+<!-- ─── §9.5.A.5 Monte Carlo Setup ─── -->
+<h4>§9.5.A.5 Step 5: Monte Carlo Setup 蒙特卡羅模擬設置</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Design Choice</th><th>Recommendation</th><th>Rationale</th></tr>
+  <tr>
+    <td>Scenario count N</td>
+    <td>1,000 minimum; <strong>5,000 standard</strong>; 10,000+ for tail</td>
+    <td>SE ∝ 1/√N — diminishing returns past 10K</td>
+  </tr>
+  <tr>
+    <td>Antithetic Variates</td>
+    <td><strong>Always ON</strong></td>
+    <td>Free 50% variance reduction; just negate Brownian increments for pair</td>
+  </tr>
+  <tr>
+    <td>Quasi-MC (Sobol)</td>
+    <td>Use for high-dim problems</td>
+    <td>Convergence √N → N; available via <code>scipy.stats.qmc.Sobol</code></td>
+  </tr>
+  <tr>
+    <td>Random seed</td>
+    <td><strong>Fix the seed</strong> for reproducibility</td>
+    <td>Audit / regression requires bit-exact replay</td>
+  </tr>
+  <tr>
+    <td>Projection horizon</td>
+    <td>100 years (or until last policy maturity + 10 yrs)</td>
+    <td>Tail policies (whole life, annuities) need long horizon</td>
+  </tr>
+  <tr>
+    <td>Path storage</td>
+    <td>Save as compressed Parquet / HDF5; not Excel</td>
+    <td>5000 × 1200 monthly = 6M data points per risk factor; Excel will crash</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.5.A.6 Correlation via Cholesky ─── -->
+<h4>§9.5.A.6 Step 6: Multi-Factor Correlation via Cholesky 多因子相關性</h4>
+
+<p>For 2 factors (IR, Equity) with correlation ρ:</p>
+
+<div class="formula">
+  Σ = ⎛ 1  ρ ⎞ ,  L = chol(Σ) = ⎛ 1            0       ⎞<br/>
+  &nbsp;&nbsp;&nbsp;&nbsp;⎝ ρ  1 ⎠ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;⎝ ρ  √(1−ρ²) ⎠<br/><br/>
+  Z<sub>correlated</sub> = L · Z<sub>independent</sub>
+</div>
+
+<p style="font-size:0.93rem;">For k factors, build the k×k correlation matrix Σ, take Cholesky factor L (numpy: <code>np.linalg.cholesky(Sigma)</code>),
+multiply each timestep's independent N(0,1) vector by L to get correlated shocks.</p>
+
+<p style="font-size:0.93rem;"><strong>Practical correlation matrix for HK Par fund (illustrative):</strong></p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th></th><th>IR</th><th>Equity</th><th>Credit Spread</th><th>FX (USD)</th></tr>
+  <tr><td><strong>IR</strong></td><td>1.0</td><td>+0.2</td><td>−0.3</td><td>+0.1</td></tr>
+  <tr><td><strong>Equity</strong></td><td>+0.2</td><td>1.0</td><td>−0.4</td><td>+0.05</td></tr>
+  <tr><td><strong>Credit Spread</strong></td><td>−0.3</td><td>−0.4</td><td>1.0</td><td>+0.05</td></tr>
+  <tr><td><strong>FX (USD)</strong></td><td>+0.1</td><td>+0.05</td><td>+0.05</td><td>1.0</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.85rem; color:var(--muted);">
+  Source: historical correlation over 5-10 yrs; should be reviewed annually.
+  In practice, correlations need to be <strong>positive semi-definite</strong>; if not, project to nearest PSD matrix (e.g. via eigenvalue truncation).
+</p>
+
+<!-- ─── §9.5.A.7 Validation Battery ─── -->
+<h4>§9.5.A.7 Step 7: Validation Battery — 5 Tests You Must Pass 必過的5個驗證測試</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>#</th><th>Test</th><th>Mathematical Statement</th><th>How to Compute</th><th>Pass Criterion</th></tr>
+  <tr>
+    <td>1</td>
+    <td><strong>Martingale ZCB Test</strong></td>
+    <td>E[exp(−∫₀ᵀ r<sub>s</sub> ds)] = P(0, T) <em>for all T</em></td>
+    <td>For each T, compute integral via trapezoidal rule on rate path; take exp; average across scenarios; compare to market P(0,T)</td>
+    <td>Error &lt; 5 bps at all key tenors (1, 5, 10, 20, 30y)</td>
+  </tr>
+  <tr>
+    <td>2</td>
+    <td><strong>Martingale Equity Test</strong></td>
+    <td>E[S<sub>T</sub> / B<sub>T</sub>] = S<sub>0</sub> <em>for all T</em></td>
+    <td>B<sub>T</sub> = exp(∫₀ᵀ r<sub>s</sub> ds); compute S<sub>T</sub>/B<sub>T</sub> per scenario; average</td>
+    <td>Within 2 SE of S<sub>0</sub> for each T</td>
+  </tr>
+  <tr>
+    <td>3</td>
+    <td><strong>Market Price Re-pricing</strong></td>
+    <td>Calibration instruments (swaptions, equity options) re-priced by MC ≈ market</td>
+    <td>Price each calibration option via MC payoff averaging; compare to market quote</td>
+    <td>Within 5% of market price; ideally within bid-ask spread</td>
+  </tr>
+  <tr>
+    <td>4</td>
+    <td><strong>Moment Test</strong></td>
+    <td>Empirical moments (mean, var, skew, kurt) of generated paths match theoretical</td>
+    <td>For each t, compute moments across scenarios; compare to closed-form (HW1F has analytical moments)</td>
+    <td>Within 2 SE</td>
+  </tr>
+  <tr>
+    <td>5</td>
+    <td><strong>Distribution Test (Q-Q Plot)</strong></td>
+    <td>Log-returns approximately normal; tails not too fat/thin</td>
+    <td>Q-Q plot of log-returns vs normal; visual inspection + KS test</td>
+    <td>No systematic deviation; KS p-value &gt; 0.05</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.5.A.8 Output Standardization ─── -->
+<h4>§9.5.A.8 Step 8: Output Standardization 輸出標準化</h4>
+
+<p>ESG output must be in a standardized format consumable by downstream models (Prophet, AXIS, internal Python TVOG engines).</p>
+
+<h5>(a) Recommended Scenario File Schema</h5>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Column</th><th>Type</th><th>Example</th><th>Notes</th></tr>
+  <tr><td><code>scenario_id</code></td><td>int</td><td>1 to 5000</td><td>Identify each scenario</td></tr>
+  <tr><td><code>year</code> or <code>time_step</code></td><td>int</td><td>0 to 1200 (monthly × 100yr)</td><td>Projection time index</td></tr>
+  <tr><td><code>currency</code></td><td>str</td><td>HKD / USD / RMB</td><td>For multi-currency</td></tr>
+  <tr><td><code>rfr_short</code></td><td>float</td><td>0.0412</td><td>Short rate r<sub>t</sub></td></tr>
+  <tr><td><code>discount_factor</code></td><td>float</td><td>0.9605</td><td>Cumulative disc factor exp(−∫r ds)</td></tr>
+  <tr><td><code>equity_total_return_index</code></td><td>float</td><td>104.5</td><td>S<sub>t</sub> normalized to S<sub>0</sub>=100</td></tr>
+  <tr><td><code>credit_spread_bb</code></td><td>float</td><td>0.0085</td><td>By rating band (1-4)</td></tr>
+  <tr><td><code>property_return_index</code></td><td>float</td><td>102.3</td><td>If modelled</td></tr>
+  <tr><td><code>fx_rate_usdhkd</code></td><td>float</td><td>7.84</td><td>For multi-ccy MA portfolios</td></tr>
+</table>
+</div>
+
+<h5>(b) Recommended Storage Format</h5>
+
+<ul style="font-size:0.93rem;">
+  <li><strong>Parquet</strong> (columnar, compressed) — best for Python / pandas downstream</li>
+  <li><strong>HDF5</strong> — alternative; good for hierarchical structure</li>
+  <li><strong>Prophet .GSI</strong> — required if downstream model is Prophet (proprietary format)</li>
+  <li>Avoid: CSV (slow), Excel (size limits, formatting issues)</li>
+</ul>
+
+<!-- ─── §9.5.A.9 Connection to TVOG ─── -->
+<h4>§9.5.A.9 Step 9: Connection to TVOG Engine 銜接TVOG引擎</h4>
+
+<p>The ESG-to-TVOG interface needs three quantities per scenario per time step:</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>ESG Output</th><th>TVOG Engine Use</th><th>§9.7 Variable</th></tr>
+  <tr><td>rfr_short</td><td>Discount rate base; drives bond CF NPV; drives DPB rate gap</td><td><code>EARNED_RATE</code> reinvestment base; <code>MARKET_RATE</code> for DPB</td></tr>
+  <tr><td>discount_factor</td><td>Cash flow discounting in PV computation</td><td><code>DF_t</code> in PV<sub>s</sub> = Σ CF<sub>t</sub> × DF<sub>t</sub></td></tr>
+  <tr><td>equity_total_return</td><td>Drives equity allocation return → affects earned rate</td><td>Component of <code>EARNED_RATE_NET</code></td></tr>
+  <tr><td>credit_spread_bb</td><td>Bond price &amp; income; drives portfolio adjusted spread</td><td>Component of <code>EARNED_RATE_NET</code>; affects MA recalculation</td></tr>
+  <tr><td>fx_rate</td><td>Multi-ccy MA portfolio translation</td><td>Cross-ccy asset / liability matching</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.93rem;">
+  In Prophet, the ESG file is loaded as a <strong>scenario table</strong>; variables reference scenario index via <code>SCEN_LOOKUP</code> function.
+  In Python, the ESG file is loaded as a pandas DataFrame; the TVOG loop reads <code>scenario_id</code> at every time step.
+</p>
+
+<!-- ─── §9.5.A.10 Common Methodology Pitfalls ─── -->
+<h4>§9.5.A.10 Common Methodology Pitfalls 方法論常見陷阱</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Pitfall</th><th>Why It Matters</th><th>Fix</th></tr>
+  <tr>
+    <td>Using daily Δt but storing monthly only — losing intra-month variance</td>
+    <td>Underestimates path dispersion</td>
+    <td>Either use monthly Δt directly OR aggregate daily integrals properly</td>
+  </tr>
+  <tr>
+    <td>θ(t) computed at integer years only — losing curvature</td>
+    <td>Mis-fits curve at non-integer maturities</td>
+    <td>Compute θ at every Δt grid point</td>
+  </tr>
+  <tr>
+    <td>Forgetting to use the same Z draws for IR and discount factor</td>
+    <td>Discount factor and rate path become inconsistent — martingale test fails</td>
+    <td>Discount factor = exp(−Σ r<sub>t</sub>·Δt) using the SAME path as IR</td>
+  </tr>
+  <tr>
+    <td>Negative rates not modelled</td>
+    <td>HW1F naturally allows negative rates; if you cap at 0, model becomes non-arbitrage-free</td>
+    <td>Either accept negatives, OR use shifted-log-normal, OR use CIR (no negatives by construction)</td>
+  </tr>
+  <tr>
+    <td>Cholesky on near-singular correlation matrix</td>
+    <td>Numerical instability; sometimes produces complex numbers</td>
+    <td>Project onto nearest PSD matrix; or use eigenvalue decomposition with regularization</td>
+  </tr>
+  <tr>
+    <td>Different seed per risk factor</td>
+    <td>Cannot reproduce; correlation broken</td>
+    <td>One master seed; derive sub-seeds via hash if needed</td>
+  </tr>
+  <tr>
+    <td>Risk-neutral and real-world mixing</td>
+    <td>RW ESG used for TVOG → market-inconsistent; fails Rule 19(2)</td>
+    <td>Maintain TWO separate ESG outputs: RN for TVOG, RW for ORSA/internal</td>
+  </tr>
+  <tr>
+    <td>ESG re-calibrated mid-quarter without notice</td>
+    <td>TVOG jumps in subsequent reporting</td>
+    <td>Lock ESG version per reporting period; document changes in change log</td>
+  </tr>
+  <tr>
+    <td>Equity GBM with constant σ — ignoring vol smile</td>
+    <td>Mis-prices deep OTM equity options (GMxB)</td>
+    <td>Upgrade to Heston / local vol when modelling VA</td>
+  </tr>
+  <tr>
+    <td>Insufficient tail scenarios for VA GMxB</td>
+    <td>TVOG severely under-estimated for deep OTM guarantees</td>
+    <td>Importance sampling: over-sample stress region, re-weight</td>
+  </tr>
+</table>
+</div>
+
+<!-- ─── §9.5.A.11 Implementation Roadmap ─── -->
+<h4>§9.5.A.11 Implementation Roadmap 實作路線圖</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>Maturity Level</th><th>Scope</th><th>Effort</th><th>Output Quality</th></tr>
+  <tr>
+    <td><strong>Level 0 — MVP</strong></td>
+    <td>HW1F (IR) + GBM (Equity), constant correlation, antithetic only, monthly Δt, 1000 scenarios, martingale ZCB test only</td>
+    <td>1-2 weeks (1 person)</td>
+    <td>Good enough for internal monitoring / learning / interview demo</td>
+  </tr>
+  <tr>
+    <td><strong>Level 1 — Working Production</strong></td>
+    <td>+ Credit spread (CIR), + 5-test validation, + Sobol QMC, + multi-currency, + parquet output, + ESG version control</td>
+    <td>1-2 months (small team)</td>
+    <td>Usable for HKRBC TVOG for non-Par / UL products; mid-size insurer</td>
+  </tr>
+  <tr>
+    <td><strong>Level 2 — Production Grade</strong></td>
+    <td>+ HW2F (G2++), + Heston equity, + jump-diffusion credit, + cross-asset correlation, + full swaption calibration, + automated validation reports</td>
+    <td>6-12 months (specialist team)</td>
+    <td>Acceptable for full HKRBC TVOG including Par fund; large insurer</td>
+  </tr>
+  <tr>
+    <td><strong>Level 3 — Industry Top</strong></td>
+    <td>+ LMM (IR), + Local-Stoch Vol (equity), + multi-factor credit, + SSV / SABR vol surface, + dedicated calibration engine</td>
+    <td>2-3 years (PhD team)</td>
+    <td>Sophisticated VA hedging support; Moody's / Conning benchmark</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.93rem; color:var(--muted); margin-top:1rem;">
+  <strong>Recommendation:</strong> For a personal portfolio / new hire learning path, target Level 0 first (validates that you understand the mechanics),
+  then iterate to Level 1 for production use. Level 2-3 are realistic ambitions only with team support and 1+ year horizon.
+</p>
 
 <!-- ─── §9.6 TVOG Deep-Dive ─── -->
 <h3 id="alm-model-tvog">§9.6 TVOG Calculation Deep-Dive 時間價值深度計算</h3>
