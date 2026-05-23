@@ -2997,6 +2997,93 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
   The AS formula above should include all applicable decrements for the specific product being modelled.
   The AS path is <strong>fully path-dependent across time</strong> — you cannot vectorise across t or skip steps.
 </p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.3rem 0;">
+  <strong>Circular Dependency: SB<sub>t</sub> Depends on AS(t) Which Is What We Are Solving For</strong>
+</p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  Since \(SB_t = q_{\text{lapse}}(t,s)\times\max(AS(t,s),\, SV_{\text{floor}})\), the surrender outgo depends on the very AS(t) being computed.
+  Three methods are used in practice to resolve this:
+</p>
+
+<!-- 方法一 -->
+<p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 1 — Use Beginning-of-Year AS (Prophet default)</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  Surrender value is based on <em>last year's</em> AS, avoiding any circularity:
+  \[
+    SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS(t{-}1,s),\; SV_{\text{floor}}\bigr)
+  \]
+  \[
+    AS(t,s) = AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - SB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
+  \]
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Pros</th><th>Cons</th><th>When to Use</th></tr>
+  <tr>
+    <td>No circularity; single-pass; default in Prophet</td>
+    <td>Slightly underestimates SB — surrendering policyholders receive beginning-of-year AS, missing that year's investment return</td>
+    <td>Standard production runs; sufficient when i(t,s) is small relative to AS level</td>
+  </tr>
+</table>
+</div>
+
+<!-- 方法二 -->
+<p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 2 — Two-Pass (Gross then Net)</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  First compute a "gross" AS ignoring surrenders, then deduct surrenders based on that gross value:
+  \[
+    AS^{\text{gross}}(t,s) = AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
+  \]
+  \[
+    SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS^{\text{gross}}(t,s),\; SV_{\text{floor}}\bigr)
+  \]
+  \[
+    AS(t,s) = AS^{\text{gross}}(t,s) - SB_t
+  \]
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Pros</th><th>Cons</th><th>When to Use</th></tr>
+  <tr>
+    <td>More accurate — SB based on end-of-year AS after full investment return; no circularity</td>
+    <td>Two computation passes per time step; slightly more complex code</td>
+    <td>Higher accuracy requirements; when lapse rates are large (e.g. DPB mass lapse scenario) and i(t,s) is material</td>
+  </tr>
+</table>
+</div>
+
+<!-- 方法三 -->
+<p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 3 — Closed-Form Solution (when SV = AS)</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  When surrender value equals AS (i.e. SV_floor not binding), substituting \(SB_t = q_{\text{lapse}}\cdot AS(t,s)\) into the recursion and rearranging gives a direct solution:
+  \[
+    AS(t,s)\cdot\bigl(1 + q_{\text{lapse}}(t,s)\bigr) = AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
+  \]
+  \[
+    \boxed{AS(t,s) = \frac{AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t}{1 + q_{\text{lapse}}(t,s)}}
+  \]
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Pros</th><th>Cons</th><th>When to Use</th></tr>
+  <tr>
+    <td>Most accurate; single-pass; no approximation</td>
+    <td>Only valid when SV_floor is not binding (AS &gt; SV_floor); requires checking this condition each step</td>
+    <td>Early policy years when AS &gt; SV_floor; combine with Method 2 when SV_floor becomes binding</td>
+  </tr>
+</table>
+</div>
+
+<!-- 对比总结 -->
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+<table>
+  <tr><th>Method</th><th>SB Basis</th><th>Accuracy</th><th>Circular?</th><th>Industry Use</th></tr>
+  <tr><td><strong>1 — BOY AS</strong></td><td>AS(t−1)</td><td>Lower</td><td>No</td><td>✅ Prophet default</td></tr>
+  <tr><td><strong>2 — Two-Pass</strong></td><td>AS_gross(t)</td><td>Medium</td><td>No</td><td>✅ Common for stress scenarios</td></tr>
+  <tr><td><strong>3 — Closed Form</strong></td><td>AS(t) exact</td><td>Highest</td><td>No</td><td>✅ When SV = AS</td></tr>
+</table>
+</div>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
