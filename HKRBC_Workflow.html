@@ -2923,17 +2923,86 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 4 — Dynamic Policyholder Behaviour (DPB) Lapse</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
-  Lapse rate adjusts dynamically to the interest rate gap and TB expectation:
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.4rem 0;">
+  The full DPB formula has <strong>two drivers</strong> — interest rate gap and TB anticipation:
   \[
     q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
-    + \beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)
-    + \beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t+1,s)}{TB(t,s)},\;0\right)\right)
+    + \underbrace{\beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)}_{\text{interest rate substitution effect}}
+    + \underbrace{\beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t{+}1,s)}{TB(t,s)},\;0\right)}_{\text{TB lock-in anticipation effect}}\right)
   \]
-  The second term captures TB anticipation: policyholders surrender <em>early</em> if they expect TB to decline next year.<br/>
-  <em>Calibration</em>: β₁ ≈ 1.5–3.0, β₂ ≈ 1.0–2.0, estimated by regressing historical lapse rates against interest rate differentials.
-  Cap lapse at 100%; floor at base lapse / 2 (people do not stop lapsing entirely even when credited rate > market rate).
 </p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Term</th><th>Driver</th><th>Intuition</th><th>Typical β</th></tr>
+  <tr>
+    <td><strong>β₁ term</strong></td>
+    <td>Market rate − credited rate</td>
+    <td>When external products offer more than the credited rate, policyholders switch out</td>
+    <td>1.5–3.0</td>
+  </tr>
+  <tr>
+    <td><strong>β₂ term</strong></td>
+    <td>Expected TB decline ratio</td>
+    <td>Policyholders surrender early to lock in current TB before it falls next year</td>
+    <td>1.0–2.0</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Implementation in Prophet</strong></p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
+# Prophet variable pseudo-code
+
+RFR_SHORT    = ESG_FACTOR("rfr_short", T, S)       # from ESG scenario file
+CREDITED_RATE = AVG(EARNED_RATE[-2], EARNED_RATE[-1], EARNED_RATE[0])  # 3-yr smooth
+
+# β₁ — interest rate substitution effect
+IR_EXCESS = MAX(RFR_SHORT - CREDITED_RATE, 0)
+
+# β₂ — TB lock-in anticipation
+# Prophet cannot look forward to T+1, so use one of these approximations:
+TB_CURRENT  = TERMINAL_BONUS[0]       # TB at time T (already computed in Step 3)
+TB_EXPECTED = TERMINAL_BONUS[-1]      # Approx 1: use prior year TB as proxy for TB_exp(t+1)
+# OR: TB_EXPECTED = 3-year moving avg trend of TB
+# OR: TB_EXPECTED = management-declared expected TB (input assumption file)
+
+TB_DROP = MAX((TB_CURRENT - TB_EXPECTED) / MAX(TB_CURRENT, 0.001), 0)
+
+# Full DPB multiplier
+DPB_MULT = 1 + BETA_1 * IR_EXCESS + BETA_2 * TB_DROP
+
+# Apply caps and floors (GL34 and experience study constraints)
+LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
+                  lower = BASE_LAPSE / 2,   # floor: lapse never drops to zero
+                  upper = 1.0)              # cap: cannot exceed 100%
+</pre>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: The Practical Challenge</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  Since Prophet projects forward step-by-step, TB(t+1) is unknown at time t. Three approximations used in practice:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Approximation</th><th>Formula</th><th>When to Use</th></tr>
+  <tr><td><strong>Prior-year TB</strong></td><td>TB_exp = TB(t−1)</td><td>Default; suitable when TB is relatively stable</td></tr>
+  <tr><td><strong>Smoothed trend</strong></td><td>TB_exp = 3-yr moving average of TB</td><td>Better for stress scenarios with sustained rate moves</td></tr>
+  <tr><td><strong>Management declaration</strong></td><td>TB_exp = company-announced expected TB (input file)</td><td>Most GL34-compliant; updated each valuation quarter</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Where Each Component Lives</strong></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Component</th><th>Where Implemented</th><th>Reason</th></tr>
+  <tr><td>Base lapse rates (q_base)</td><td>External — Experience Study (R / Python)</td><td>Requires historical data regression across large policy population</td></tr>
+  <tr><td>β₁, β₂ calibration</td><td>External — regression analysis (Python statsmodels)</td><td>Statistical modelling; fit against observed lapses vs rate differentials</td></tr>
+  <tr><td>DPB formula itself</td><td><strong>Prophet variable</strong></td><td>Must be evaluated dynamically per scenario per time step</td></tr>
+  <tr><td>credited_rate smoothing</td><td><strong>Prophet variable</strong></td><td>Tracks rolling earned rate history within Prophet</td></tr>
+  <tr><td>rfr_short input</td><td>ESG scenario file (.csv) → Prophet reads at runtime</td><td>Prophet indexes by [scenario, time step]</td></tr>
+  <tr><td>Lapse output validation</td><td>External — Python post-processing</td><td>Check DPB lapse stays within bounds; flag mass-lapse scenarios</td></tr>
+</table>
+</div>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
