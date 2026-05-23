@@ -2910,13 +2910,92 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 3 — Asset Share Recursion</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
   Propagate AS year by year, driven by <em>i(t,s)</em> from Step 2:
   \[
-    AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
+    AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
   \]
-  Each deduction is scenario-independent <em>except</em> SB (surrender benefit, which links to AS level) and PROF (management can vary profit transfer under GL34 §9).
-  The AS path is <strong>fully path-dependent</strong> — you cannot skip time steps or vectorise across time.
+</p>
+
+<div class="tbl-wrap" style="margin: 0.3rem 0 0.7rem 0; font-size:0.83rem;">
+<table>
+  <tr><th>Term</th><th>Full Name</th><th>Scenario-Dependent?</th><th>Note</th></tr>
+  <tr>
+    <td><strong>P<sub>t</sub></strong></td>
+    <td>Premium income</td>
+    <td>Partially — reduces as in-force shrinks via lapse/death</td>
+    <td>In-force count at time t multiplied by annual premium</td>
+  </tr>
+  <tr>
+    <td><strong>DB<sub>t</sub></strong></td>
+    <td>Death benefit outgo</td>
+    <td>No — mortality rate q<sub>d</sub> is scenario-independent (deterministic best estimate)</td>
+    <td>= q<sub>d</sub> × max(Sum Assured + Accrued RB, AS(t,s)). The benefit floor is SA, so AS-linked only when AS &gt; SA</td>
+  </tr>
+  <tr>
+    <td><strong>SB<sub>t</sub></strong></td>
+    <td>Surrender (lapse) benefit outgo</td>
+    <td><strong>Yes</strong> — q<sub>lapse</sub>(t,s) from DPB (Step 5)</td>
+    <td>= q<sub>lapse</sub>(t,s) × max(AS(t,s), SV_floor). SV floor typically 85–100% of AS depending on policy year</td>
+  </tr>
+  <tr>
+    <td><strong>MB<sub>t</sub></strong></td>
+    <td>Maturity benefit outgo (at policy end)</td>
+    <td><strong>Yes</strong> — = AS(T,s) + TB(T,s) at maturity year T only</td>
+    <td>TB is path-dependent on AS(T,s); zero in all years except terminal year</td>
+  </tr>
+  <tr>
+    <td><strong>RB<sub>t</sub></strong></td>
+    <td>Reversionary Bonus added to sum assured</td>
+    <td>Partially — based on credited rate (Step 4), which is scenario-dependent via smoothing</td>
+    <td>Accrues annually; increases the guaranteed benefit floor in subsequent years</td>
+  </tr>
+  <tr>
+    <td><strong>E<sub>t</sub></strong></td>
+    <td>Expense loadings (maintenance + claims)</td>
+    <td>No — deterministic best estimate; often inflation-linked</td>
+    <td>Separate per-policy and percentage-of-AS components under GL34</td>
+  </tr>
+  <tr>
+    <td><strong>C<sub>t</sub></strong></td>
+    <td>Commission outgo</td>
+    <td>No — fixed % of premium in early years, then trail</td>
+    <td>Usually zero after year 5–7 depending on product design</td>
+  </tr>
+  <tr>
+    <td><strong>Tax<sub>t</sub></strong></td>
+    <td>Tax charge on investment income</td>
+    <td>Partially — tax base includes i(t,s), so scenario-dependent</td>
+    <td>HK profits tax rate 16.5% on investment income allocated to Par fund</td>
+  </tr>
+  <tr>
+    <td><strong>PROF<sub>t</sub></strong></td>
+    <td>Profit transfer to shareholders</td>
+    <td>Partially — management action under GL34 §9 can adjust this</td>
+    <td>GL34 limits profit transfer; in stressed scenarios management may reduce PROF to protect AS</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.3rem 0 0.3rem 0;"><strong>Other Decrements beyond Death and Lapse?</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+  For a standard Par whole life / endowment, the two main decrements are <strong>death</strong> (q<sub>d</sub>) and <strong>lapse/surrender</strong> (q<sub>w</sub>).
+  Additional decrements apply depending on product design:
+</p>
+<div class="tbl-wrap" style="margin: 0.2rem 0 0.7rem 0; font-size:0.83rem;">
+<table>
+  <tr><th>Decrement</th><th>When Applicable</th><th>AS Impact</th></tr>
+  <tr><td><strong>Death</strong> (q<sub>d</sub>)</td><td>All Par products</td><td>Outflow of max(SA + RB, AS); reduces in-force</td></tr>
+  <tr><td><strong>Lapse / Surrender</strong> (q<sub>w</sub>)</td><td>All Par products</td><td>Outflow of SV = max(AS, SV_floor); DPB makes this scenario-dependent</td></tr>
+  <tr><td><strong>Paid-up</strong> (q<sub>pu</sub>)</td><td>When policyholder stops paying premiums but keeps policy</td><td>Premium stops; benefit reduces proportionally; AS continues to accumulate at reduced rate</td></tr>
+  <tr><td><strong>Critical Illness</strong> (q<sub>ci</sub>)</td><td>Par products with CI rider</td><td>Accelerated SA payout on CI diagnosis; AS depleted by claim; reduces future premium base</td></tr>
+  <tr><td><strong>Disability / Waiver of Premium</strong> (q<sub>dis</sub>)</td><td>Products with disability rider</td><td>Premium waived; AS continues without P<sub>t</sub> inflow; typically funded by separate rider reserve</td></tr>
+  <tr><td><strong>Maturity</strong></td><td>Endowment / term policies</td><td>Not a decrement per se — 100% of in-force exits at policy end; AS(T,s) + TB(T,s) paid out</td></tr>
+</table>
+</div>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+  The AS formula above should include all applicable decrements for the specific product being modelled.
+  The AS path is <strong>fully path-dependent across time</strong> — you cannot vectorise across t or skip steps.
 </p>
 </div>
 
