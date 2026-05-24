@@ -1269,8 +1269,9 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
   <tr>
     <td><strong>利率<br/>（Hull-White）</strong></td>
     <td>長期均值 θ(t) = 當前 forward curve（IA Sch. 4）<br/>確保模型精確 fit 初始 yield curve<br/>κ, σ 由 swaption vol 校準</td>
-    <td>長期均值 θ(t) = forward curve + term premium（約 0.5–1.5%）<br/>反映投資者對長期持有利率風險的補償</td>
-    <td>在 ESG 參數文件中調高 long-run mean；κ 和 σ 通常保持不變（波動結構相同）</td>
+    <td>長期均值 θ(t) = forward curve + term premium（約 0.5–1.5%）<br/>反映投資者對長期持有利率風險的補償<br/><br/>
+    ⚠️ <em>higher ≠ free lunch</em>：term premium 是對利率上行風險的補償——利率上行路徑中，現有長債 MtM 損失 ≈ duration × Δr（例如 7yr × 0.5% = −3.5%），部分抵消再投資收益。P-measure 預測更樂觀，但方差也更大。</td>
+    <td>在 ESG 參數文件中調高 long-run mean；κ 和 σ 通常保持不變（波動結構相同）<br/><br/>⚠️ term premium 估計高度不確定（歷史範圍 −0.5% 至 +2%），是 P-measure 參數的主要不確定來源</td>
   </tr>
   <tr>
     <td><strong>股票<br/>（GBM）</strong></td>
@@ -1312,6 +1313,13 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
   另一套標記為 <code>P_params.xml</code>（real-world，用於 ALM / ORSA run）。
   切換時只需在 Prophet 的 ESG 呼叫處更換參數文件，模型結構（HW2F、GBM 等）完全相同。
 </p>
+<p style="font-size:0.84rem; background:#2d1515; border-left:3px solid #f87171; padding:0.5rem 0.7rem; margin:0.4rem 0 0.2rem 0; color:#fca5a5;">
+  ⛔ <strong>常見錯誤：用 P-measure 情景計算 TVOG</strong><br/>
+  P-measure 下低利率極端路徑的概率被大幅低估（因 drift 更高）→ 保證觸發情景幾乎不出現 → TVOG ≈ 0。
+  這嚴重低估了期權價值，違反 Cap. 41R Rule 19 的市場一致性要求。
+  TVOG 必須使用 Q-measure（risk-neutral）情景。P-measure 只用於 ALM / ORSA / SAA 等管理用途。
+</p>
+
 </div>
 
 <!-- ════════ §9.5.A ESG Practitioner Step-by-Step Guide ════════ -->
