@@ -4632,13 +4632,40 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 <div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
 <table style="color:#e5e7eb;">
   <tr><th></th><th>HTM（持有至到期，攤余成本）</th><th>FVTPL / FVOCI（公允價值）</th></tr>
-  <tr style="color:#e5e7eb;"><td><strong>HKFRS 9 賬面</strong></td><td>攤余成本，不反映利率變動 → P&amp;L 穩定</td><td>即時反映 MtM：FVTPL → P&amp;L；FVOCI → OCI</td></tr>
-  <tr style="color:#e5e7eb;"><td><strong>實際經濟價值</strong></td><td colspan="2" style="text-align:center;">完全相同！利率上行時，兩者的經濟價值都下跌 ΔP ≈ −D × Δr</td></tr>
-  <tr style="color:#e5e7eb;"><td><strong>HKRBC EBS</strong></td><td colspan="2" style="text-align:center;">全部按<strong>市場價值</strong>計量（Rule 11–12），與 HKFRS 9 分類無關 → HTM 債券在 EBS 下同樣 MtM</td></tr>
-  <tr style="color:#e5e7eb;"><td><strong>息票 / 再投資</strong></td><td colspan="2" style="text-align:center;">完全相同，會計分類不影響現金流</td></tr>
-  <tr style="color:#e5e7eb;"><td><strong>流動性風險</strong></td><td>⚠️ 更高：HKFRS 9 "tainting rule"，賣出任一 HTM 債券 → 整個 HTM 組合須重分類</td><td>隨時可賣，但實現賬面虧損</td></tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>HKFRS 9<br/>資產賬面</strong></td>
+    <td>攤余成本，不反映利率變動 → P&amp;L 穩定</td>
+    <td>即時反映 MtM：FVTPL → 進 P&amp;L；FVOCI → 進 OCI（不影響 P&amp;L）</td>
+  </tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>IFRS 17<br/>負債賬面</strong></td>
+    <td>⚠️ <strong>錯配風險</strong>：IFRS 17 負債按當期貼現率計量，利率下行時負債上升；但 HTM 資產賬面不動 → P&amp;L 出現大幅波動<br/><br/>緩解方法：採用 IFRS 17 <strong>OCI Option</strong>（保險財務收益/費用走 OCI）可部分對沖，但需資產也分類為 FVOCI</td>
+    <td>✅ <strong>較好匹配</strong>：FVOCI 資產 + IFRS 17 OCI Option → 利率變動同時影響資產 OCI 和負債 OCI，P&amp;L 相對穩定<br/><br/>FVTPL 資產則資產 MtM 進 P&amp;L，但負債若走 OCI → 仍有 P&amp;L 錯配</td>
+  </tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>IFRS 17<br/>貼現率</strong></td>
+    <td colspan="2">IFRS 17 貼現率 = 反映負債現金流特性的當期利率（含流動性溢價），<strong>≠ HKRBC EBS 貼現率</strong>（無風險利率 + MA）。兩者可存在顯著差異，產生 IFRS 17 與 HKRBC 之間的雙重報告差異。</td>
+  </tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>實際經濟價值</strong></td>
+    <td colspan="2">完全相同！利率上行時，兩者的經濟價值都下跌 ΔP ≈ −D × Δr，與會計分類無關</td>
+  </tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>HKRBC EBS</strong></td>
+    <td colspan="2">全部按<strong>市場價值</strong>計量（Rule 11–12），與 HKFRS 9 / IFRS 17 分類無關 → HTM 在 EBS 下同樣 MtM</td>
+  </tr>
+  <tr style="color:#e5e7eb;">
+    <td><strong>流動性風險</strong></td>
+    <td>⚠️ 更高：HKFRS 9 "tainting rule"，賣出任一 HTM 債券 → 整個 HTM 組合須重分類為 FVTPL/FVOCI</td>
+    <td>隨時可賣，但 FVTPL 實現賬面虧損進 P&amp;L</td>
+  </tr>
 </table>
 </div>
+<p style="font-size:0.83rem; color:#9ca3af; margin:0.2rem 0 0.4rem 0;">
+  <strong>實務組合搭配：</strong>
+  多數壽險公司傾向 <strong>FVOCI + IFRS 17 OCI Option</strong>，使資產與負債的利率敏感性同時走 OCI，令 P&amp;L 最穩定。
+  HTM 僅用於確實無需出售、且 IFRS 17 錯配可接受的短期或固定日期到期資產。
+</p>
 <p style="font-size:0.84rem; color:#fca5a5; background:#2d1515; border-left:3px solid #f87171; padding:0.4rem 0.6rem; margin:0.3rem 0 0.3rem 0;">
   ⛔ HTM 只是<strong>會計外觀上的平滑</strong>，不提供任何經濟保護。
   ESG / ALM 建模必須用 MtM（經濟價值）建模，否則低估利率風險。
