@@ -171,11 +171,11 @@ MathJax = {
     overflow-x: auto;
   }
 
-  /* ── 深色背景框內的表格覆蓋 ── */
-  #esg-rn-vs-rw td { color: #e5e7eb !important; background: transparent !important; }
-  #esg-rn-vs-rw tr:nth-child(even) td { background: rgba(255,255,255,0.07) !important; }
-  #esg-rn-vs-rw tr:hover td { background: rgba(255,255,255,0.13) !important; }
-  #esg-rn-vs-rw th { background: rgba(255,255,255,0.12) !important; color: #fff !important; }
+  /* ── 深色背景框內的表格覆蓋（通用） ── */
+  #esg-rn-vs-rw td, .dark-box td { color: #e5e7eb !important; background: transparent !important; }
+  #esg-rn-vs-rw tr:nth-child(even) td, .dark-box tr:nth-child(even) td { background: rgba(255,255,255,0.07) !important; }
+  #esg-rn-vs-rw tr:hover td, .dark-box tr:hover td { background: rgba(255,255,255,0.13) !important; }
+  #esg-rn-vs-rw th, .dark-box th { background: rgba(255,255,255,0.12) !important; color: #fff !important; }
 
   @media (max-width: 768px) {
     .layout { flex-direction: column; }
@@ -1208,7 +1208,7 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </div>
 
 <!-- ════════ Risk-neutral vs Real-world ════════ -->
-<div id="esg-rn-vs-rw" style="background:#1a1f2e; border:1px solid #3b4a6b; border-radius:6px; padding:1rem 1.2rem; margin:0.8rem 0 1.2rem 0;">
+<div id="esg-rn-vs-rw" class="dark-box" style="background:#1a1f2e; border:1px solid #3b4a6b; border-radius:6px; padding:1rem 1.2rem; margin:0.8rem 0 1.2rem 0;">
 <p style="font-size:0.95rem; color:#93c5fd; margin:0 0 0.6rem 0;"><strong>Risk-Neutral vs Real-World — 兩套情景有何不同？</strong></p>
 
 <div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.6rem;">
@@ -4602,7 +4602,7 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 <h3 id="alm-ir">§11.1 Interest Rate Risk PCR — Duration Mismatch Mechanics 利率風險PCR與久期錯配</h3>
 
 <!-- ── 利率上行的兩個反向效應 ── -->
-<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
+<div class="dark-box" style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
 <p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>利率上行的兩個反向效應（ALM 核心矛盾）</strong></p>
 <div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
 <table style="color:#e5e7eb;">
@@ -4627,7 +4627,7 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 </div>
 
 <!-- ── HTM vs MtM ── -->
-<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
+<div class="dark-box" style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
 <p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>HTM vs MtM — 會計分類 vs HKRBC EBS 處理</strong></p>
 <div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
 <table style="color:#e5e7eb;">
