@@ -1041,23 +1041,23 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <hr />
 
-<!-- ══ §8 ALM ══ -->
-
-<hr />
-
 <!-- ══ §8 ESG ══ -->
 <h2 id="esg">§8 Economic Scenario Generator (ESG) 經濟情景模擬器</h2>
-<p style="font-size:0.88rem; color:#aaa; margin:0.3rem 0 0.6rem 0;">
-  <strong>ESG 主要用途：</strong>
-  (1) HKRBC TVOG / EBS 估值（風險中性情景，1,000條路徑）；
-  (2) ALM 壓力測試 / SAA / ORSA（真實世界情景）；
-  (3) 對沖策略校準（hedge ratio 優化）。
-  同一引擎、兩套參數集：風險中性參數由 martingale test 校準；真實世界參數由歷史回歸＋宏觀假設確定。
-</p>
-
 
 <p><strong>目的 Purpose:</strong> Generate ≥1,000 market-consistent and arbitrage-free economic scenarios for TVOG (Rule 19) and stochastic ALM analyses.
   Used <em>only</em> for valuation of contractual options and financial guarantees — <strong>not</strong> for PCR stress scenarios (which are deterministic).</p>
+
+<div class="tbl-wrap" style="font-size:0.85rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>用途</th><th>情景類型</th><th>情景數量</th><th>說明</th></tr>
+  <tr><td><strong>HKRBC TVOG / EBS 估值</strong></td><td>Risk-neutral（風險中性）</td><td>≥1,000 條</td><td>martingale test 校準；Rule 19 要求</td></tr>
+  <tr><td><strong>ALM 壓力測試 / SAA / ORSA</strong></td><td>Real-world（真實世界）</td><td>100–500 條</td><td>歷史回歸＋宏觀假設校準</td></tr>
+  <tr><td><strong>對沖策略校準</strong></td><td>Real-world</td><td>視需要</td><td>hedge ratio 優化、IRS / CDS 效果評估</td></tr>
+</table>
+</div>
+<p style="font-size:0.85rem; color:#9ca3af; margin-bottom:0.8rem;">
+  同一引擎、兩套參數集：風險中性參數由 martingale test 校準；真實世界參數由歷史回歸＋宏觀假設確定。
+</p>
 
 <h4>Risk Factor Coverage 風險因子覆蓋</h4>
 
