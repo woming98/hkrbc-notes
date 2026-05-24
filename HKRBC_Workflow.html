@@ -1247,11 +1247,70 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ccc; margin:0.4rem 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#ccc; margin:0.4rem 0 0.6rem 0;">
   <strong>一句話總結：</strong>
   Risk-neutral 世界裡，每條路徑的加權平均（用 discount factor 貼現）等於今天的市場價格——這是 TVOG 計算的基礎。
   Real-world 世界裡，路徑的平均是公司的真實預期——這是 ALM / 壓力測試的基礎。
   兩者用同一個 ESG 引擎，但漂移率（drift）不同。
+</p>
+
+<p style="font-size:0.9rem; color:#93c5fd; margin:0.8rem 0 0.4rem 0;"><strong>實操建模：具體哪些假設不同，如何設置？</strong></p>
+
+<p style="font-size:0.84rem; color:#ccc; margin:0 0 0.4rem 0;">
+  從數學上看，兩個測度之間的橋樑是 <strong>市場風險價格（Market Price of Risk，λ）</strong>。
+  根據 Girsanov 定理，真實世界布朗運動與風險中性布朗運動的關係為：
+  \[ dW^P = dW^Q + \lambda \, dt \]
+  即將 drift 加上 λ·σ，便從 Q-measure 切換到 P-measure。實操中不需要顯式算 λ，而是直接在 ESG 參數表裡替換下面這些假設：
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th>風險因子</th><th>Risk-Neutral（Q-measure）假設</th><th>Real-World（P-measure）假設</th><th>實操調整方式</th></tr>
+  <tr>
+    <td><strong>利率<br/>（Hull-White）</strong></td>
+    <td>長期均值 θ(t) = 當前 forward curve（IA Sch. 4）<br/>確保模型精確 fit 初始 yield curve<br/>κ, σ 由 swaption vol 校準</td>
+    <td>長期均值 θ(t) = forward curve + term premium（約 0.5–1.5%）<br/>反映投資者對長期持有利率風險的補償</td>
+    <td>在 ESG 參數文件中調高 long-run mean；κ 和 σ 通常保持不變（波動結構相同）</td>
+  </tr>
+  <tr>
+    <td><strong>股票<br/>（GBM）</strong></td>
+    <td>Drift μ = r（無風險利率）<br/>σ 由 ATM implied vol 校準<br/>martingale test：\(E^Q[e^{-rT} S_T] = S_0\)</td>
+    <td>Drift μ = r + ERP（股票風險溢價，約 3–5%）<br/>σ 用歷史實現波動率（可與 implied vol 不同）</td>
+    <td>在 ESG 配置中把 equity drift 從 r 改為 r + ERP；σ 可用歷史 vol 替換 implied vol</td>
+  </tr>
+  <tr>
+    <td><strong>信用利差<br/>（Credit Spread）</strong></td>
+    <td>初始 spread = 市場觀察值（含風險溢價）<br/>均值回歸至市場 long-run spread</td>
+    <td>預期 spread = 預期信用損失（EL = PD × LGD）<br/>去除風險溢價部分，均值回歸至歷史平均</td>
+    <td>調低 long-run spread 均值（剔除 credit risk premium）；或用歷史回歸估計 P-measure 參數</td>
+  </tr>
+  <tr>
+    <td><strong>匯率<br/>（FX）</strong></td>
+    <td>Drift = 利率平價（interest rate parity）<br/>即 μ_FX = r_domestic − r_foreign</td>
+    <td>Drift = 購買力平價 / 宏觀匯率預測<br/>（可能偏離利率平價）</td>
+    <td>替換 drift 假設；σ_FX 通常相同</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#aaa; margin:0.4rem 0 0.3rem 0;"><strong>校準流程對比：</strong></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th>步驟</th><th>Risk-Neutral 校準</th><th>Real-World 校準</th></tr>
+  <tr><td>數據來源</td><td>市場報價：swaption vol surface、equity implied vol、CDS spread</td><td>歷史時間序列：20–30年利率、股票指數月度回報、信用損失率</td></tr>
+  <tr><td>校準目標</td><td>Martingale test 通過：\(E^Q[e^{-\int r\,dt} S_T] = S_0\)</td><td>最小化歷史路徑模擬誤差（MLE / Kalman Filter）</td></tr>
+  <tr><td>關鍵輸出</td><td>κ（mean reversion speed）、σ（vol）、θ(t)（drift term）</td><td>μ_equity（含 ERP）、長期利率 target、歷史 vol</td></tr>
+  <tr><td>主要工具</td><td>Optimizer（最小化 swaption 價格誤差）</td><td>OLS / VAR / Kalman Filter（歷史回歸）</td></tr>
+  <tr><td>常見軟件</td><td>ESG 廠商（Barrie & Hibbert、Moody's AA）內建優化器</td><td>R / Python statsmodels；或廠商 P-measure module</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#ccc; margin:0.3rem 0 0.2rem 0;">
+  <strong>在 Prophet / ESG 軟件的實際操作：</strong>
+  通常 ESG 引擎有兩套參數配置文件（parameter set）：
+  一套標記為 <code>Q_params.xml</code>（risk-neutral，用於 TVOG run）；
+  另一套標記為 <code>P_params.xml</code>（real-world，用於 ALM / ORSA run）。
+  切換時只需在 Prophet 的 ESG 呼叫處更換參數文件，模型結構（HW2F、GBM 等）完全相同。
 </p>
 </div>
 
