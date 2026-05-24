@@ -4668,6 +4668,21 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
   • <strong>HTM（Held-to-Maturity，持有至到期）</strong>：按攤余成本入賬，完全不反映市值變動。P&amp;L 最穩定，但流動性最差（tainting rule）。<br/>
   • <strong>OCI（Other Comprehensive Income）</strong>：財務報表中介於 P&amp;L 和股東權益之間的緩衝層，記錄未實現的公允價值變動，最終匯入「累計其他綜合收益」（AOCI），屬於股東權益的一部分。
 </div>
+<p style="font-size:0.83rem; color:#aaa; margin:0.4rem 0 0.3rem 0;">
+  <strong>關鍵理解：IFRS 17 並非讓 HTM 資產的變動反映在 P&amp;L</strong><br/>
+  IFRS 17 的核心改變是讓<strong>負債端</strong>按當期利率計量（不再像 IFRS 4 可以鎖定歷史利率）。
+  HTM 資產本身賬面依然不動——但負債在移動，造成<strong>單邊錯配</strong>：利率下行時，負債上升而資產賬面不變 → P&amp;L 出現虧損。
+  這個虧損並非資產真正縮水，而是會計錯配製造的"假波動"。
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table style="color:#e5e7eb;">
+  <tr><th>資產 + 負債組合</th><th>P&amp;L</th><th>淨資產 / OCI</th><th>說明</th></tr>
+  <tr style="color:#e5e7eb;"><td><strong>HTM + IFRS 17</strong></td><td>⚠️ 大幅波動（負債動、資產不動）</td><td>穩定</td><td>最差組合：利率變動 → 負債漲、資產賬面不動 → 人為 P&amp;L 虧損</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>FVOCI + IFRS 17 OCI Option</strong></td><td>✅ 穩定</td><td>波動（利率敏感）</td><td>最優組合：資產 MtM → OCI；負債變動 → OCI；雙邊對消，P&amp;L 不受利率影響</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>FVTPL + IFRS 17（無 OCI Option）</strong></td><td>⚠️ 雙邊均進 P&amp;L，波動但對稱</td><td>穩定</td><td>充分反映經濟現實，但 P&amp;L 嘈雜；適合短期資產或交易型組合</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>HKRBC EBS</strong></td><td>無 P&amp;L 概念</td><td>全 MtM</td><td>完全市場一致；資產負債均按市值，與會計分類無關</td></tr>
+</table>
+</div>
 <p style="font-size:0.83rem; color:#9ca3af; margin:0.2rem 0 0.4rem 0;">
   <strong>實務組合搭配：</strong>
   多數壽險公司傾向 <strong>FVOCI + IFRS 17 OCI Option</strong>，使資產與負債的利率敏感性同時走 OCI，令 P&amp;L 最穩定。
