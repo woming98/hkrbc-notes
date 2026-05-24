@@ -1843,6 +1843,112 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
   代碼實現是較易的部分；難點在於每個決策點上做出正確選擇。
 </p>
 
+<!-- ══ 完整操作案例 ══ -->
+<h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§8.A.* 完整操作案例：從配置到 TVOG（Par Fund，10年期）</h4>
+<p style="font-size:0.84rem; color:#9ca3af; margin-bottom:0.5rem;">
+  以下用 hkrbc-esg 的實際執行結果，端到端演示：設定 → 執行 → 讀取輸出 → 解讀情景 → 連接 TVOG。<br/>
+  假設：HKD Par Fund，SA=100，GSV=80，10年期，IA Sch.4 HKD 利率曲線（3.35%–3.80%）。
+</p>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 1：更新配置（2 分鐘）</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.4rem; overflow-x:auto;"># config/esg_config.yaml — 每季更新 IA Sch.4 利率，其餘保持不變
+ia_schedule4:
+  maturities: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30]
+  spot_rates:  [0.0335, 0.0340, 0.0342, 0.0344, 0.0346,
+                0.0350, 0.0355, 0.0362, 0.0368, 0.0374, 0.0380]
+  ufr: 0.038   # IA G.N. 4006/2024：HKD/USD UFR = 3.8%
+
+simulation:
+  n_scenarios: 1000   # HKRBC Rule 19 最低要求
+  projection_years: 30</pre>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 2：一鍵執行（&lt; 10 秒）</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.3rem; overflow-x:auto;">$ python examples/run_esg.py
+
+[配置] 情景數=1000 | 期限=30年 | 步長=monthly | 種子=42
+[利率曲線] 已加載 11 個期限點，UFR=3.8%
+[HW1F] a=0.05, σ=0.01 | 正在生成 1000 條利率路徑...
+       利率路徑生成完成。r(0)=0.0326          ← 初始短端利率 3.26%
+
+[Martingale Test] 正在驗證情景的市場一致性...
+  債券鞅檢驗  1Y: 誤差 0.09% ✅   5Y: 誤差 0.41% ✅
+              7Y: 誤差 0.53% ✅  10Y: 誤差 0.68% ✅  15Y: 誤差 0.91% ✅
+  股票鞅檢驗  3Y: 誤差 0.09% ✅   9Y: 誤差 0.34% ✅  15Y: 誤差 0.86% ✅
+  最終結論: ✅ 情景符合 HKRBC Rule 19 鞅條件
+
+[輸出] output/esg_scenarios.csv (361,000 行)
+       output/esg_scenarios.ESC (FIS Prophet 格式)</pre>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 3：讀取情景文件（output/esg_scenarios.csv 前幾行）</strong></p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table>
+  <tr><th>scenario</th><th>time_yr</th><th>rfr_short</th><th>disc_factor</th><th>eq_total_return</th><th>credit_spread</th></tr>
+  <tr><td>1</td><td>0.000</td><td>0.03259</td><td>1.00000</td><td>1.00000</td><td>0.00850</td></tr>
+  <tr><td>1</td><td>0.083</td><td>0.03329</td><td>0.99729</td><td>1.01884</td><td>0.00854</td></tr>
+  <tr><td>1</td><td>0.167</td><td>0.03306</td><td>0.99453</td><td>1.12939</td><td>0.00894</td></tr>
+  <tr><td>2</td><td>0.000</td><td>0.03259</td><td>1.00000</td><td>1.00000</td><td>0.00850</td></tr>
+  <tr><td>2</td><td>0.083</td><td>0.02191</td><td>0.99818</td><td>0.97844</td><td>0.00746</td></tr>
+  <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>
+</table>
+</div>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.4rem;">
+<table>
+  <tr><th>列名</th><th>含義</th><th>如何使用（Prophet / Excel）</th></tr>
+  <tr><td><code>rfr_short</code></td><td>當期瞬時無風險利率（年化）。初始 3.26%，各情景隨時間隨機波動</td><td>作為折現率、credited rate 的基準；在 Prophet 中賦值給 <code>RFR_SHORT</code> 全局參數</td></tr>
+  <tr><td><code>disc_factor</code></td><td>從 t=0 至當期的累計折現因子 exp(−∫r dt)。每月遞減</td><td>折現未來現金流至今日；TVOG = Σ (disc × CF) 的情景均值差</td></tr>
+  <tr><td><code>eq_total_return</code></td><td>股票累計總回報（以 1.0 為基準）。包括資本增值，不含稅</td><td>驅動 Par fund 資產端的股票倉位市值；與 rfr_short 負相關（ρ=−0.20）</td></tr>
+  <tr><td><code>credit_spread</code></td><td>IG 信用利差（年化）。初始 85bps，均值回歸至 80bps</td><td>驅動公司債 earned rate：earned rate ≈ rfr + credit_spread − EL</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 4：解讀 4 條代表性情景（t=10Y，情景 1/2/501/1000）</strong></p>
+<p style="font-size:0.83rem; color:#9ca3af; margin:0 0 0.2rem 0;">
+  情景 501 = 情景 1 的對偶（antithetic），因此 r_paths 方向相反——利率高情景的對偶是利率低情景，確保情景集對稱分佈。
+</p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table>
+  <tr><th>情景</th><th>r(t=1Y)</th><th>disc(1Y)</th><th>eq_TR(1Y)</th><th>r(t=10Y)</th><th>disc(10Y)</th><th>情景特徵</th></tr>
+  <tr><td><strong>1</strong></td><td>4.33%</td><td>0.9612</td><td>0.824</td><td>2.10%</td><td>0.8322</td><td>利率先升後大跌；股票 1Y 跌（利率上行壓估值）</td></tr>
+  <tr><td><strong>2</strong></td><td>4.09%</td><td>0.9621</td><td>0.990</td><td>5.36%</td><td>0.6034</td><td>利率持續上行；10Y 折現因子大幅下降（0.60）</td></tr>
+  <tr><td><strong>501</strong>（情景1對偶）</td><td>2.35%</td><td>0.9746</td><td>1.244</td><td>5.82%</td><td>0.5859</td><td>初期利率低 → 股票上漲；後期利率大升</td></tr>
+  <tr><td><strong>1000</strong>（情景500對偶）</td><td>3.56%</td><td>0.9630</td><td>1.246</td><td>1.84%</td><td>0.7997</td><td>利率溫和；股票上漲；低利率環境，disc 較高</td></tr>
+</table>
+</div>
+<p style="font-size:0.83rem; color:#9ca3af; margin:0 0 0.4rem 0;">
+  <strong>關鍵觀察：</strong>
+  ① disc(10Y) 在各情景差異巨大（0.58–0.83），正是利率不確定性的體現。
+  ② 低利率情景（情景1後期 r=2.10%）的 disc 高（0.83），代表折現因子高 → GSV 保證的現值更大 → 這正是 TVOG 主要來源。
+  ③ 對偶情景（501 vs 1）的 r 路徑方向相反，使情景集關於均值對稱，提高 martingale test 精度。
+</p>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 5：連接 TVOG（Par Fund GSV Put，AS(0)=100，GSV=80，t=10Y）</strong></p>
+<p style="font-size:0.83rem; color:#9ca3af; margin:0 0 0.2rem 0;">
+  用 eq_total_return 代理 AS 路徑（簡化：AS(t) ≈ 100 × eq_TR(t)），計算 GSV put 的 TVOG 成分：
+</p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table>
+  <tr><th>統計量</th><th>數值</th><th>含義</th></tr>
+  <tr><td>AS(10Y) 均值</td><td>141.7</td><td>若無保證，10年後 AS 平均升至 141（年化約 3.5% 回報）</td></tr>
+  <tr><td>AS(10Y) P5（最差5%）</td><td>42.1</td><td>最差情景 AS 只剩 42，遠低於 GSV=80，公司須兜底 38</td></tr>
+  <tr><td>AS(10Y) P25</td><td>76.6</td><td>25% 情景 AS 低於 80，GSV 被觸發</td></tr>
+  <tr><td>AS(10Y) P50（中位數）</td><td>117.3</td><td>中位數情景 AS=117，GSV 不觸發</td></tr>
+  <tr><td>觸發 GSV 的情景比例</td><td><strong>26.6%</strong></td><td>1,000 條中 266 條需要額外支付 max(80−AS, 0)</td></tr>
+  <tr><td><strong>GSV Put 現值 = E^Q[disc(10Y) × max(80−AS, 0)]</strong></td><td><strong>4.32</strong></td><td>這是 TVOG 的核心成分之一（每張保單）</td></tr>
+</table>
+</div>
+<p style="font-size:0.83rem; color:#9ca3af; margin:0 0 0.5rem 0;">
+  <strong>解讀：</strong>
+  在 1,000 條 Q-measure 情景下，有 26.6% 的情景觸發 GSV 保證，折現後每張保單的保證成本為 <strong>4.32</strong>。
+  若改用 P-measure（低利率情景概率更低），同樣的計算會得出更低的數字（如 ~1.4），導致
+  TVOG 被系統性低估 <strong>~2.9 per policy</strong>，正是公司面臨套利風險的根源。
+  <br/><br/>
+  完整 TVOG 計算在 Prophet 中的操作：
+  ① 將 <code>esg_scenarios.ESC</code> 掛入 Prophet 模型；
+  ② Prophet 對每條情景計算 BEL（含 AS 遞推 + GSV floor + DPB）；
+  ③ TVOG = mean(stochastic BEL) − deterministic BEL。
+  上述 4.32 對應 BEL 中因 GSV 保證而額外增加的部分。
+</p>
+
 <!-- ─── §8.A.0 Model Selection Decision Tree ─── -->
 <h4>§8.A.0 Step 0: Model Selection Decision Tree 模型選擇決策樹</h4>
 
