@@ -1318,10 +1318,44 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <p style="font-size:0.9rem; color:#fca5a5; margin:0 0 0.5rem 0;"><strong>⛔ 為什麼 TVOG 不能用 Real-World（P-measure）情景？</strong></p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
-  <strong>1. 數學根源：無套利定價必須在 Q-measure 下進行</strong><br/>
-  根據基本定理，任何衍生品（期權/保證）的公平價值 = 風險中性測度（Q-measure）下的期望折現值：
+  <strong>1. 數學根源：無套利定價必須在 Q-measure 下進行</strong>
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  <em>資產定價基本定理（FTAP）：</em> 無套利市場存在唯一的等價鞅測度 Q，使得所有折現資產價格均為鞅：
+  \[ \frac{S_t}{B_t} \text{ is a martingale under } Q \quad\Longleftrightarrow\quad E^Q\!\left[\frac{S_T}{B_T}\,\Big|\,\mathcal{F}_t\right] = \frac{S_t}{B_t} \]
+  其中 \(B_t = e^{\int_0^t r_s\,ds}\) 為貨幣市場賬戶（numéraire）。因此任何 payoff 的公平價值為：
   \[ V_0 = E^Q\!\left[e^{-\int_0^T r_t\,dt}\cdot \text{Payoff}_T\right] \]
-  用 P-measure 計算這個期望值在數學上是錯的——結果不再等於無套利市場價格，不具備市場一致性。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  <em>Girsanov 定理：Q 與 P 之間的測度轉換：</em><br/>
+  設真實世界布朗運動為 \(W^P\)，市場風險價格為 \(\lambda_t\)，則：
+  \[ dW^Q_t = dW^P_t + \lambda_t\,dt \]
+  P-measure 下股票的 SDE（以 GBM 為例）：
+  \[ dS_t = \mu\,S_t\,dt + \sigma\,S_t\,dW^P_t \quad (\mu = r + \lambda\sigma,\text{ 含風險溢價}) \]
+  Q-measure 下（代入 \(dW^P_t = dW^Q_t - \lambda_t\,dt\)，風險溢價消除）：
+  \[ dS_t = r\,S_t\,dt + \sigma\,S_t\,dW^Q_t \quad (\text{drift} = r,\text{ 無風險利率}) \]
+  若錯用 P-measure 計算 TVOG，相當於用含 \(\lambda\sigma\) 超額 drift 的路徑做期望值，
+  所得結果 \(E^P[\cdot]\) 不等於無套利價格 \(E^Q[\cdot]\)。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
+  Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
+  \[ \frac{dQ}{dP}\bigg|_{\mathcal{F}_T} = \exp\!\left(-\int_0^T \lambda_t\,dW^P_t - \frac{1}{2}\int_0^T \lambda_t^2\,dt\right) \]
+  若 \(\lambda\) 為常數（對應固定 ERP），則 Q 測度賦予低利率路徑更高的權重（因這些路徑對應 \(\lambda\) 的負值方向），
+  而 P-measure 賦予這些路徑更低的權重。TVOG 的誤差即為：
+  \[ \text{TVOG}^P - \text{TVOG}^Q = E^P[\text{Payoff} \cdot e^{-rT}] - E^Q[\text{Payoff} \cdot e^{-rT}] \approx -\text{Cov}^P\!\!\left(\frac{dQ}{dP},\,\text{Payoff}\cdot e^{-rT}\right) \]
+  由於保證 Payoff 在低利率路徑觸發（\(\frac{dQ}{dP}\) 在這些路徑上更大），兩者正相關 → Cov &gt; 0 → \(\text{TVOG}^P &lt; \text{TVOG}^Q\)，P-measure 系統性低估。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
+  <em>Martingale Test（監管驗證標準）：</em><br/>
+  IA 要求每條情景的折現股票路徑均值等於當前市場價格：
+  \[ \frac{1}{N}\sum_{s=1}^{N} e^{-\int_0^T r_t^{(s)}\,dt}\cdot S_T^{(s)} = S_0 \]
+  Q-measure（risk-neutral）情景：滿足，因 drift = r。<br/>
+  P-measure 情景：不滿足，因 drift = r + ERP → 折現期望值 &gt; S_0，直接違規。
 </p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
