@@ -1186,7 +1186,49 @@ SCENARIO  2
   <tr><td><strong>HK Swaption 流動性</strong></td><td>HKD swaption OTM 流動性差，vol 數據不可靠</td><td>以 USD swaption vol 為主，HKD 用 basis 調整；或直接用 IA Sch. 4 forward rates 倒推隱含 vol</td></tr>
   <tr><td><strong>UFR 更新滯後</strong></td><td>IA 每幾年更新一次 UFR，短期內 yield curve 外插段出現跳躍</td><td>建立 UFR 敏感度分析；每次估值確認最新 Gazette Notice</td></tr>
   <tr><td><strong>跨貨幣一致性</strong></td><td>HKD/USD/RMB 多幣種資產組合需確保 FX 路徑無套利</td><td>加入 covered interest parity 約束；Cholesky 確保跨幣種相關性一致</td></tr>
+  <tr>
+    <td><strong>商業軟件授權費用高</strong></td>
+    <td>Moody's / Conning GEMS 年費 USD 150k–500k+，中小型公司難以負擔</td>
+    <td>
+      可使用開源 Python ESG 替代——見下方開源項目 ↓
+    </td>
+  </tr>
 </table>
+</div>
+
+<!-- 開源 ESG 項目推介 -->
+<div style="background:linear-gradient(135deg,#0f172a,#1e293b); border:1.5px solid #6ee7b7; border-radius:10px; padding:1rem 1.2rem; margin:0.8rem 0 1rem 0;">
+  <p style="color:#6ee7b7; font-size:0.95rem; font-weight:700; margin:0 0 0.4rem 0;">
+    🔗 開源替代方案：hkrbc-esg（Python）
+  </p>
+  <p style="color:#d1fae5; font-size:0.84rem; margin:0 0 0.5rem 0;">
+    針對 Par Fund TVOG 開發的輕量級 Python ESG 生成器，符合 Cap. 41R Rule 19 要求，適合不想採購商業軟件的中小型香港保險公司使用。
+  </p>
+  <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+  <table>
+    <tr><th style="background:rgba(6,78,59,0.5); color:#6ee7b7;">功能</th><th style="background:rgba(6,78,59,0.5); color:#6ee7b7;">說明</th></tr>
+    <tr><td>利率模型</td><td>Hull-White 1-Factor（Q-measure，精確離散化），自動擬合 IA Schedule 4 yield curve</td></tr>
+    <tr><td>股票模型</td><td>GBM（Q-measure），drift = r(t)，確保無套利</td></tr>
+    <tr><td>Martingale Test</td><td>自動驗證；對偶變量法（antithetic variates）降低誤差至 ≤1%（1–15Y）</td></tr>
+    <tr><td>輸出格式</td><td>CSV（通用）+ Prophet .ESC（FIS Prophet 直接讀取）</td></tr>
+    <tr><td>配置方式</td><td>YAML 文件，5 分鐘更新 IA Schedule 4 利率曲線</td></tr>
+    <tr><td>費用</td><td>免費，MIT License</td></tr>
+    <tr><td>適用場景</td><td>Par Fund TVOG、IFRS 17 MRB、ALM Real-World 情景</td></tr>
+  </table>
+  </div>
+  <p style="color:#a7f3d0; font-size:0.84rem; margin:0.3rem 0 0.2rem 0;"><strong>快速開始：</strong></p>
+  <pre style="background:#0f172a; color:#a6e3a1; padding:0.5rem 0.8rem; border-radius:6px; font-size:0.8rem; margin:0 0 0.5rem 0; overflow-x:auto;">pip install -r requirements.txt
+python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Martingale Test
+# → output/esg_scenarios.csv       導入任意精算平台
+# → output/esg_scenarios.ESC       FIS Prophet 直接讀取</pre>
+  <p style="color:#d1fae5; font-size:0.84rem; margin:0;">
+    📂 GitHub 倉庫：
+    <a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7; font-weight:700;">
+      github.com/woming98/hkrbc-esg
+    </a>
+    &nbsp;|&nbsp;
+    文檔：見倉庫 README.md
+  </p>
 </div>
 
 <div class="tbl-wrap" style="font-size:0.85rem; margin-bottom:0.2rem;">
