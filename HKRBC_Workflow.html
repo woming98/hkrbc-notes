@@ -1343,6 +1343,37 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
   所得結果 \(E^P[\cdot] \neq E^Q[\cdot]\)，不等於無套利價格。
 </p>
 
+<p style="font-size:0.84rem; color:#fecaca; margin:0.4rem 0 0.3rem 0;">
+  <em>常見疑問：為什麼把 60% 重新賦權成 50% 是合理的？</em><br/>
+  Q-measure 的 50% <strong>不是人為選定</strong>，而是由<strong>無套利條件唯一決定</strong>的。以下數字例子說明：
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">設置</th><th style="background:rgba(127,29,29,0.6); color:#fff;">數值</th></tr>
+  <tr style="color:#fecaca;"><td>股票現價 \(S_0\)</td><td>100</td></tr>
+  <tr style="color:#fecaca;"><td>下一期：漲至 120（+20%）或跌至 90（−10%）</td><td>–</td></tr>
+  <tr style="color:#fecaca;"><td>無風險利率 \(r\)</td><td>5%</td></tr>
+  <tr style="color:#fecaca;"><td>真實世界概率（P-measure）</td><td>漲 60%，跌 40%</td></tr>
+</table>
+</div>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  令 Q-measure 下漲的概率為 \(q\)，無套利要求折現期望 = 當前價格：
+  \[ \frac{1}{1.05}\bigl[q \times 120 + (1-q) \times 90\bigr] = 100 \]
+  \[ \Rightarrow\quad q = \frac{100 \times 1.05 - 90}{120 - 90} = \frac{15}{30} = 50\% \]
+  50% 是由市場價格和無風險利率<strong>唯一推算出來</strong>的，若用任何其他概率定價，就會出現套利機會。
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;"></th><th style="background:rgba(127,29,29,0.6); color:#fff;">P-measure 60%</th><th style="background:rgba(127,29,29,0.6); color:#fff;">Q-measure 50%</th></tr>
+  <tr style="color:#fecaca;"><td><strong>含義</strong></td><td>股票真實漲跌概率（含投資者風險補償要求）</td><td>使期權定價與市場無套利一致的「定價概率」，不預測未來</td></tr>
+  <tr style="color:#fecaca;"><td><strong>Q 如何得到</strong></td><td>–</td><td>把「真實漲太多」的路徑權重調低，「跌」的路徑調高，直到期望回報 = 無風險利率</td></tr>
+  <tr style="color:#fecaca;"><td><strong>是否合理</strong></td><td>預測合理</td><td>定價合理（套利一致性）；不用於預測真實走勢</td></tr>
+</table>
+</div>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  <strong>類比保險精算：</strong> 保險公司定價用的死亡率，不是真實人群死亡率，而是加了風險邊際的「定價死亡率」——同樣是「虛構」但在定價框架內自洽，目的是確保定價的一致性和充足性。Q-measure 概率亦然。</p>
+</p>
+
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
   Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
