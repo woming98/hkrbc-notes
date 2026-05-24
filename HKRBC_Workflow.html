@@ -1206,34 +1206,34 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <p style="font-size:0.95rem; color:#93c5fd; margin:0 0 0.6rem 0;"><strong>Risk-Neutral vs Real-World — 兩套情景有何不同？</strong></p>
 
 <div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.6rem;">
-<table>
+<table style="color:#e5e7eb;">
   <tr><th></th><th>Risk-Neutral 風險中性</th><th>Real-World 真實世界</th></tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>核心問題</strong></td>
     <td>「這個期權/保證今天的公平價值是多少？」</td>
     <td>「未來10年內，公司的資產負債缺口有多大？」</td>
   </tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>Drift（漂移率）</strong></td>
     <td>所有資產的預期回報率 = 無風險利率（risk-free rate）。<br/>股票、債券漲跌已被"風險溢價"移除。</td>
     <td>資產的預期回報率 = 無風險利率 + 風險溢價（equity risk premium ≈ 3–5%）。<br/>反映投資者真實預期。</td>
   </tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>校準目標</strong></td>
     <td>市場可觀察價格（swaption vol surface、equity implied vol）。<br/>Martingale test：\(E^Q[B(T)^{-1} \cdot S(T)] = S(0)\)</td>
     <td>歷史時間序列（過去20–30年利率、股票回報）＋宏觀經濟假設。</td>
   </tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>直覺理解</strong></td>
     <td>在風險中性世界，所有投資者都是風險中立的，<br/>因此股票和現金的預期回報相同（= 無風險利率）。<br/>這是一個「定價用的虛擬世界」，並非現實。</td>
     <td>在真實世界，投資者厭惡風險，<br/>股票必須提供高於無風險利率的超額回報，<br/>才能吸引人持有。這才是「現實世界」。</td>
   </tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>HKRBC 用途</strong></td>
     <td>TVOG（Rule 19）、EBS 負債估值<br/>→ 市場一致性估值，無套利</td>
     <td>ALM 壓力測試、ORSA、SAA 優化<br/>→ 評估長期持續性和資本充足率</td>
   </tr>
-  <tr>
+  <tr style="color:#e5e7eb;">
     <td><strong>典型參數差異（以利率為例）</strong></td>
     <td>初始 yield curve = IA Sch. 4 無風險曲線；<br/>mean reversion → risk-free forward curve</td>
     <td>初始 yield curve = 相同；<br/>但長期 mean reversion level 可能更高（加入 term premium）</td>
