@@ -1821,6 +1821,7 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
   <div class="tbl-wrap" style="margin-top:0.4rem;">
   <table>
     <tr><th>本節步驟</th><th>原理說明</th><th>hkrbc-esg 對應文件</th><th>核心函數/類</th></tr>
+    <tr><td>§8.A.0 Model Selection</td><td>決定用哪個模型（HW1F / HW2F / LMM）及風險因子範圍（IR + EQ + CS + FX）</td><td><code>config/esg_config.yaml</code></td><td>頂層欄位：<code>hull_white_1f</code>、<code>equity</code>、<code>correlation</code></td></tr>
     <tr><td>§8.A.1 Yield Curve</td><td>IA Sch.4 零息曲線 → 瞬時遠期利率 f(0,t)</td><td><code>src/yield_curve.py</code></td><td><code>YieldCurve.forward_rate(t)</code></td></tr>
     <tr><td>§8.A.2 Parameter Selection</td><td>HW1F 參數 (a, σ) 校準至 swaption vol</td><td><code>config/esg_config.yaml</code></td><td><code>hull_white_1f.a / sigma</code></td></tr>
     <tr><td>§8.A.3 Drift θ(t)</td><td>θ(t) 由 f(0,t) 唯一確定，確保精確擬合 yield curve</td><td><code>src/hw1f.py</code></td><td><code>HullWhite1F.alpha(t)</code></td></tr>
@@ -1869,6 +1870,22 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
   │   Reason: closed-form formulas for validation; 2 parameters each;   │
   │           sufficient for Par fund TVOG with reasonable accuracy.    │
   └────────────────────────────────────────────────────────────────────┘</pre>
+</div>
+
+<div style="background:#0f172a; border:1px solid #334155; border-radius:6px; padding:0.6rem 0.9rem; font-size:0.82rem; color:#94a3b8; margin-bottom:0.6rem;">
+  <strong style="color:#6ee7b7;">對應 hkrbc-esg：</strong>
+  上述決策樹的選擇結果，直接翻譯為 <code style="color:#a6e3a1;">config/esg_config.yaml</code> 的頂層配置：
+  <pre style="background:transparent; color:#a6e3a1; margin:0.4rem 0 0 0; font-size:0.8rem; padding:0;">hull_white_1f:
+  a: 0.05       # Q2 選 HW1F → 填此區塊；若選 HW2F 則需自行擴展
+  sigma: 0.010
+
+equity:
+  sigma_eq: 0.20  # Q2 選 Par Fund → 啟用此區塊（IR + Equity）
+
+correlation:
+  ir_eq: -0.20    # Q3 簡單起點 → 只填 ir_eq；其餘可先設為 0</pre>
+  Q1 的答案決定 <code>simulation.n_scenarios</code>（TVOG 用 ≥1,000；ALM 用 100–500）和<br/>
+  是否啟用 <code>martingale_test</code>（TVOG 必須開；ALM 可選）。
 </div>
 
 <!-- ─── §8.A.1 Yield Curve Bootstrapping ─── -->
