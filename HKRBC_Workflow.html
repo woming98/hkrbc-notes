@@ -1292,12 +1292,11 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
         <strong style="color:#cbd5e1;">優點：</strong>兩因子分別驅動曲線「水平」與「斜率」；可模擬 bear steepening / bull flattening；Bond/Swaption 仍有解析公式；ρ 典型值 −0.7～−0.9<br/>
         <strong style="color:#cbd5e1;">局限：</strong>參數更多，校準難度上升；仍為正態分布<br/>
         <strong style="color:#cbd5e1;">適用：</strong>Conning GEMS / Moody's ESG 默認 IR 模型；主流 HKRBC 生產環境<br/>
-        <span style="color:#c4b5fd; font-size:0.74rem;">▶ Python：<code>pip install QuantLib</code> → <code>ql.G2()</code></span>
+        <span style="color:#c4b5fd; font-size:0.74rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/hw2f.py</code>（精確離散化 + 對偶變量）</span>
       </p>
-      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;">model = ql.G2(ql.YieldTermStructureHandle(curve))
-engine = ql.JamshidianSwaptionEngine(model)
-model.calibrate(swaptions, engine,
-    ql.LevenbergMarquardt(), constraint)</pre>
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;">python examples/run_esg.py --ir-model HW2F
+# G2++ 參數：a=0.05, b=0.50, σ₁=0.01, σ₂=0.015, ρ=-0.80
+# Martingale Test ✅ PASSED（1000 條情景）</pre>
     </div>
 
     <!-- LMM -->
@@ -1309,18 +1308,21 @@ model.calibrate(swaptions, engine,
         <strong style="color:#cbd5e1;">優點：</strong>直接對每個 forward rate 建模；精確校準完整 swaption vol surface（含 smile）；Black 公式直接適用<br/>
         <strong style="color:#cbd5e1;">局限：</strong>無 closed-form Bond Price（須 MC）；計算量大；需完整 vol cube，HK 數據稀疏<br/>
         <strong style="color:#cbd5e1;">適用：</strong>VA/GMxB、exotic IR 保證、外資 AM 精算部<br/>
-        <span style="color:#fcd34d; font-size:0.74rem;">▶ Python：QuantLib <code>ql.LiborMarketModel</code> / PyLMM</span>
+        <span style="color:#fcd34d; font-size:0.74rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/lmm.py</code>（Spot measure，指數衰減相關）</span>
       </p>
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;">python examples/run_esg.py --ir-model LMM
+# N=30 個 forward rate，tenor 1Y–30Y，σ=12%
+# 年步長輸出，插值至月步長</pre>
     </div>
   </div>
 
   <!-- IR Python 速查 -->
   <div style="background:#0a1628; border-top:1px solid #1e293b; padding:0.45rem 0.8rem; font-size:0.77rem; color:#64748b;">
-    <strong style="color:#93c5fd;">Python 難度對比：</strong>
-    HW1F（hkrbc-esg，⭐ 開箱即用）&nbsp;→&nbsp;
-    HW2F（QuantLib G2，⭐⭐ 需 swaption vol）&nbsp;→&nbsp;
-    LMM（QuantLib/PyLMM，⭐⭐⭐ 需完整 vol cube）&nbsp;|&nbsp;
-    <strong style="color:#fcd34d;">HK 建議：Par Fund TVOG 用 HW1F 已足夠；需曲線斜率建模時升 HW2F</strong>
+    <strong style="color:#93c5fd;">hkrbc-esg v2.0 支持三種 IR 模型（一鍵切換）：</strong>
+    <code style="color:#6ee7b7;">--ir-model HW1F</code>（⭐ 默認）&nbsp;/&nbsp;
+    <code style="color:#c4b5fd;">--ir-model HW2F</code>（⭐⭐ 雙因子）&nbsp;/&nbsp;
+    <code style="color:#fcd34d;">--ir-model LMM</code>（⭐⭐⭐ N forward rates）&nbsp;|&nbsp;
+    <strong style="color:#fcd34d;">HK 建議：Par Fund TVOG 用 HW1F；需曲線斜率建模升 HW2F</strong>
   </div>
 </div>
 
@@ -1412,7 +1414,7 @@ model.calibrate(options, engine, optimizer)</pre>
         <strong style="color:#cbd5e1;">優點：</strong><code>√cs</code> 擴散項確保利差恆為正（cs(t)≥0）；均值回歸反映信用利差的經濟特性；參數可由歷史利差序列 OLS/MLE 校準；有 Bond 解析公式（CIR bond pricing formula）<br/>
         <strong style="color:#cbd5e1;">局限：</strong>Feller 條件 2κμ&gt;σ² 需滿足才能確保正值；對大幅跳升（credit event）的刻畫不足<br/>
         <strong style="color:#cbd5e1;">適用：</strong>IG 信用利差動態（HKD IG 初始約 85bps，長期均值約 80bps）；hkrbc-esg 已用 OU（簡化 CIR）實現<br/>
-        <span style="color:#fca5a5; font-size:0.74rem;">▶ Python：<code>scipy.optimize</code> 校準 + Euler/Milstein 離散化；QuantLib 有 <code>ql.CoxIngersollRossProcess</code></span>
+        <span style="color:#fca5a5; font-size:0.74rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/cir.py</code>（Feller 條件校驗 + 反射邊界）</span>
       </p>
     </div>
 
@@ -1463,7 +1465,7 @@ cs_next = cs + kappa*(mu-cs)*dt + sigma*sqrt(cs*dt)*Z + jumps*jump_sizes</pre>
       <p style="margin:0;">
         Heston-type 隨機 vol 疊加 FX 過程；捕捉 FX vol smile；<br/>
         適用 USD/RMB 等有期權市場的貨幣對<br/>
-        <span style="color:#7dd3fc; font-size:0.73rem;">▶ Python：<code>ql.GarmanKohlagenProcess</code> / 自編 GBM</span>
+        <span style="color:#7dd3fc; font-size:0.73rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/fx.py</code>（利率平價 drift，HKD/USD σ=0.1%）</span>
       </p>
     </div>
   </div>
@@ -1486,7 +1488,7 @@ cs_next = cs + kappa*(mu-cs)*dt + sigma*sqrt(cs*dt)*Z + jumps*jump_sizes</pre>
       <p style="margin:0;">
         分週期模擬房地產週期（上行、平穩、下行各有不同均值和波動率）；<br/>
         馬爾可夫鏈切換週期；參數從 Centaline Property Index 歷史估算<br/>
-        <span style="color:#fdba74; font-size:0.73rem;">▶ Python：Markov chain（<code>hmmlearn</code>）+ GBM 各週期</span>
+        <span style="color:#fdba74; font-size:0.73rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/property_return.py</code>（beta=0.6，lag=4步，σ_idio=8%）</span>
       </p>
     </div>
   </div>
@@ -1509,7 +1511,7 @@ cs_next = cs + kappa*(mu-cs)*dt + sigma*sqrt(cs*dt)*Z + jumps*jump_sizes</pre>
       <p style="margin:0;">
         <code>dπ = κ_π(μ_π−π) dt + σ_π dW_π</code>，獨立於利率模型；<br/>
         參數由 HK CPI 歷史時間序列（Census & Statistics Dept）校準；計算量小，適合費用風險簡化建模<br/>
-        <span style="color:#5eead4; font-size:0.73rem;">▶ Python：自編 OU 離散化（10 行代碼）/ QuantLib Jarrow-Yildirim</span>
+        <span style="color:#5eead4; font-size:0.73rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/inflation.py</code>（π(0)=2%，μ=3%，κ=0.20，σ=1.5%）</span>
       </p>
     </div>
   </div>
@@ -2038,7 +2040,8 @@ equity:
   equity_risk_premium_Q: 0.000  # 無超額回報
 simulation:
   n_scenarios: 1000</pre>
-    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#6ee7b7;">▶ 运行：<code>python examples/run_esg.py</code>（自動 martingale test）</p>
+    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#6ee7b7;">▶ 运行：<code>python examples/run_esg.py --ir-model HW1F</code>（自動 martingale test）</p>
+    <p style="margin:0.15rem 0 0 0; font-size:0.79rem; color:#6ee7b7;">▶ 輸出：<code>esg_scenarios.csv</code>（10列：rfr_short / disc_factor / eq_total_return / credit_spread / fx_rate / prop_return / cpi_index / inflation_rate）</p>
   </div>
 
   <!-- P-mode 卡 -->
@@ -2061,7 +2064,8 @@ equity:
   equity_risk_premium_P: 0.055  # 5.5% ERP
 simulation:
   n_scenarios: 200</pre>
-    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#c4b5fd;">▶ 运行：<code>python examples/run_esg.py</code>（自動跳過 martingale test）</p>
+    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#c4b5fd;">▶ 运行：<code>python examples/run_esg.py --mode P --scenarios 200</code>（自動跳過 martingale test）</p>
+    <p style="margin:0.15rem 0 0 0; font-size:0.79rem; color:#c4b5fd;">▶ 同樣輸出全部 10 列因子（IR/EQ/CS/FX/PR/INF），P-measure 下股票 30Y 均值 ≈ 5.8×（vs Q-mode ≈ 2.9×）</p>
   </div>
 </div>
 
@@ -2110,6 +2114,30 @@ simulation:
       <td><code>src/equity.py</code></td>
       <td><code>equity_risk_premium_Q=0</code><br/>E[回報] ≈ r(t)≈3.5%</td>
       <td><code>equity_risk_premium_P=0.055</code><br/>E[回報] ≈ r(t)+5.5%≈9%</td>
+    </tr>
+    <tr>
+      <td>§8.A.4b 信用利差</td>
+      <td>CIR 過程（√cs 擴散確保正值）</td>
+      <td><code>src/cir.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;">cs₀=85bps，μ=80bps，κ=0.15（Q/P 共用）</td>
+    </tr>
+    <tr>
+      <td>§8.A.4c FX 匯率</td>
+      <td>Garman-Kohlhagen（利率平價 drift）</td>
+      <td><code>src/fx.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;">σ_fx=0.1%（HKD/USD）；可改 3%（HKD/RMB）</td>
+    </tr>
+    <tr>
+      <td>§8.A.4d 房地產</td>
+      <td>Proxy to Equity（滯後 + 獨立噪聲）</td>
+      <td><code>src/property_return.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;">beta=0.6，lag=4步，σ_idio=8%</td>
+    </tr>
+    <tr>
+      <td>§8.A.4e 通脹</td>
+      <td>OU 均值回歸，CPI 指數路徑</td>
+      <td><code>src/inflation.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;">π(0)=2%，μ=3%，κ=0.20，σ=1.5%</td>
     </tr>
     <tr>
       <td>§8.A.5 情景生成</td>
