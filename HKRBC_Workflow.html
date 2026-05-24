@@ -1253,196 +1253,267 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
 
 <h4>Risk Factor Coverage 風險因子覆蓋</h4>
 
-<div class="tbl-wrap">
-<table>
-  <tr><th>Risk Factor</th><th>Common Models</th><th>Calibration Targets</th><th>Why this model</th></tr>
-  <tr>
-    <td><strong>Nominal Interest Rate</strong> 名義利率</td>
-    <td style="padding:0.5rem 0.6rem; min-width:260px;">
+<p style="font-size:0.84rem; color:#9ca3af; margin:0 0 0.8rem 0;">
+  以下六類風險因子各自有對應的隨機模型。每個因子卡片列出：可選模型（含 SDE 和參數說明）、校準目標、Python 實現方式及 HK 市場適用建議。
+</p>
 
-      <!-- HW1F -->
-      <div style="background:#0f2a1a; border-left:3px solid #10b981; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.4rem;">
-        <p style="margin:0 0 0.2rem 0; color:#6ee7b7; font-weight:700; font-size:0.82rem;">① Hull-White 1-Factor（HW1F）</p>
-        <p style="margin:0; font-size:0.79rem; color:#a7f3d0; line-height:1.55;">
-          <strong>SDE：</strong><code>dr = [θ(t)−a·r] dt + σ dW</code><br/>
-          <strong>參數：</strong>a（均值回歸速度）、σ（波動率），僅 2 個<br/>
-          <strong>特點：</strong>精確擬合初始 yield curve；
-          Bond/Swaption 有解析公式（closed-form），無需 MC 即可校準；
-          利率路徑服從正態分布，偶有負利率<br/>
-          <strong>局限：</strong>只有一個隨機因子，yield curve 只能平行移動，
-          無法同時模擬斜率與曲率的獨立變動（利率期限結構變形能力弱）<br/>
-          <strong>適用：</strong>Par Fund TVOG 原型、小型公司起步用、監管壓力下快速交付<br/>
-          <span style="color:#6ee7b7; font-size:0.77rem;">▶ hkrbc-esg 已實現（<code>src/hw1f.py</code>）</span>
-        </p>
-      </div>
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 卡片 1：名義利率                                               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="border:1px solid #1e3a5f; border-radius:10px; margin-bottom:1rem; overflow:hidden;">
+  <!-- 卡片標題 -->
+  <div style="background:linear-gradient(135deg,#0f2644,#0d1f3c); padding:0.55rem 1rem; display:flex; align-items:center; gap:0.6rem;">
+    <span style="background:#3b82f6; color:#fff; border-radius:4px; padding:0.1rem 0.5rem; font-size:0.78rem; font-weight:700;">IR</span>
+    <span style="color:#93c5fd; font-size:0.95rem; font-weight:700;">Nominal Interest Rate &nbsp;名義利率</span>
+    <span style="margin-left:auto; font-size:0.76rem; color:#475569;">校準目標：IA Sch.4 yield curve + swaption vol surface</span>
+  </div>
+  <!-- 卡片內容：3 列模型 -->
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; background:#0f172a;">
 
-      <!-- HW2F / G2++ -->
-      <div style="background:#1a1025; border-left:3px solid #8b5cf6; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.4rem;">
-        <p style="margin:0 0 0.2rem 0; color:#c4b5fd; font-weight:700; font-size:0.82rem;">② Hull-White 2-Factor / G2++（HW2F）</p>
-        <p style="margin:0; font-size:0.79rem; color:#ddd6fe; line-height:1.55;">
-          <strong>SDE：</strong><code>r(t) = x(t) + y(t) + φ(t)</code><br/>
-          &nbsp;&nbsp;<code>dx = −a·x dt + σ₁ dW₁</code>，
-          <code>dy = −b·y dt + σ₂ dW₂</code>，
-          <code>dW₁·dW₂ = ρ dt</code><br/>
-          <strong>參數：</strong>a, b, σ₁, σ₂, ρ 共 5 個<br/>
-          <strong>特點：</strong>兩個因子分別驅動利率曲線的「水平」與「斜率」，
-          可模擬 bear steepening（長端升短端穩）、bull flattening（短端升長端穩）等真實利率形態；
-          Bond/Swaption 仍有解析公式；
-          ρ 控制兩因子相關性（典型值 −0.7 至 −0.9）<br/>
-          <strong>局限：</strong>參數更多（校準難度上升）；仍為正態分布（允許負利率）<br/>
-          <strong>適用：</strong>主流 HKRBC 生產環境；Conning GEMS、Moody's ESG 商業工具的默認 IR 模型<br/>
-          <span style="color:#c4b5fd; font-size:0.77rem;">▶ Python 可實現：QuantLib / 自編 Euler 離散化（見下方說明）</span>
-        </p>
-      </div>
+    <!-- HW1F -->
+    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.25rem 0; color:#6ee7b7; font-weight:700; font-size:0.83rem;">① HW1F <span style="font-size:0.72rem; color:#10b981; font-weight:400;">（起步首選）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#a7f3d0;"><code>dr = [θ(t)−a·r] dt + σ dW</code></p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>a, σ（共 2 個）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>精確擬合初始 yield curve；Bond/Swaption 有解析公式，校準快速；唯一無需 MC 即可完成校準的模型<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>單因子，yield curve 只能平行移動，無法模擬斜率/曲率獨立變動；正態分布，偶有負利率<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>Par Fund TVOG、小型公司、快速原型<br/>
+        <span style="color:#6ee7b7; font-size:0.74rem;">▶ hkrbc-esg <code>src/hw1f.py</code>，開箱即用</span>
+      </p>
+    </div>
 
-      <!-- LMM -->
-      <div style="background:#1a1209; border-left:3px solid #f59e0b; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0;">
-        <p style="margin:0 0 0.2rem 0; color:#fcd34d; font-weight:700; font-size:0.82rem;">③ LIBOR Market Model（LMM / BGM）</p>
-        <p style="margin:0; font-size:0.79rem; color:#fef3c7; line-height:1.55;">
-          <strong>SDE：</strong>直接對每個 tenor 的 forward rate <code>Lᵢ(t)</code> 建模：<br/>
-          &nbsp;&nbsp;<code>dLᵢ = μᵢ(L, t) dt + σᵢ(t)·Lᵢ dWᵢ</code>（共 N 個 SDE）<br/>
-          <strong>參數：</strong>各期限的 vol 函數 σᵢ(t) + 相關矩陣，參數維度高（10–30+）<br/>
-          <strong>特點：</strong>直接校準至 swaption vol surface（包含 smile）；
-          各 forward rate 有自己的隨機過程，曲線形態極為靈活；
-          Black 公式直接適用，直觀對應市場 swaption 報價；
-          適合對沖 exotic IR 產品<br/>
-          <strong>局限：</strong>無 closed-form Bond Price（需 MC 估值）；
-          計算量大（N 個 SDE 同時積分）；
-          校準困難，需要完整的 swaption vol cube<br/>
-          <strong>適用：</strong>VA/GMxB 定價（需要精細的 IR + EQ 聯動）、外資 AM 精算部、有 exotic IR 保證的產品<br/>
-          <span style="color:#fcd34d; font-size:0.77rem;">▶ Python 可實現：QuantLib / PyLMM；HK 市場數據獲取是主要瓶頸</span>
-        </p>
-      </div>
-
-    </td>
-    <td>
-      • Initial swap / risk-free yield curve (Sch. 4)<br/>
-      • Swaption volatility surface (at-the-money grid)<br/>
-      • Mean reversion parameter α from historical
-    </td>
-    <td style="font-size:0.81rem;">
-      <strong>HW1F：</strong>2 參數，Bond/Swaption 有公式，起步首選<br/><br/>
-      <strong>HW2F：</strong>5 參數，可模擬曲線斜率變動，主流生產環境<br/><br/>
-      <strong>LMM：</strong>直接建模 forward rate，精確校準 vol surface，適合複雜保證
-    </td>
-  </tr>
-  <tr id="ir-models-python-row">
-    <td colspan="4" style="padding:0; background:transparent; border:none;">
-      <!-- Python 實現說明展開框 -->
-      <div style="background:#0f172a; border:1px solid #334155; border-radius:6px; margin:0.3rem 0; padding:0.6rem 1rem; font-size:0.81rem; color:#94a3b8;">
-        <p style="margin:0 0 0.3rem 0; color:#e2e8f0; font-weight:700;">
-          🐍 Python 可以實現哪些 IR 模型？
-        </p>
-        <div class="tbl-wrap" style="margin-top:0.2rem;">
-        <table style="font-size:0.79rem;">
-          <tr>
-            <th>模型</th>
-            <th>Python 實現方式</th>
-            <th>主要庫</th>
-            <th>難度</th>
-            <th>HK 市場數據獲取</th>
-          </tr>
-          <tr>
-            <td><span style="color:#6ee7b7;">HW1F</span></td>
-            <td>精確離散化（closed-form）+ Euler；<br/>hkrbc-esg 已完整實現，開箱即用</td>
-            <td><code>numpy</code>、<code>scipy</code></td>
-            <td>⭐ 簡單</td>
-            <td>IA Sch.4（免費公開），易獲取</td>
-          </tr>
-          <tr>
-            <td><span style="color:#c4b5fd;">HW2F / G2++</span></td>
-            <td>
-              <strong>方案A（推薦）：QuantLib-Python</strong>
-              <pre style="background:#0a0f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.76rem; margin:0.2rem 0;">pip install QuantLib
-import QuantLib as ql
-# G2++ = HW2F
-model = ql.G2(ql.YieldTermStructureHandle(curve))
+    <!-- HW2F -->
+    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.25rem 0; color:#c4b5fd; font-weight:700; font-size:0.83rem;">② HW2F / G2++ <span style="font-size:0.72rem; color:#8b5cf6; font-weight:400;">（主流生產）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#ddd6fe;"><code>r = x+y+φ(t)</code>，<code>dx=−ax dt+σ₁dW₁</code>，<code>dy=−by dt+σ₂dW₂</code></p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>a, b, σ₁, σ₂, ρ（共 5 個）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>兩因子分別驅動曲線「水平」與「斜率」；可模擬 bear steepening / bull flattening；Bond/Swaption 仍有解析公式；ρ 典型值 −0.7～−0.9<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>參數更多，校準難度上升；仍為正態分布<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>Conning GEMS / Moody's ESG 默認 IR 模型；主流 HKRBC 生產環境<br/>
+        <span style="color:#c4b5fd; font-size:0.74rem;">▶ Python：<code>pip install QuantLib</code> → <code>ql.G2()</code></span>
+      </p>
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;">model = ql.G2(ql.YieldTermStructureHandle(curve))
 engine = ql.JamshidianSwaptionEngine(model)
-# 最小化 swaption 定價誤差進行校準
-optimizer = ql.LevenbergMarquardt()
-model.calibrate(swaptions, engine, optimizer, constraint)</pre>
-              <strong>方案B（自編）：</strong>兩個 OU 過程 Euler 離散化，
-              再疊加 φ(t)（由 Sch.4 確定），約 150 行代碼
-            </td>
-            <td><code>QuantLib</code>（方案A）<br/><code>numpy / scipy</code>（方案B）</td>
-            <td>⭐⭐ 中等</td>
-            <td>需要 HKD swaption vol surface（Bloomberg/Reuters），有一定成本</td>
-          </tr>
-          <tr>
-            <td><span style="color:#fcd34d;">LMM</span></td>
-            <td>
-              <strong>方案A：QuantLib-Python</strong>
-              <pre style="background:#0a0f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.76rem; margin:0.2rem 0;">model = ql.LiborMarketModel(
-    process,            # LFM 過程
-    correlation_model,  # 相關矩陣
-    calibration_strategy
-)</pre>
-              <strong>方案B：PyLMM</strong>（開源，GitHub 有多個實現）<br/>
-              <strong>方案C：自編</strong>：對 N 個 forward rate 各寫一條 SDE，
-              用 Milstein 或高階 Runge-Kutta 離散化，難點在校準和相關矩陣降維（PCA）
-            </td>
-            <td><code>QuantLib</code>、<code>PyLMM</code><br/><code>numpy / scipy</code></td>
-            <td>⭐⭐⭐ 困難</td>
-            <td>需要完整 swaption vol cube（多 strike × 多 tenor），HK 市場數據稀疏，是主要瓶頸</td>
-          </tr>
-        </table>
-        </div>
-        <div style="background:#1e293b; border-radius:4px; padding:0.4rem 0.6rem; margin-top:0.4rem; font-size:0.79rem; color:#94a3b8;">
-          <strong style="color:#fcd34d;">⚠️ HK 市場實踐建議：</strong>
-          對大多數 Par Fund TVOG 需求，<strong>HW1F 精度已足夠</strong>（±5%–10% 誤差在監管容忍範圍內）。
-          若需要更精確的曲線斜率建模（如長短端利率差的隨機性），升級至 <strong>HW2F（QuantLib）</strong>是性價比最高的選擇。
-          LMM 僅在有 exotic IR 保證（如 cliquet、PRDC）或需要精確校準整個 vol surface 時才值得引入。
-        </div>
-      </div>
-    </td>
-  </tr>
+model.calibrate(swaptions, engine,
+    ql.LevenbergMarquardt(), constraint)</pre>
+    </div>
 
-  <tr>
-    <td><strong>Equity Return</strong> 股票回報</td>
-    <td>
-      • <strong>Constant Vol Black-Scholes</strong>: simplest, calibrate to ATM<br/>
-      • <strong>Heston Stochastic Vol</strong>: captures vol surface curvature<br/>
-      • <strong>Local Vol (Dupire)</strong>: fits surface exactly but less stable
-    </td>
-    <td>
-      • Spot equity index level<br/>
-      • Implied vol surface (strikes × maturities)<br/>
-      • Dividend yield curve
-    </td>
-    <td>Heston is industry standard for ESG; preserves vol smile</td>
-  </tr>
-  <tr>
-    <td><strong>Credit Spread</strong> 信用利差</td>
-    <td>
-      • <strong>CIR (Cox-Ingersoll-Ross)</strong> for spread dynamics<br/>
-      • <strong>Jump-diffusion</strong> for default events
-    </td>
-    <td>
-      • Initial credit spread by rating band<br/>
-      • Historical spread volatility<br/>
-      • Default probabilities (Sch. 6 mapping)
-    </td>
-    <td>CIR ensures positive spreads; jumps capture credit events</td>
-  </tr>
-  <tr>
-    <td><strong>FX Rate</strong> 匯率</td>
-    <td>Garman-Kohlhagen / GBM with stochastic vol</td>
-    <td>FX forward curve + FX option vol surface</td>
-    <td>Multi-currency MA portfolios need FX scenarios</td>
-  </tr>
-  <tr>
-    <td><strong>Property Return</strong> 房地產</td>
-    <td>Block stochastic / proxy to equity with lag</td>
-    <td>Limited market data; use property fund returns + REIT vol</td>
-    <td>Lack of liquid market — use proxy</td>
-  </tr>
-  <tr>
-    <td><strong>Inflation</strong></td>
-    <td>2-factor real + nominal model</td>
-    <td>Inflation-linked bond curve (if available)</td>
-    <td>Needed for expense risk modelling</td>
-  </tr>
-</table>
+    <!-- LMM -->
+    <div style="padding:0.6rem 0.8rem;">
+      <p style="margin:0 0 0.25rem 0; color:#fcd34d; font-weight:700; font-size:0.83rem;">③ LMM / BGM <span style="font-size:0.72rem; color:#f59e0b; font-weight:400;">（精確 vol surface）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fef3c7;"><code>dLᵢ = μᵢ dt + σᵢ(t)·Lᵢ dWᵢ</code>（共 N 個 SDE）</p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>各期限 vol 函數 σᵢ(t) + 相關矩陣（10–30+ 參數）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>直接對每個 forward rate 建模；精確校準完整 swaption vol surface（含 smile）；Black 公式直接適用<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>無 closed-form Bond Price（須 MC）；計算量大；需完整 vol cube，HK 數據稀疏<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>VA/GMxB、exotic IR 保證、外資 AM 精算部<br/>
+        <span style="color:#fcd34d; font-size:0.74rem;">▶ Python：QuantLib <code>ql.LiborMarketModel</code> / PyLMM</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- IR Python 速查 -->
+  <div style="background:#0a1628; border-top:1px solid #1e293b; padding:0.45rem 0.8rem; font-size:0.77rem; color:#64748b;">
+    <strong style="color:#93c5fd;">Python 難度對比：</strong>
+    HW1F（hkrbc-esg，⭐ 開箱即用）&nbsp;→&nbsp;
+    HW2F（QuantLib G2，⭐⭐ 需 swaption vol）&nbsp;→&nbsp;
+    LMM（QuantLib/PyLMM，⭐⭐⭐ 需完整 vol cube）&nbsp;|&nbsp;
+    <strong style="color:#fcd34d;">HK 建議：Par Fund TVOG 用 HW1F 已足夠；需曲線斜率建模時升 HW2F</strong>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 卡片 2：股票回報                                               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="border:1px solid #1e3a20; border-radius:10px; margin-bottom:1rem; overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#0f2a16,#0d1f12); padding:0.55rem 1rem; display:flex; align-items:center; gap:0.6rem;">
+    <span style="background:#10b981; color:#fff; border-radius:4px; padding:0.1rem 0.5rem; font-size:0.78rem; font-weight:700;">EQ</span>
+    <span style="color:#6ee7b7; font-size:0.95rem; font-weight:700;">Equity Return &nbsp;股票總回報</span>
+    <span style="margin-left:auto; font-size:0.76rem; color:#475569;">校準目標：股指現貨水平 + 隱含 vol surface + 股息率曲線</span>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0; background:#0f172a;">
+
+    <!-- GBM / Black-Scholes -->
+    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.25rem 0; color:#6ee7b7; font-weight:700; font-size:0.83rem;">① GBM / Black-Scholes <span style="font-size:0.72rem; color:#10b981; font-weight:400;">（起步首選）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#a7f3d0;"><code>dS = r·S dt + σ·S dWₑq</code>（Q-mode：drift = r(t)）</p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>σ_eq（年化波動率，1 個）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>最簡單；歐式期權有 Black-Scholes 解析公式；Vol 由 ATM 期權隱含 vol 校準；與 HW1F 配合是 TVOG 入門標配<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>假設 vol 恆定，無法捕捉 vol smile（低 strike 期權定價偏低）；實際 vol 隨時間和 strike 變化<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>Par Fund TVOG 原型；HSI 波動率約 18%–22%（ATM）<br/>
+        <span style="color:#6ee7b7; font-size:0.74rem;">▶ hkrbc-esg <code>src/equity.py</code>，支持 Q/P 雙模式</span>
+      </p>
+    </div>
+
+    <!-- Heston -->
+    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.25rem 0; color:#c4b5fd; font-weight:700; font-size:0.83rem;">② Heston 隨機波動率 <span style="font-size:0.72rem; color:#8b5cf6; font-weight:400;">（行業標準）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#ddd6fe;">
+        <code>dS = r·S dt + √v·S dW₁</code><br/>
+        <code>dv = κ(θ−v) dt + ξ·√v dW₂</code>，&nbsp;<code>dW₁dW₂ = ρ dt</code>
+      </p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>κ（回歸速度）、θ（長期 vol）、ξ（vol-of-vol）、v₀（初始 vol）、ρ（股價-vol 相關，通常負值），共 5 個<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>vol 本身是隨機的，可捕捉 vol smile 和期限結構；有半解析公式（特徵函數 + Fourier 逆變換）；是商業 ESG 股票模型的主流選擇<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>5 個參數，校準需要多 strike × 多 tenor 的 vol surface；Feller 條件 2κθ&gt;ξ² 需滿足以確保 v(t)&gt;0<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>Conning / Moody's ESG 的標配股票模型；VA GMxB、equity-linked 保證定價<br/>
+        <span style="color:#c4b5fd; font-size:0.74rem;">▶ Python：<code>ql.HestonModel</code> 或 <code>py_vollib</code>；校準用 COS/FFT 方法</span>
+      </p>
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;">process = ql.HestonProcess(rfr_ts, div_ts,
+    spot, v0, kappa, theta, xi, rho)
+model = ql.HestonModel(process)
+engine = ql.AnalyticHestonEngine(model)
+# 對多個 strike 校準
+model.calibrate(options, engine, optimizer)</pre>
+    </div>
+
+    <!-- Local Vol -->
+    <div style="padding:0.6rem 0.8rem;">
+      <p style="margin:0 0 0.25rem 0; color:#fcd34d; font-weight:700; font-size:0.83rem;">③ Local Vol (Dupire) <span style="font-size:0.72rem; color:#f59e0b; font-weight:400;">（精確擬合 surface）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fef3c7;"><code>dS = r·S dt + σ_loc(S,t)·S dW</code></p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>本地波動率函數 σ_loc(S,t)（由 Dupire 公式從 vol surface 反推，非參數形式）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>精確擬合市場上所有 strike × tenor 的 vol（完美 calibration）；只需一個因子<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>動態行為不穩定（forward smile 扭曲）；對 vol surface 插值質量敏感；外推超出觀測範圍時不可靠；難以與利率模型耦合<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>short-dated exotic 定價；通常與 Heston 結合（Stochastic Local Vol，SLV）<br/>
+        <span style="color:#fcd34d; font-size:0.74rem;">▶ Python：<code>ql.LocalVolSurface</code>；實際 ESG 中少用純 LV，多用 SLV</span>
+      </p>
+    </div>
+  </div>
+  <div style="background:#0a1f12; border-top:1px solid #1e293b; padding:0.45rem 0.8rem; font-size:0.77rem; color:#64748b;">
+    <strong style="color:#6ee7b7;">Python 難度對比：</strong>
+    GBM（hkrbc-esg，⭐ 開箱即用）&nbsp;→&nbsp;
+    Heston（QuantLib HestonModel，⭐⭐ 需 vol surface）&nbsp;→&nbsp;
+    Local Vol（QuantLib LocalVolSurface，⭐⭐⭐ 需密集 vol grid）&nbsp;|&nbsp;
+    <strong style="color:#fcd34d;">HK 建議：Par Fund TVOG 用 GBM；VA/GMxB 升 Heston</strong>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 卡片 3：信用利差                                               -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="border:1px solid #3a1e1e; border-radius:10px; margin-bottom:1rem; overflow:hidden;">
+  <div style="background:linear-gradient(135deg,#2a0f0f,#1f0d0d); padding:0.55rem 1rem; display:flex; align-items:center; gap:0.6rem;">
+    <span style="background:#ef4444; color:#fff; border-radius:4px; padding:0.1rem 0.5rem; font-size:0.78rem; font-weight:700;">CS</span>
+    <span style="color:#fca5a5; font-size:0.95rem; font-weight:700;">Credit Spread &nbsp;信用利差</span>
+    <span style="margin-left:auto; font-size:0.76rem; color:#475569;">校準目標：分評級初始利差 + 歷史波動率 + Sch.6 違約率</span>
+  </div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:0; background:#0f172a;">
+
+    <!-- CIR -->
+    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.25rem 0; color:#fca5a5; font-weight:700; font-size:0.83rem;">① CIR（Cox-Ingersoll-Ross）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">（主流）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fecaca;"><code>dcs = κ(μ−cs) dt + σ√cs dW</code></p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>κ（均值回歸速度）、μ（長期均值）、σ（波動率）、cs₀（初始利差）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong><code>√cs</code> 擴散項確保利差恆為正（cs(t)≥0）；均值回歸反映信用利差的經濟特性；參數可由歷史利差序列 OLS/MLE 校準；有 Bond 解析公式（CIR bond pricing formula）<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>Feller 條件 2κμ&gt;σ² 需滿足才能確保正值；對大幅跳升（credit event）的刻畫不足<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>IG 信用利差動態（HKD IG 初始約 85bps，長期均值約 80bps）；hkrbc-esg 已用 OU（簡化 CIR）實現<br/>
+        <span style="color:#fca5a5; font-size:0.74rem;">▶ Python：<code>scipy.optimize</code> 校準 + Euler/Milstein 離散化；QuantLib 有 <code>ql.CoxIngersollRossProcess</code></span>
+      </p>
+    </div>
+
+    <!-- Jump-Diffusion -->
+    <div style="padding:0.6rem 0.8rem;">
+      <p style="margin:0 0 0.25rem 0; color:#fca5a5; font-weight:700; font-size:0.83rem;">② Jump-Diffusion（Merton/Kou）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">（捕捉信用事件）</span></p>
+      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fecaca;"><code>dcs = κ(μ−cs) dt + σ√cs dW + J dN(λ)</code></p>
+      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+        <strong style="color:#cbd5e1;">參數：</strong>在 CIR 基礎上加 λ（跳躍強度）、J（跳躍幅度分布，通常指數或雙指數）<br/>
+        <strong style="color:#cbd5e1;">優點：</strong>可模擬評級調降、違約等引起的利差突然跳升；更貼近信用市場的 fat-tail 特性；Merton 模型跳躍幅度服從正態分布，Kou 用雙指數分布（捕捉不對稱跳躍）<br/>
+        <strong style="color:#cbd5e1;">局限：</strong>跳躍參數（λ, J）難以從 HK IG 債券市場校準（數據稀疏）；計算量顯著增加<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>HY（高收益）信用利差、CDS 定價；HKRBC 主流場景通常 CIR 已足夠<br/>
+        <span style="color:#fca5a5; font-size:0.74rem;">▶ Python：自編 Poisson 跳躍疊加（<code>np.random.poisson</code>）+ CIR 基礎過程</span>
+      </p>
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;"># 跳躍-擴散：CIR + Poisson 跳躍
+jumps = np.random.poisson(lam * dt, size)
+jump_sizes = np.random.exponential(mean_J, size)
+cs_next = cs + kappa*(mu-cs)*dt + sigma*sqrt(cs*dt)*Z + jumps*jump_sizes</pre>
+    </div>
+  </div>
+  <div style="background:#1a0a0a; border-top:1px solid #1e293b; padding:0.45rem 0.8rem; font-size:0.77rem; color:#64748b;">
+    <strong style="color:#fca5a5;">HK 實踐建議：</strong>
+    HKRBC TVOG 場景下，<strong>CIR（或 OU 簡化版）足夠</strong>；hkrbc-esg 已用 OU 實現，可直接使用。
+    Jump-Diffusion 僅在 HY 信用組合或 CDS 定價時才有必要引入。
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- 卡片 4：匯率 / 卡片 5：房地產 / 卡片 6：通脹 三列           -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.6rem; margin-bottom:0.5rem;">
+
+  <!-- FX -->
+  <div style="border:1px solid #1e3040; border-radius:10px; overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#0f1f35,#0d1829); padding:0.5rem 0.8rem;">
+      <span style="background:#0ea5e9; color:#fff; border-radius:4px; padding:0.1rem 0.4rem; font-size:0.76rem; font-weight:700;">FX</span>
+      <span style="color:#7dd3fc; font-size:0.88rem; font-weight:700; margin-left:0.4rem;">匯率</span>
+    </div>
+    <div style="background:#0f172a; padding:0.55rem 0.8rem; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+      <p style="margin:0 0 0.3rem 0; color:#7dd3fc; font-weight:600; font-size:0.80rem;">① Garman-Kohlhagen（Q-mode 標配）</p>
+      <p style="margin:0 0 0.1rem 0; font-size:0.74rem; color:#bae6fd;"><code>dS_fx = (r_d−r_f)·S dt + σ_fx·S dW</code></p>
+      <p style="margin:0 0 0.4rem 0;">
+        <strong style="color:#cbd5e1;">本質：</strong>對外匯用 GBM，drift = 國內外利差（利率平價）；有 Black-Scholes 解析公式（FX option）<br/>
+        <strong style="color:#cbd5e1;">校準：</strong>FX forward curve + ATM FX option vol<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>多幣種 MA 組合（HKD/USD 聯繫匯率制：波動極小，σ≈0.1%；HKD/RMB 需要建模）
+      </p>
+      <p style="margin:0 0 0.3rem 0; color:#7dd3fc; font-weight:600; font-size:0.80rem;">② GBM + Stochastic Vol（進階）</p>
+      <p style="margin:0;">
+        Heston-type 隨機 vol 疊加 FX 過程；捕捉 FX vol smile；<br/>
+        適用 USD/RMB 等有期權市場的貨幣對<br/>
+        <span style="color:#7dd3fc; font-size:0.73rem;">▶ Python：<code>ql.GarmanKohlagenProcess</code> / 自編 GBM</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Property -->
+  <div style="border:1px solid #2e2010; border-radius:10px; overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#2a1a08,#1f1306); padding:0.5rem 0.8rem;">
+      <span style="background:#f97316; color:#fff; border-radius:4px; padding:0.1rem 0.4rem; font-size:0.76rem; font-weight:700;">PR</span>
+      <span style="color:#fdba74; font-size:0.88rem; font-weight:700; margin-left:0.4rem;">房地產回報</span>
+    </div>
+    <div style="background:#0f172a; padding:0.55rem 0.8rem; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+      <p style="margin:0 0 0.3rem 0; color:#fdba74; font-weight:600; font-size:0.80rem;">① 代理模型（Proxy to Equity）</p>
+      <p style="margin:0 0 0.4rem 0;">
+        <strong style="color:#cbd5e1;">本質：</strong>以股票回報代理房地產，加入時間滯後（lag 1–2年）和分散化折讓（約 0.7×EQ vol）<br/>
+        <code>R_prop(t) ≈ β·R_eq(t−lag) + ε(t)</code><br/>
+        <strong style="color:#cbd5e1;">原因：</strong>HK 直接房地產市場缺乏流動性期權數據，無法直接校準隨機 vol 模型<br/>
+        <strong style="color:#cbd5e1;">校準：</strong>REIT 歷史回報 / 房地產基金 NAV 時間序列
+      </p>
+      <p style="margin:0 0 0.3rem 0; color:#fdba74; font-weight:600; font-size:0.80rem;">② Block Stochastic（塊隨機）</p>
+      <p style="margin:0;">
+        分週期模擬房地產週期（上行、平穩、下行各有不同均值和波動率）；<br/>
+        馬爾可夫鏈切換週期；參數從 Centaline Property Index 歷史估算<br/>
+        <span style="color:#fdba74; font-size:0.73rem;">▶ Python：Markov chain（<code>hmmlearn</code>）+ GBM 各週期</span>
+      </p>
+    </div>
+  </div>
+
+  <!-- Inflation -->
+  <div style="border:1px solid #1e3024; border-radius:10px; overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#0f2418,#0d1f14); padding:0.5rem 0.8rem;">
+      <span style="background:#14b8a6; color:#fff; border-radius:4px; padding:0.1rem 0.4rem; font-size:0.76rem; font-weight:700;">INF</span>
+      <span style="color:#5eead4; font-size:0.88rem; font-weight:700; margin-left:0.4rem;">通脹</span>
+    </div>
+    <div style="background:#0f172a; padding:0.55rem 0.8rem; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
+      <p style="margin:0 0 0.3rem 0; color:#5eead4; font-weight:600; font-size:0.80rem;">① Jarrow-Yildirim 2-Factor 模型</p>
+      <p style="margin:0 0 0.1rem 0; font-size:0.74rem; color:#99f6e4;"><code>π(t)</code> = 名義利率 − 實際利率，各自服從 HW1F 過程</p>
+      <p style="margin:0 0 0.4rem 0;">
+        <strong style="color:#cbd5e1;">結構：</strong>名義利率 rₙ 和實際利率 rᵣ 各一個 HW1F，通脹 π = rₙ − rᵣ；CPI index 路徑 = exp(∫π dt)<br/>
+        <strong style="color:#cbd5e1;">校準：</strong>通脹掛鈎債券（ILB）、通脹互換（HK 市場數據稀疏，通常借用 USD 或 GBP 曲線作參考）<br/>
+        <strong style="color:#cbd5e1;">適用：</strong>費用風險建模（Cap. 41R Rule 5 費用假設）；長期護理保險
+      </p>
+      <p style="margin:0 0 0.3rem 0; color:#5eead4; font-weight:600; font-size:0.80rem;">② 簡化：OU 通脹過程</p>
+      <p style="margin:0;">
+        <code>dπ = κ_π(μ_π−π) dt + σ_π dW_π</code>，獨立於利率模型；<br/>
+        參數由 HK CPI 歷史時間序列（Census & Statistics Dept）校準；計算量小，適合費用風險簡化建模<br/>
+        <span style="color:#5eead4; font-size:0.73rem;">▶ Python：自編 OU 離散化（10 行代碼）/ QuantLib Jarrow-Yildirim</span>
+      </p>
+    </div>
+  </div>
+
 </div>
 
 <h4>Calibration Methodology 校準方法</h4>
