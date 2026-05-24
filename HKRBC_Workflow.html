@@ -1330,14 +1330,17 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <em>Girsanov 定理：Q 與 P 之間的測度轉換：</em><br/>
-  設真實世界布朗運動為 \(W^P\)，市場風險價格為 \(\lambda_t\)，則：
-  \[ dW^Q_t = dW^P_t + \lambda_t\,dt \]
-  P-measure 下股票的 SDE（以 GBM 為例）：
-  \[ dS_t = \mu\,S_t\,dt + \sigma\,S_t\,dW^P_t \quad (\mu = r + \lambda\sigma,\text{ 含風險溢價}) \]
-  Q-measure 下（代入 \(dW^P_t = dW^Q_t - \lambda_t\,dt\)，風險溢價消除）：
-  \[ dS_t = r\,S_t\,dt + \sigma\,S_t\,dW^Q_t \quad (\text{drift} = r,\text{ 無風險利率}) \]
+  從股票 SDE 出發更直觀。P-measure 下：
+  \[ dS_t = \mu\,S_t\,dt + \sigma\,S_t\,dW^P_t \quad (\mu = r + \lambda\sigma,\ \lambda = \tfrac{\mu-r}{\sigma}\ \text{為市場風險價格}) \]
+  我們希望找到 Q 使 drift 變為 \(r\)（無套利條件）。強制令兩式相等，解出新布朗運動 \(W^Q\)：
+  \[ dS_t = r\,S_t\,dt + \sigma\,S_t\,dW^Q_t \implies dW^Q_t = dW^P_t + \lambda\,dt \]
+  這個等式是<strong>定義 \(W^Q\) 與 \(W^P\) 的關係</strong>，並非說 Q-measure 的隨機源是 \(dW^P_t\)。<br/>
+  正確理解：\(W^Q\) 這個過程在 P 測度下「看起來」帶有 drift \(\lambda\)，但在 Q 測度下它是標準布朗運動（drift = 0）。
+  Girsanov 定理保證了這樣的 Q 測度存在，且 \(W^Q\) 在 Q 下確實是 martingale。<br/><br/>
+  <em>類比：</em> 同一枚硬幣，P 測度下正面概率 60%（含風險溢價）；Q 測度下重新賦權使正面概率 = 50%（無偏，等於無風險收益）。
+  \(dW^Q = dW^P + \lambda\,dt\) 描述的正是這個「重新賦權」的數學關係。<br/><br/>
   若錯用 P-measure 計算 TVOG，相當於用含 \(\lambda\sigma\) 超額 drift 的路徑做期望值，
-  所得結果 \(E^P[\cdot]\) 不等於無套利價格 \(E^Q[\cdot]\)。
+  所得結果 \(E^P[\cdot] \neq E^Q[\cdot]\)，不等於無套利價格。
 </p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
