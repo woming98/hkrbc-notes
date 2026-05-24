@@ -1811,40 +1811,155 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
 <h3 id="esg-practitioner">§8.A ESG From-Scratch Methodology — Practitioner Step-by-Step Guide 從零實作方法論</h3>
 
 <p>
-  本節為 <strong>實作層面的完整方法論</strong>，逐步解析如何從零構建一個符合 HKRBC 要求的 ESG，
-  並對應到開源項目 <a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7; font-weight:600;">hkrbc-esg</a> 的具體代碼模塊。
-  每一步的「概念原理」與「代碼位置」均一一對應，方便對照閱讀和二次開發。
+  本節為 <strong>實作層面的完整方法論</strong>，基於開源項目
+  <a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7; font-weight:600;">hkrbc-esg</a>，
+  逐步解析如何構建 ESG。
+  <strong>同一套代碼框架，通過切換一個參數（<code>mode: Q</code> / <code>mode: P</code>），支持兩種完全不同的精算用途</strong>：
 </p>
 
+<!-- ══ 兩種模式概覽卡 ══ -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:0.6rem; margin:0.6rem 0 1rem 0;">
+
+  <!-- Q-mode 卡 -->
+  <div style="background:#0f2a1a; border:2px solid #10b981; border-radius:8px; padding:0.8rem 1rem;">
+    <p style="margin:0 0 0.3rem 0; font-size:0.95rem; font-weight:700; color:#6ee7b7;">
+      §8.A-Q &nbsp;|&nbsp; HKRBC TVOG 模式（Q-measure）
+    </p>
+    <p style="margin:0 0 0.4rem 0; font-size:0.82rem; color:#a7f3d0;">
+      <strong>用途：</strong>HKRBC Cap. 41R Rule 19 TVOG、IFRS 17 MRB<br/>
+      <strong>本質：</strong>風險中性定價，情景是「市場一致」的，不是真實概率<br/>
+      <strong>核心條件：</strong>通過 martingale test（債券和股票）<br/>
+      <strong>利率漂移：</strong>drift = θ(t)，精確拟合 IA Sch.4 yield curve，<code>term_premium=0</code><br/>
+      <strong>股票漂移：</strong>drift = r(t)（無風險利率），<code>equity_risk_premium=0</code><br/>
+      <strong>情景數：</strong>≥1,000（Rule 19 要求）
+    </p>
+    <pre style="background:#0a1f12; color:#6ee7b7; padding:0.4rem 0.6rem; border-radius:4px; font-size:0.78rem; margin:0;">mode: Q
+hull_white_1f:
+  term_premium_Q: 0.000  # 精確拟合市場
+equity:
+  equity_risk_premium_Q: 0.000  # 無超額回報
+simulation:
+  n_scenarios: 1000</pre>
+    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#6ee7b7;">▶ 运行：<code>python examples/run_esg.py</code>（自動 martingale test）</p>
+  </div>
+
+  <!-- P-mode 卡 -->
+  <div style="background:#1a1025; border:2px solid #8b5cf6; border-radius:8px; padding:0.8rem 1rem;">
+    <p style="margin:0 0 0.3rem 0; font-size:0.95rem; font-weight:700; color:#c4b5fd;">
+      §8.A-P &nbsp;|&nbsp; ALM / ORSA 模式（P-measure）
+    </p>
+    <p style="margin:0 0 0.4rem 0; font-size:0.82rem; color:#ddd6fe;">
+      <strong>用途：</strong>ALM 壓力測試、SAA 策略分析、ORSA 前瞻性資本評估<br/>
+      <strong>本質：</strong>真實世界概率，情景包含市場風險溢價<br/>
+      <strong>核心條件：</strong>情景分布應與歷史數據吻合（不需要 martingale test）<br/>
+      <strong>利率漂移：</strong>drift = θ(t) + a×λ，長端均值 = forward rate + <code>term_premium</code>（~80bps）<br/>
+      <strong>股票漂移：</strong>drift = r(t) + ERP，長期預期回報 ≈ 3.5% + 5.5% = 9%<br/>
+      <strong>情景數：</strong>100–500 條已足夠（無最低法規要求）
+    </p>
+    <pre style="background:#120a1a; color:#c4b5fd; padding:0.4rem 0.6rem; border-radius:4px; font-size:0.78rem; margin:0;">mode: P
+hull_white_1f:
+  term_premium_P: 0.008  # 80bps 期限溢價
+equity:
+  equity_risk_premium_P: 0.055  # 5.5% ERP
+simulation:
+  n_scenarios: 200</pre>
+    <p style="margin:0.3rem 0 0 0; font-size:0.80rem; color:#c4b5fd;">▶ 运行：<code>python examples/run_esg.py</code>（自動跳過 martingale test）</p>
+  </div>
+</div>
+
+<!-- ══ 全參數對比表 ══ -->
 <div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.7rem 1rem; margin-bottom:0.8rem; font-size:0.83rem; color:#94a3b8;">
-  <strong style="color:#6ee7b7;">§8.A 與 hkrbc-esg 的對應關係</strong>
+  <strong style="color:#e2e8f0;">§8.A 代碼模塊對應（兩種模式共用框架）</strong>
   <div class="tbl-wrap" style="margin-top:0.4rem;">
   <table>
-    <tr><th>本節步驟</th><th>原理說明</th><th>hkrbc-esg 對應文件</th><th>核心函數/類</th></tr>
-    <tr><td>§8.A.0 Model Selection</td><td>決定用哪個模型（HW1F / HW2F / LMM）及風險因子範圍（IR + EQ + CS + FX）</td><td><code>config/esg_config.yaml</code></td><td>頂層欄位：<code>hull_white_1f</code>、<code>equity</code>、<code>correlation</code></td></tr>
-    <tr><td>§8.A.1 Yield Curve</td><td>IA Sch.4 零息曲線 → 瞬時遠期利率 f(0,t)</td><td><code>src/yield_curve.py</code></td><td><code>YieldCurve.forward_rate(t)</code></td></tr>
-    <tr><td>§8.A.2 Parameter Selection</td><td>HW1F 參數 (a, σ) 校準至 swaption vol</td><td><code>config/esg_config.yaml</code></td><td><code>hull_white_1f.a / sigma</code></td></tr>
-    <tr><td>§8.A.3 Drift θ(t)</td><td>θ(t) 由 f(0,t) 唯一確定，確保精確擬合 yield curve</td><td><code>src/hw1f.py</code></td><td><code>HullWhite1F.alpha(t)</code></td></tr>
-    <tr><td>§8.A.4 Discretization</td><td>精確離散化（Exact discretization），非 Euler</td><td><code>src/hw1f.py</code></td><td><code>HullWhite1F.simulate()</code></td></tr>
-    <tr><td>§8.A.5 Monte Carlo</td><td>1,000 條情景 + 對偶變量法（antithetic variates）</td><td><code>examples/run_esg.py</code></td><td><code>main() → hw.simulate()</code></td></tr>
-    <tr><td>§8.A.6 Cholesky</td><td>多因子相關性（IR, EQ, CS, FX）</td><td><code>src/cholesky_corr.py</code></td><td><code>generate_correlated_normals()</code></td></tr>
-    <tr><td>§8.A.7 Validation</td><td>Martingale Test（Rule 19 要求）</td><td><code>src/martingale_test.py</code></td><td><code>test_bond_martingale() / test_equity_martingale()</code></td></tr>
-    <tr><td>§8.A.8 Output</td><td>CSV + Prophet .ESC 格式導出</td><td><code>src/scenario_output.py</code></td><td><code>export_to_csv() / export_prophet_esc()</code></td></tr>
+    <tr>
+      <th>步驟</th>
+      <th>概念原理</th>
+      <th>代碼文件</th>
+      <th>Q-mode（TVOG）</th>
+      <th>P-mode（ALM/ORSA）</th>
+    </tr>
+    <tr>
+      <td>§8.A.0 模式選擇</td>
+      <td>確定用途：TVOG 定價 or 真實世界預測</td>
+      <td><code>esg_config.yaml</code></td>
+      <td><code>mode: Q</code></td>
+      <td><code>mode: P</code></td>
+    </tr>
+    <tr>
+      <td>§8.A.1 Yield Curve</td>
+      <td>IA Sch.4 零息曲線 → f(0,t)（兩種模式共用初始條件）</td>
+      <td><code>src/yield_curve.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;"><code>YieldCurve.forward_rate(t)</code>（相同）</td>
+    </tr>
+    <tr>
+      <td>§8.A.2 利率參數</td>
+      <td>a, σ 由 swaption vol 校準（Q）或歷史數據估算（P）</td>
+      <td><code>esg_config.yaml</code></td>
+      <td><code>a=0.05, σ=0.01</code>（市場校準）</td>
+      <td><code>a=0.05, σ=0.01</code>（通常相同）</td>
+    </tr>
+    <tr>
+      <td>§8.A.3 利率漂移</td>
+      <td>α(t) 决定長端均值收斂點</td>
+      <td><code>src/hw1f.py</code></td>
+      <td><code>term_premium_Q=0</code><br/>長端 → f(0,t)</td>
+      <td><code>term_premium_P=0.008</code><br/>長端 → f(0,t)+80bps</td>
+    </tr>
+    <tr>
+      <td>§8.A.4 股票漂移</td>
+      <td>GBM drift 決定股票長期預期回報</td>
+      <td><code>src/equity.py</code></td>
+      <td><code>equity_risk_premium_Q=0</code><br/>E[回報] ≈ r(t)≈3.5%</td>
+      <td><code>equity_risk_premium_P=0.055</code><br/>E[回報] ≈ r(t)+5.5%≈9%</td>
+    </tr>
+    <tr>
+      <td>§8.A.5 情景生成</td>
+      <td>Monte Carlo + 對偶變量 + Cholesky 相關性</td>
+      <td><code>examples/run_esg.py</code><br/><code>src/cholesky_corr.py</code></td>
+      <td>≥1,000 條</td>
+      <td>100–500 條</td>
+    </tr>
+    <tr>
+      <td>§8.A.6 驗證</td>
+      <td>Martingale Test（Q 必須通過；P 跳過）</td>
+      <td><code>src/martingale_test.py</code></td>
+      <td>✅ 自動執行，<br/>不通過則需重新校準</td>
+      <td>⏭ 自動跳過，<br/>改用歷史分布比對</td>
+    </tr>
+    <tr>
+      <td>§8.A.7 輸出</td>
+      <td>CSV + Prophet .ESC 格式</td>
+      <td><code>src/scenario_output.py</code></td>
+      <td colspan="2" style="text-align:center; color:#6ee7b7;"><code>output/esg_scenarios.csv / .ESC</code>（相同格式）</td>
+    </tr>
   </table>
   </div>
-  <p style="margin:0.4rem 0 0 0; color:#64748b;">
-    一鍵運行：<code style="color:#a6e3a1;">python examples/run_esg.py</code>，即可完成上述全部步驟並輸出情景文件。
-    完整代碼：<a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7;">github.com/woming98/hkrbc-esg</a>
+  <p style="margin:0.4rem 0 0 0; color:#64748b; font-size:0.8rem;">
+    完整代碼：<a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7;">github.com/woming98/hkrbc-esg</a> &nbsp;|&nbsp;
+    只需修改 <code>config/esg_config.yaml</code> 頂部的 <code>mode</code> 字段，其餘代碼不動。
   </p>
 </div>
 
 <p style="color:#9ca3af; font-size:0.85rem;">
-  以下各子節逐步說明每個決策點的原理、典型問題及解決方案。
-  代碼實現是較易的部分；難點在於每個決策點上做出正確選擇。
+  以下各子節逐步說明每個決策點的原理。先看 <strong>§8.A-Q</strong>（HKRBC TVOG 完整操作案例），再看 <strong>§8.A-P</strong>（ALM/ORSA P-measure 差異說明）。
 </p>
 
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- §8.A-Q：HKRBC TVOG Q-measure 完整操作                        -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="border-left:4px solid #10b981; padding-left:0.8rem; margin:0.8rem 0 0.4rem 0;">
+  <h4 id="esg-q-mode" style="color:#6ee7b7; margin:0 0 0.2rem 0;">
+    §8.A-Q &nbsp; HKRBC TVOG 模式（Q-measure / 風險中性）
+  </h4>
+  <p style="font-size:0.84rem; color:#a7f3d0; margin:0;">
+    適用於：HKRBC Cap. 41R Rule 19 TVOG 計算、IFRS 17 MRB 計量。<br/>
+    監管要求：情景必須「市場一致」（market-consistent），即通過 martingale test，確保無套利。
+  </p>
+</div>
+
 <!-- ══ 完整操作案例 ══ -->
-<h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§8.A.* 完整操作案例：從配置到 TVOG（Par Fund，10年期）</h4>
+<h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§8.A-Q.* 完整操作案例：從配置到 TVOG（Par Fund，10年期）</h4>
 <p style="font-size:0.84rem; color:#9ca3af; margin-bottom:0.5rem;">
   以下用 hkrbc-esg 的實際執行結果，端到端演示：設定 → 執行 → 讀取輸出 → 解讀情景 → 連接 TVOG。<br/>
   假設：HKD Par Fund，SA=100，GSV=80，10年期，IA Sch.4 HKD 利率曲線（3.35%–3.80%）。
@@ -1949,16 +2064,168 @@ simulation:
   上述 4.32 對應 BEL 中因 GSV 保證而額外增加的部分。
 </p>
 
+<!-- ══════════════════════════════════════════════════════════════ -->
+<!-- §8.A-P：ALM / ORSA P-measure 說明                             -->
+<!-- ══════════════════════════════════════════════════════════════ -->
+<div style="border-left:4px solid #8b5cf6; padding-left:0.8rem; margin:1.2rem 0 0.4rem 0;">
+  <h4 id="esg-p-mode" style="color:#c4b5fd; margin:0 0 0.2rem 0;">
+    §8.A-P &nbsp; ALM / ORSA 模式（P-measure / 真實世界）
+  </h4>
+  <p style="font-size:0.84rem; color:#ddd6fe; margin:0;">
+    適用於：資產負債管理（ALM）壓力測試、戰略資產配置（SAA）、ORSA 前瞻性資本評估、董事會風險報告。<br/>
+    <strong>監管立場：</strong>HKRBC 規定 TVOG <em>必須</em>用 Q-measure；ALM/ORSA 在內部使用，監管允許用 P-measure。
+  </p>
+</div>
+
+<!-- Q vs P 核心差異說明 -->
+<div style="background:#1a0d2e; border:1px solid #6d28d9; border-radius:8px; padding:0.8rem 1rem; margin-bottom:0.6rem; font-size:0.84rem;">
+  <p style="color:#c4b5fd; font-weight:700; margin:0 0 0.4rem 0;">Q vs P：根本差異在於「漂移項（drift）」</p>
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>比較維度</th><th style="color:#6ee7b7;">Q-measure（TVOG）</th><th style="color:#c4b5fd;">P-measure（ALM/ORSA）</th></tr>
+    <tr>
+      <td>利率長期均值</td>
+      <td>收斂至 IA Sch.4 遠期利率 f(0,t)<br/><span style="font-size:0.78rem; color:#64748b;">確保折現因子為鞅</span></td>
+      <td>收斂至 f(0,t) + <strong>term_premium</strong>（如 +80bps）<br/><span style="font-size:0.78rem; color:#64748b;">反映投資者要求持有長債的額外補償</span></td>
+    </tr>
+    <tr>
+      <td>股票期望年化回報</td>
+      <td>≈ r(t) ≈ 3%–4%（無超額回報）<br/><span style="font-size:0.78rem; color:#64748b;">Q-measure 下股票預期回報 = 無風險利率</span></td>
+      <td>≈ r(t) + <strong>ERP</strong> ≈ 9%（加股票風險溢價）<br/><span style="font-size:0.78rem; color:#64748b;">反映歷史長期股票超額回報 5%–7%</span></td>
+    </tr>
+    <tr>
+      <td>Martingale Test</td>
+      <td>✅ 必須通過（HKRBC Rule 19）</td>
+      <td>⏭ 跳過（P-measure 下期望值 ≠ 市場價格，正常）</td>
+    </tr>
+    <tr>
+      <td>情景驗證方式</td>
+      <td>數學驗證：E^Q[disc × Bond] = 1</td>
+      <td>統計驗證：情景均值/波動率/分位數與歷史數據吻合</td>
+    </tr>
+    <tr>
+      <td>典型應用</td>
+      <td>Par Fund TVOG、GMxB MRB、IFRS 17 CSM 釋放</td>
+      <td>利率敏感性分析、股債比優化、5年資本展望、壓力測試</td>
+    </tr>
+  </table>
+  </div>
+</div>
+
+<!-- P-mode 配置 -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.2rem 0;"><strong>P-mode 配置方法（只需修改 3 個參數）</strong></p>
+<pre style="background:#0f172a; color:#c4b5fd; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.4rem; overflow-x:auto;"># config/esg_config.yaml — 切換至 P-mode（ALM/ORSA）
+
+mode: P   # ← 改成 P，即啟動真實世界模式
+
+simulation:
+  n_scenarios: 200   # ALM 通常 100–500 條即可，無最低法規要求
+  projection_years: 30
+
+hull_white_1f:
+  a: 0.05
+  sigma: 0.010
+  term_premium_P: 0.008   # ← 80bps 期限溢價（典型 HKD 估算值）
+                           #   來源：HKMA 研究 / ACM 期限溢價模型
+                           #   代表投資者持有 10Y vs 1Y 債券要求的額外補償
+
+equity:
+  sigma_eq: 0.20
+  equity_risk_premium_P: 0.055   # ← 5.5% ERP（股票風險溢價）
+                                  #   來源：Damodaran 全球 ERP 估算 / 歷史 HSI 超額回報
+                                  #   代表投資股票比持有現金額外獲得的年化回報</pre>
+
+<!-- P-mode 執行輸出對比 -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.2rem 0;"><strong>P-mode 執行輸出（與 Q-mode 對比）</strong></p>
+<pre style="background:#0f172a; color:#c4b5fd; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.4rem; overflow-x:auto;">$ python examples/run_esg.py
+====================================================================
+  HKRBC ESG Generator v1.1
+  Q-mode: HKRBC TVOG / IFRS 17 MRB（風險中性）
+  P-mode: ALM / SAA / ORSA（真實世界）
+====================================================================
+[模式] P-measure（真實世界）→ ALM / SAA / ORSA
+
+[HW1F] a=0.05, σ=0.01, term_premium=0.0080
+       正在生成 200 條利率路徑...
+       完成。r(0)=0.0326，長端均值比 Q-mode 高 0.8%
+       ← 即長期利率中樞比 Q-mode 高 80bps，反映期限溢價
+
+[Equity] σ_eq=20%, ERP=5.5% | 正在生成股票路徑...
+         完成。期望年化回報 ≈ r(0) + ERP = 8.76%
+         ← Q-mode 的期望回報只有 3.26%，兩者相差 5.5% ERP
+
+[Martingale Test] P-mode：跳過（Real-World 情景的期望值 ≠ 市場價格，這是正常的）
+  P-mode 驗證方式：比較情景分布與歷史數據（均值、波動率、分位數）是否吻合。
+
+✅ ESG 生成完成。請檢查 output/ 目錄下的情景文件。</pre>
+
+<!-- P-mode 情景分布對比 -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.2rem 0;"><strong>P-mode vs Q-mode：10年後情景分布對比（ALM 核心關注）</strong></p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.4rem;">
+<table>
+  <tr><th>統計量</th><th style="color:#6ee7b7;">Q-mode（TVOG 用）</th><th style="color:#c4b5fd;">P-mode（ALM/ORSA 用）</th><th>差異說明</th></tr>
+  <tr>
+    <td>利率 r(10Y) 均值</td>
+    <td style="color:#6ee7b7;">≈ 3.55%（拟合 IA Sch.4）</td>
+    <td style="color:#c4b5fd;">≈ 4.35%（+80bps）</td>
+    <td>P-mode 長端更高，債券價格更低</td>
+  </tr>
+  <tr>
+    <td>股票 AS(10Y) 均值</td>
+    <td style="color:#6ee7b7;">≈ 141（年化 3.5% 回報）</td>
+    <td style="color:#c4b5fd;">≈ 213（年化 7.8% 回報）</td>
+    <td>ERP 效果：10年複利後差異顯著</td>
+  </tr>
+  <tr>
+    <td>GSV 觸發比例</td>
+    <td style="color:#6ee7b7;"><strong>26.6%</strong>（266/1000 條）</td>
+    <td style="color:#c4b5fd;"><strong>~9%</strong>（18/200 條）</td>
+    <td>P-mode 股票更高 → GSV 被觸發更少</td>
+  </tr>
+  <tr>
+    <td>GSV Put 現值</td>
+    <td style="color:#6ee7b7;"><strong>4.32 per policy</strong></td>
+    <td style="color:#c4b5fd;"><strong>~1.4 per policy</strong></td>
+    <td>若用 P-mode 報 TVOG → 低估 ~2.9（<span style="color:#f87171;">套利風險</span>）</td>
+  </tr>
+  <tr>
+    <td>適用場景</td>
+    <td style="color:#6ee7b7;">監管申報 TVOG（Rule 19）</td>
+    <td style="color:#c4b5fd;">ALM 利率敏感性、股債比壓測、ORSA 5年資本展望</td>
+    <td>兩者不可混用，各有專屬用途</td>
+  </tr>
+</table>
+</div>
+
+<!-- P-mode ALM 應用例 -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.2rem 0;"><strong>P-mode 典型 ALM 應用：利率敏感性分析（Duration Gap）</strong></p>
+<div style="background:#120a1a; border:1px solid #4c1d95; border-radius:6px; padding:0.6rem 0.9rem; font-size:0.82rem; color:#ddd6fe; margin-bottom:0.6rem;">
+  <p style="margin:0 0 0.3rem 0;">用 P-mode 的 200 條情景，計算 Par Fund 在不同利率路徑下的 NAV（淨資產值）分布：</p>
+  <ol style="margin:0; padding-left:1.2rem; line-height:1.7;">
+    <li>每條情景提供一條 r(t) 路徑 → 按市值計算債券資產組合現值（Assets BV）</li>
+    <li>同一條情景提供 AS 路徑 → 計算 BEL（含 GSV floor 和 DPB，但不需要 martingale test）</li>
+    <li>NAV(i) = Assets BV(i) − BEL(i)，計算 NAV 的 P5/P50/P95 分布</li>
+    <li>Duration Gap = Asset Duration − Liability Duration → 指導利率對沖決策</li>
+  </ol>
+  <p style="margin:0.3rem 0 0 0; color:#a78bfa;">
+    <strong>關鍵：</strong>ALM 用的是 P-measure 下的<em>真實世界預期</em>（股票均值 9%，長端利率比市場高 80bps），
+    這才能評估在真實市場環境中公司的資本抗壓能力。
+    若改用 Q-measure（股票預期 3.5%），NAV 分布會嚴重低估公司資產的實際增值潛力，
+    導致對沖比例過重、SAA 股票倉位系統性偏低。
+  </p>
+</div>
+
 <!-- ─── §8.A.0 Model Selection Decision Tree ─── -->
 <h4>§8.A.0 Step 0: Model Selection Decision Tree 模型選擇決策樹</h4>
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
   <pre class="diagram">
   ┌────────────────────────────────────────────────────────────────────┐
-  │ Q1. What is the purpose?                                            │
-  │   • Regulatory TVOG (Rule 19)        → market-consistent, RN        │
-  │   • Internal ALM monitoring          → can use real-world           │
-  │   • Capital planning / ORSA          → real-world projection        │
+  │ Q1. What is the purpose? → 直接決定 esg_config.yaml 的 mode 字段    │
+  │   • Regulatory TVOG (Rule 19)        → mode: Q (風險中性)           │
+  │   • IFRS 17 MRB measurement          → mode: Q (同上)               │
+  │   • Internal ALM / Duration Gap      → mode: P (真實世界)           │
+  │   • Capital planning / ORSA          → mode: P (真實世界)           │
   │                                                                      │
   │ Q2. What risk factors are MATERIAL to your liability portfolio?     │
   │   • Pure Non-Par Term/Endowment       → IR only is enough           │
