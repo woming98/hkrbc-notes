@@ -1044,14 +1044,17 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <!-- ══ §8 ESG ══ -->
 <h2 id="esg">§8 Economic Scenario Generator (ESG) 經濟情景模擬器</h2>
 
-<div class="tbl-wrap" style="font-size:0.85rem; margin-bottom:0.6rem;">
+<div class="tbl-wrap" style="font-size:0.85rem; margin-bottom:0.2rem;">
 <table>
-  <tr><th>用途</th><th>情景類型</th><th>情景數量</th><th>說明</th></tr>
+  <tr><th>用途</th><th>情景類型 <sup><a href="#esg-rn-vs-rw" style="color:#6ee7b7;">※</a></sup></th><th>情景數量</th><th>說明</th></tr>
   <tr><td><strong>HKRBC TVOG / EBS 估值</strong></td><td>Risk-neutral（風險中性）</td><td>≥1,000 條 <span class="ref">Rule 19</span></td><td>martingale test 校準；僅用於計算合約期權/保證的時間價值，不用於 PCR 壓力測試</td></tr>
   <tr><td><strong>ALM 壓力測試 / SAA / ORSA</strong></td><td>Real-world（真實世界）</td><td>100–500 條</td><td>歷史回歸＋宏觀假設校準；測試資產負債缺口</td></tr>
   <tr><td><strong>對沖策略校準</strong></td><td>Real-world</td><td>視需要</td><td>hedge ratio 優化、IRS / CDS 效果評估</td></tr>
 </table>
 </div>
+<p style="font-size:0.8rem; color:#6b7280; margin:0.1rem 0 0.8rem 0;">
+  ※ Risk-neutral vs Real-world 的區別：<a href="#esg-rn-vs-rw" style="color:#6ee7b7;">見本節末尾說明 ↓</a>
+</p>
 <p style="font-size:0.85rem; color:#9ca3af; margin-bottom:0.8rem;">
   同一引擎、兩套參數集：風險中性參數由 martingale test 校準；真實世界參數由歷史回歸＋宏觀假設確定。
 </p>
@@ -1196,6 +1199,54 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
     <li><strong>Universal Life:</strong> Account value crediting linked to dynamic investment return.</li>
     <li><strong>Not used for PCR:</strong> HKRBC uses deterministic stresses for PCR (unlike Solvency II internal models). ESG is only for valuation of options &amp; guarantees within the EBS.</li>
   </ul>
+</div>
+
+<!-- ════════ Risk-neutral vs Real-world ════════ -->
+<div id="esg-rn-vs-rw" style="background:#1a1f2e; border:1px solid #3b4a6b; border-radius:6px; padding:1rem 1.2rem; margin:0.8rem 0 1.2rem 0;">
+<p style="font-size:0.95rem; color:#93c5fd; margin:0 0 0.6rem 0;"><strong>Risk-Neutral vs Real-World — 兩套情景有何不同？</strong></p>
+
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th></th><th>Risk-Neutral 風險中性</th><th>Real-World 真實世界</th></tr>
+  <tr>
+    <td><strong>核心問題</strong></td>
+    <td>「這個期權/保證今天的公平價值是多少？」</td>
+    <td>「未來10年內，公司的資產負債缺口有多大？」</td>
+  </tr>
+  <tr>
+    <td><strong>Drift（漂移率）</strong></td>
+    <td>所有資產的預期回報率 = 無風險利率（risk-free rate）。<br/>股票、債券漲跌已被"風險溢價"移除。</td>
+    <td>資產的預期回報率 = 無風險利率 + 風險溢價（equity risk premium ≈ 3–5%）。<br/>反映投資者真實預期。</td>
+  </tr>
+  <tr>
+    <td><strong>校準目標</strong></td>
+    <td>市場可觀察價格（swaption vol surface、equity implied vol）。<br/>Martingale test：\(E^Q[B(T)^{-1} \cdot S(T)] = S(0)\)</td>
+    <td>歷史時間序列（過去20–30年利率、股票回報）＋宏觀經濟假設。</td>
+  </tr>
+  <tr>
+    <td><strong>直覺理解</strong></td>
+    <td>在風險中性世界，所有投資者都是風險中立的，<br/>因此股票和現金的預期回報相同（= 無風險利率）。<br/>這是一個「定價用的虛擬世界」，並非現實。</td>
+    <td>在真實世界，投資者厭惡風險，<br/>股票必須提供高於無風險利率的超額回報，<br/>才能吸引人持有。這才是「現實世界」。</td>
+  </tr>
+  <tr>
+    <td><strong>HKRBC 用途</strong></td>
+    <td>TVOG（Rule 19）、EBS 負債估值<br/>→ 市場一致性估值，無套利</td>
+    <td>ALM 壓力測試、ORSA、SAA 優化<br/>→ 評估長期持續性和資本充足率</td>
+  </tr>
+  <tr>
+    <td><strong>典型參數差異（以利率為例）</strong></td>
+    <td>初始 yield curve = IA Sch. 4 無風險曲線；<br/>mean reversion → risk-free forward curve</td>
+    <td>初始 yield curve = 相同；<br/>但長期 mean reversion level 可能更高（加入 term premium）</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#ccc; margin:0.4rem 0 0.2rem 0;">
+  <strong>一句話總結：</strong>
+  Risk-neutral 世界裡，每條路徑的加權平均（用 discount factor 貼現）等於今天的市場價格——這是 TVOG 計算的基礎。
+  Real-world 世界裡，路徑的平均是公司的真實預期——這是 ALM / 壓力測試的基礎。
+  兩者用同一個 ESG 引擎，但漂移率（drift）不同。
+</p>
 </div>
 
 <!-- ════════ §9.5.A ESG Practitioner Step-by-Step Guide ════════ -->
