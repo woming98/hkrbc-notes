@@ -1405,40 +1405,221 @@ model.calibrate(options, engine, optimizer)</pre>
   </div>
   <div style="display:grid; grid-template-columns:1fr 1fr; gap:0; background:#0f172a;">
 
-    <!-- CIR -->
-    <div style="padding:0.6rem 0.8rem; border-right:1px solid #1e293b;">
-      <p style="margin:0 0 0.25rem 0; color:#fca5a5; font-weight:700; font-size:0.83rem;">① CIR（Cox-Ingersoll-Ross）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">（主流）</span></p>
-      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fecaca;"><code>dcs = κ(μ−cs) dt + σ√cs dW</code></p>
-      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
-        <strong style="color:#cbd5e1;">參數：</strong>κ（均值回歸速度）、μ（長期均值）、σ（波動率）、cs₀（初始利差）<br/>
-        <strong style="color:#cbd5e1;">優點：</strong><code>√cs</code> 擴散項確保利差恆為正（cs(t)≥0）；均值回歸反映信用利差的經濟特性；參數可由歷史利差序列 OLS/MLE 校準；有 Bond 解析公式（CIR bond pricing formula）<br/>
-        <strong style="color:#cbd5e1;">局限：</strong>Feller 條件 2κμ&gt;σ² 需滿足才能確保正值；對大幅跳升（credit event）的刻畫不足<br/>
-        <strong style="color:#cbd5e1;">適用：</strong>IG 信用利差動態（HKD IG 初始約 85bps，長期均值約 80bps）；hkrbc-esg 已用 OU（簡化 CIR）實現<br/>
-        <span style="color:#fca5a5; font-size:0.74rem;">▶ <strong style="color:#6ee7b7;">hkrbc-esg v2.0 已實現</strong> <code>src/cir.py</code>（Feller 條件校驗 + 反射邊界）</span>
+    <!-- ── CIR ── -->
+    <div style="padding:0.7rem 0.9rem; border-right:1px solid #1e293b;">
+      <p style="margin:0 0 0.3rem 0; color:#fca5a5; font-weight:700; font-size:0.84rem;">
+        ① CIR（Cox-Ingersoll-Ross）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">— 主流 IG 利差模型</span>
+      </p>
+
+      <!-- SDE -->
+      <div style="background:#1a0808; border-left:3px solid #ef4444; padding:0.35rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.45rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.74rem; color:#fca5a5; font-weight:600;">SDE</p>
+        <p style="margin:0; font-size:0.88rem; color:#fecaca;">
+          \[ d\,cs(t) = \kappa\bigl(\mu - cs(t)\bigr)\,dt + \sigma\sqrt{cs(t)}\,dW^{\mathbb{Q}}(t) \]
+        </p>
+        <p style="margin:0.15rem 0 0 0; font-size:0.75rem; color:#94a3b8;">
+          \(\kappa\)：均值回歸速度 &nbsp;|&nbsp; \(\mu\)：長期均值 &nbsp;|&nbsp; \(\sigma\)：波動係數 &nbsp;|&nbsp; \(cs_0\)：初始利差
+        </p>
+      </div>
+
+      <!-- 核心數學性質 -->
+      <p style="margin:0 0 0.2rem 0; font-size:0.78rem; color:#cbd5e1; font-weight:600;">核心數學性質</p>
+
+      <!-- 1. 條件分布 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.05rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">① 條件分布（非中心 χ² 分布）</p>
+        <p style="margin:0; font-size:0.82rem; color:#fecaca;">
+          \[ cs(t)\,\Big|\,cs(0) \;\sim\; \frac{\sigma^2(1-e^{-\kappa t})}{4\kappa}\;\chi^2\!\left(\frac{4\kappa\mu}{\sigma^2},\;\frac{4\kappa\,cs(0)\,e^{-\kappa t}}{\sigma^2(1-e^{-\kappa t})}\right) \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.72rem; color:#64748b;">
+          自由度 \(\nu = 4\kappa\mu/\sigma^2\)，非中心參數 \(\lambda_t = 4\kappa\,cs_0\,e^{-\kappa t}/[\sigma^2(1-e^{-\kappa t})]\)
+        </p>
+      </div>
+
+      <!-- 2. 矩 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.05rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">② 均值與方差</p>
+        <p style="margin:0; font-size:0.82rem; color:#fecaca;">
+          \[ \mathbb{E}[cs(t)] = cs_0\,e^{-\kappa t} + \mu(1-e^{-\kappa t}) \]
+          \[ \mathrm{Var}[cs(t)] = cs_0\,\frac{\sigma^2}{\kappa}\!\left(e^{-\kappa t}-e^{-2\kappa t}\right) + \frac{\mu\sigma^2}{2\kappa}(1-e^{-\kappa t})^2 \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.72rem; color:#64748b;">
+          均值從 \(cs_0\) 指數衰減至長期均值 \(\mu\)；方差在 \(t\to\infty\) 時趨於 \(\mu\sigma^2/(2\kappa)\)
+        </p>
+      </div>
+
+      <!-- 3. Feller 條件 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.05rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">③ Feller 條件（確保嚴格正值）</p>
+        <p style="margin:0; font-size:0.82rem; color:#fecaca;">
+          \[ 2\kappa\mu > \sigma^2 \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.72rem; color:#64748b;">
+          HKD IG 典型值：\(2\times0.15\times0.008 = 0.0024 > \sigma^2 = 0.000625\) &nbsp;✅<br/>
+          不滿足時 \(cs(t)\) 仍為非負但可觸及 0，hkrbc-esg 用反射邊界 \(\max(cs,0)\) 補救
+        </p>
+      </div>
+
+      <!-- 4. 零息債券解析公式 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.05rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">④ 零息信用債券解析公式（CIR Bond Pricing）</p>
+        <p style="margin:0; font-size:0.82rem; color:#fecaca;">
+          \[ P(0,T) = A(T)\,\exp\!\bigl(-B(T)\cdot cs_0\bigr) \]
+        </p>
+        <p style="margin:0.05rem 0; font-size:0.80rem; color:#fecaca;">
+          \[ B(T) = \frac{2(e^{\gamma T}-1)}{(\gamma+\kappa)(e^{\gamma T}-1)+2\gamma}, \quad \gamma = \sqrt{\kappa^2+2\sigma^2} \]
+          \[ A(T) = \left[\frac{2\gamma\,e^{(\kappa+\gamma)T/2}}{(\gamma+\kappa)(e^{\gamma T}-1)+2\gamma}\right]^{\!\tfrac{2\kappa\mu}{\sigma^2}} \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.72rem; color:#64748b;">
+          用途：直接計算信用利差曲線對應的折現因子；校準時最小化 \(\sum_i[P_{\text{model}}(T_i)-P_{\text{market}}(T_i)]^2\)
+        </p>
+      </div>
+
+      <!-- 5. MLE 校準 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.4rem;">
+        <p style="margin:0 0 0.05rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">⑤ 離散時間 MLE 校準（歷史利差序列）</p>
+        <p style="margin:0; font-size:0.80rem; color:#fecaca;">
+          設 \(\Delta t = 1/12\)（月），觀測序列 \(\{cs_0,cs_1,\ldots,cs_n\}\)，條件密度為非中心 \(\chi^2\)，對數似然：
+          \[ \ell(\kappa,\mu,\sigma) = \sum_{i=1}^{n}\ln f_{\chi^2}\!\left(\frac{4\kappa\,cs_i}{\sigma^2(1-e^{-\kappa\Delta t})}\bigg|\,\nu,\,\lambda_i\right) - n\ln\frac{\sigma^2(1-e^{-\kappa\Delta t})}{4\kappa} \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.72rem; color:#64748b;">
+          Python：<code>scipy.optimize.minimize</code> 最大化 \(\ell\)；初始值可用 OLS（\(\Delta cs_i = \alpha + \beta\,cs_{i-1} + \varepsilon_i\)，其中 \(\kappa\approx-\beta/\Delta t\)，\(\mu\approx\alpha/(\kappa\Delta t)\)）
+        </p>
+      </div>
+
+      <p style="margin:0; font-size:0.74rem; color:#6ee7b7;">
+        ▶ <strong>hkrbc-esg v2.0 已實現</strong> <code>src/cir.py</code>（Euler-Maruyama + Feller 校驗 + 反射邊界）
       </p>
     </div>
 
-    <!-- Jump-Diffusion -->
-    <div style="padding:0.6rem 0.8rem;">
-      <p style="margin:0 0 0.25rem 0; color:#fca5a5; font-weight:700; font-size:0.83rem;">② Jump-Diffusion（Merton/Kou）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">（捕捉信用事件）</span></p>
-      <p style="margin:0 0 0.2rem 0; font-size:0.76rem; color:#fecaca;"><code>dcs = κ(μ−cs) dt + σ√cs dW + J dN(λ)</code></p>
-      <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.55;">
-        <strong style="color:#cbd5e1;">參數：</strong>在 CIR 基礎上加 λ（跳躍強度）、J（跳躍幅度分布，通常指數或雙指數）<br/>
-        <strong style="color:#cbd5e1;">優點：</strong>可模擬評級調降、違約等引起的利差突然跳升；更貼近信用市場的 fat-tail 特性；Merton 模型跳躍幅度服從正態分布，Kou 用雙指數分布（捕捉不對稱跳躍）<br/>
-        <strong style="color:#cbd5e1;">局限：</strong>跳躍參數（λ, J）難以從 HK IG 債券市場校準（數據稀疏）；計算量顯著增加<br/>
-        <strong style="color:#cbd5e1;">適用：</strong>HY（高收益）信用利差、CDS 定價；HKRBC 主流場景通常 CIR 已足夠<br/>
-        <span style="color:#fca5a5; font-size:0.74rem;">▶ Python：自編 Poisson 跳躍疊加（<code>np.random.poisson</code>）+ CIR 基礎過程</span>
+    <!-- ── Jump-Diffusion ── -->
+    <div style="padding:0.7rem 0.9rem;">
+      <p style="margin:0 0 0.3rem 0; color:#fca5a5; font-weight:700; font-size:0.84rem;">
+        ② Jump-Diffusion（CIR + Jumps）<span style="font-size:0.72rem; color:#ef4444; font-weight:400;">— 捕捉信用事件</span>
       </p>
-      <pre style="background:#090f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.72rem; margin:0.3rem 0 0 0; overflow-x:auto;"># 跳躍-擴散：CIR + Poisson 跳躍
-jumps = np.random.poisson(lam * dt, size)
-jump_sizes = np.random.exponential(mean_J, size)
-cs_next = cs + kappa*(mu-cs)*dt + sigma*sqrt(cs*dt)*Z + jumps*jump_sizes</pre>
+
+      <!-- SDE -->
+      <div style="background:#1a0808; border-left:3px solid #dc2626; padding:0.35rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.45rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.74rem; color:#fca5a5; font-weight:600;">SDE（CIR 基礎 + Poisson 跳躍）</p>
+        <p style="margin:0; font-size:0.86rem; color:#fecaca;">
+          \[ d\,cs(t) = \kappa(\mu-cs)\,dt + \sigma\sqrt{cs}\,dW(t) + J\,dN_t(\lambda) \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.74rem; color:#94a3b8;">
+          \(N_t(\lambda)\)：強度為 \(\lambda\) 的 Poisson 計數過程 &nbsp;|&nbsp; \(J\)：跳躍幅度隨機變量
+        </p>
+      </div>
+
+      <!-- 跳躍幅度分布 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">① 跳躍幅度分布（Merton vs Kou）</p>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.3rem; margin-top:0.2rem;">
+          <div style="background:#0f0404; border-radius:3px; padding:0.25rem 0.4rem;">
+            <p style="margin:0 0 0.05rem 0; font-size:0.71rem; color:#fca5a5; font-weight:600;">Merton（對稱跳躍）</p>
+            <p style="margin:0; font-size:0.79rem; color:#fecaca;">
+              \[ J \sim \mathcal{N}(\mu_J, \sigma_J^2) \]
+            </p>
+            <p style="margin:0; font-size:0.70rem; color:#64748b;">
+              跳幅服從正態分布<br/>可正可負（利差升降均有）
+            </p>
+          </div>
+          <div style="background:#0f0404; border-radius:3px; padding:0.25rem 0.4rem;">
+            <p style="margin:0 0 0.05rem 0; font-size:0.71rem; color:#fca5a5; font-weight:600;">Kou（不對稱雙指數）</p>
+            <p style="margin:0; font-size:0.79rem; color:#fecaca;">
+              \[ f_J(x) = p\eta_1 e^{-\eta_1 x}\mathbf{1}_{x\geq0} + (1-p)\eta_2 e^{\eta_2 x}\mathbf{1}_{x&lt;0} \]
+            </p>
+            <p style="margin:0; font-size:0.70rem; color:#64748b;">
+              \(p\)：上跳概率；\(\eta_1,\eta_2\)：各向衰減率<br/>更好捕捉利差不對稱跳升
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 強度與條件期望 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">② 均值與方差（含跳躍項）</p>
+        <p style="margin:0; font-size:0.80rem; color:#fecaca;">
+          \[ \mathbb{E}[cs(t)] = \mathbb{E}_{\text{CIR}}[cs(t)] + \lambda\,\mathbb{E}[J]\cdot\frac{1-e^{-\kappa t}}{\kappa} \]
+          \[ \mathrm{Var}[cs(t)] = \mathrm{Var}_{\text{CIR}} + \lambda\,\mathbb{E}[J^2]\cdot\frac{1-e^{-2\kappa t}}{2\kappa} \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.71rem; color:#64748b;">
+          跳躍使長期方差增加 \(\lambda\mathbb{E}[J^2]/(2\kappa)\)；若 \(\mathbb{E}[J]>0\)（上跳為主），長期均值也上移
+        </p>
+      </div>
+
+      <!-- CDS 定價公式 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.3rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">③ CDS 公平利差（簡化，違約強度 = cs(t)）</p>
+        <p style="margin:0; font-size:0.80rem; color:#fecaca;">
+          \[ \text{CDS spread} = \frac{(1-R)\int_0^T e^{-rt}\,\mathbb{E}\!\left[cs(t)\,e^{-\int_0^t cs(s)ds}\right]dt}{\int_0^T e^{-rt}\,\mathbb{E}\!\left[e^{-\int_0^t cs(s)ds}\right]dt} \]
+        </p>
+        <p style="margin:0.1rem 0 0 0; font-size:0.71rem; color:#64748b;">
+          \(R\)：回收率（Recovery Rate，通常 40%）；分子為期望違約損失，分母為保費腿 DV01<br/>
+          CIR 下分母有解析解（CIR Bond formula）；含跳躍時需 MC 估值
+        </p>
+      </div>
+
+      <!-- 參數校準 -->
+      <div style="background:#120606; border-radius:4px; padding:0.3rem 0.6rem; margin-bottom:0.35rem;">
+        <p style="margin:0 0 0.1rem 0; font-size:0.73rem; color:#f87171; font-weight:600;">④ 跳躍參數校準（HK 市場挑戰）</p>
+        <p style="margin:0; font-size:0.77rem; color:#94a3b8; line-height:1.5;">
+          跳躍強度 \(\lambda\) 可由歷史利差序列的「異常大幅變動」頻率估計：
+          \[ \hat{\lambda} = \frac{\#\{|\Delta cs_i| > c\cdot\hat{\sigma}_{\text{CIR}}\}}{n\cdot\Delta t}, \quad c\approx 3\text{–}4 \]
+          跳幅均值 \(\hat{\mu}_J\) 和 \(\hat{\sigma}_J\) 由篩選出的異常樣本估計。<br/>
+          <span style="color:#f87171;">HK 挑戰：</span>IG 債券市場深度有限，異常事件少，\(\lambda\) 估計誤差大，通常假借 US/EUR IG 歷史參數
+        </p>
+      </div>
+
+      <!-- Python 代碼 -->
+      <pre style="background:#090f1a; color:#a6e3a1; padding:0.35rem 0.55rem; border-radius:4px; font-size:0.72rem; margin:0 0 0.3rem 0; overflow-x:auto;"># CIR + Poisson 跳躍離散化（Euler-Maruyama）
+cs_cur = max(cs[i], 0)
+# CIR 擴散項
+cs_next = cs_cur + kappa*(mu - cs_cur)*dt + sigma*sqrt(cs_cur*dt)*Z[i]
+# Poisson 跳躍（每步期望 λ·Δt 次跳躍）
+n_jumps = np.random.poisson(lam * dt)
+if n_jumps > 0:
+    # Kou 雙指數跳幅（p=上跳概率）
+    J_sizes = np.where(np.random.uniform(size=n_jumps) < p,
+                       np.random.exponential(1/eta1, n_jumps),
+                      -np.random.exponential(1/eta2, n_jumps))
+    cs_next += J_sizes.sum()
+cs[i+1] = max(cs_next, 0)   # 反射邊界</pre>
+
+      <p style="margin:0; font-size:0.73rem; color:#94a3b8;">
+        ▶ Python：基於 hkrbc-esg <code>src/cir.py</code> 加入跳躍層即可；跳躍參數可在 <code>esg_config.yaml</code> 擴展配置
+      </p>
     </div>
   </div>
-  <div style="background:#1a0a0a; border-top:1px solid #1e293b; padding:0.45rem 0.8rem; font-size:0.77rem; color:#64748b;">
-    <strong style="color:#fca5a5;">HK 實踐建議：</strong>
-    HKRBC TVOG 場景下，<strong>CIR（或 OU 簡化版）足夠</strong>；hkrbc-esg 已用 OU 實現，可直接使用。
-    Jump-Diffusion 僅在 HY 信用組合或 CDS 定價時才有必要引入。
+
+  <!-- 底部總結 -->
+  <div style="background:#1a0a0a; border-top:1px solid #2d1515; padding:0.5rem 1rem; font-size:0.77rem;">
+    <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.5rem;">
+      <div>
+        <p style="margin:0 0 0.1rem 0; color:#fca5a5; font-weight:600;">模型選擇建議</p>
+        <p style="margin:0; color:#94a3b8;">
+          HKRBC TVOG / IG 信用組合 → <strong style="color:#fca5a5;">CIR</strong><br/>
+          HY 債券 / CDS 定價 → <strong style="color:#fca5a5;">CIR + Jumps</strong><br/>
+          歷史數據充分時用 MLE；否則用 OLS + Feller 校驗
+        </p>
+      </div>
+      <div>
+        <p style="margin:0 0 0.1rem 0; color:#fca5a5; font-weight:600;">HKD IG 典型參數</p>
+        <p style="margin:0; color:#94a3b8; font-size:0.75rem;">
+          \(\kappa = 0.15\)，\(\mu = 0.008\)（80bps），\(\sigma = 0.025\)<br/>
+          \(cs_0 = 0.0085\)（85bps，2024 水平）<br/>
+          Feller：\(2\kappa\mu = 0.0024 > \sigma^2 = 0.000625\) ✅<br/>
+          穩態方差：\(\mu\sigma^2/(2\kappa) \approx 5.6 \times 10^{-5}\)（7.5bps 標準差）
+        </p>
+      </div>
+      <div>
+        <p style="margin:0 0 0.1rem 0; color:#fca5a5; font-weight:600;">與 HKRBC 的關聯</p>
+        <p style="margin:0; color:#94a3b8; font-size:0.75rem;">
+          信用利差路徑影響 MA 組合的 earned rate：<br/>
+          \(\text{earned rate}(t) \approx r_f(t) + cs(t) - \text{EL}(t)\)<br/>
+          EL（Expected Loss）= 違約強度 × (1 − R)<br/>
+          高利差情景 → 資產端收益高 → AS 增長更快 → GSV 觸發概率降低
+        </p>
+      </div>
+    </div>
   </div>
 </div>
 
