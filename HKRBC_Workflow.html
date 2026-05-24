@@ -1434,6 +1434,74 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
   這是 TVOG 必須用 Q-measure 的根本原因——與市場衍生品價格保持一致，否則公司本身成為套利目標。</strong>
 </p>
 
+<!-- Par Fund 無保證利率，但有 GSV Put -->
+<p style="font-size:0.88rem; color:#fca5a5; margin:0.6rem 0 0.3rem 0;"><strong>Par Fund 特殊情境：沒有保證利率，仍需 Q-measure</strong></p>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  Par Fund 的 TVOG 不來自「保證利率 g」，而來自兩個隱含的硬性期權：
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">保證類型</th><th style="background:rgba(127,29,29,0.6); color:#fff;">機制</th><th style="background:rgba(127,29,29,0.6); color:#fff;">等價期權</th></tr>
+  <tr style="color:#fecaca;"><td><strong>GSV（保證最低退保金）</strong></td><td>SV = max(AS, GSV)：AS 跌破 GSV 時保險公司依合約兜底，差額由公司承擔</td><td><strong>Put option on AS</strong>，行權價 = GSV</td></tr>
+  <tr style="color:#fecaca;"><td><strong>已宣告 RB 不可撤銷</strong></td><td>每年宣告的 RB 永久增加保證身故/退保利益，形成只升不降的棘輪</td><td><strong>Ratchet option</strong>（累計保證底部只升不降）</td></tr>
+  <tr style="color:#fecaca;"><td><strong>DPB 放大效應</strong></td><td>AS 接近 GSV 時退保率上升，迫使公司在 AS 最低時兌付更多 SV = GSV</td><td>Path-dependent put（負 convexity）</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;"><em>具體數字例子（1年期，單張保單，SA=100）</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.3rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">參數</th><th style="background:rgba(127,29,29,0.6); color:#fff;">數值</th><th style="background:rgba(127,29,29,0.6); color:#fff;">說明</th></tr>
+  <tr style="color:#fecaca;"><td>初始 AS(0)</td><td>100</td><td>期初每張保單的理論份額</td></tr>
+  <tr style="color:#fecaca;"><td>GSV（合約保證）</td><td>80</td><td>不論投資表現，退保最少拿 80</td></tr>
+  <tr style="color:#fecaca;"><td>無風險利率 r</td><td>3%</td><td>折現用</td></tr>
+  <tr style="color:#fecaca;"><td>ESG 情景 s=1（利率大跌 −3%）</td><td>AS(1) = 72</td><td>債券 MtM 損失：D × Δr ≈ 9yr × 3% = −27% → 100 × (1−0.27) ≈ 73，再扣費用後 72</td></tr>
+  <tr style="color:#fecaca;"><td>ESG 情景 s=2（利率正常）</td><td>AS(1) = 105</td><td>正常投資回報 +5%</td></tr>
+  <tr style="color:#fecaca;"><td>Q-measure</td><td>Q(s=1) = 45%，Q(s=2) = 55%</td><td>由 swaption 市場反推（利率下行風險偏高）</td></tr>
+  <tr style="color:#fecaca;"><td>P-measure</td><td>P(s=1) = 15%，P(s=2) = 85%</td><td>真實世界：利率大跌概率較低</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;"><em>Step 1：計算每張保單的 GSV Put 賠付</em></p>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  SV = max(AS, GSV)，GSV put 賠付 = max(GSV − AS, 0)：<br/>
+  s=1：SV = max(72, 80) = <strong>80</strong>，put 賠付 = 80 − 72 = <strong>8</strong>（公司須額外承擔）<br/>
+  s=2：SV = max(105, 80) = <strong>105</strong>，put 賠付 = 0（保單持有人拿 AS，公司無額外負擔）
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;"><em>Step 2：DPB 放大效應（退保率在壞情景上升）</em></p>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  s=1 情景：AS = 72 &lt; GSV = 80，保單持有人知道退保拿 80 &gt; 持有價值 → 退保率 q_lapse 從基準 5% 升至 25%。<br/>
+  退保人數從 5 人升至 25 人（每 100 人計），公司需多付 (80 − 72) × 20 = <strong>160 的額外 GSV 賠付</strong>。<br/>
+  這個 DPB 效應使壞情景的損失非線性放大——這正是 Par Fund TVOG 的核心風險來源。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;"><em>Step 3：TVOG 定價對比</em></p>
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  為簡化，忽略 DPB，只計每張保單的 GSV put 價值：
+  \[ V^Q = \frac{0.45\times8 + 0.55\times0}{1.03} = \frac{3.6}{1.03} \approx 3.50 \]
+  \[ V^P = \frac{0.15\times8 + 0.85\times0}{1.03} = \frac{1.2}{1.03} \approx 1.17 \]
+  P-measure 低估：\(3.50 - 1.17 = \mathbf{2.33}\)（每張保單）
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;"><em>Step 4：套利操作</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">操作</th><th style="background:rgba(127,29,29,0.6); color:#fff;">t = 0</th><th style="background:rgba(127,29,29,0.6); color:#fff;">t = 1（s=1，AS=72）</th><th style="background:rgba(127,29,29,0.6); color:#fff;">t = 1（s=2，AS=105）</th></tr>
+  <tr style="color:#fecaca;"><td>買入 Par 保單（付 1.17 for GSV 保證部分）</td><td>−1.17</td><td>+8（獲 GSV 兜底）</td><td>0</td></tr>
+  <tr style="color:#fecaca;"><td>在 OTC 賣出債券 put（strike=80，收 3.50）</td><td>+3.50</td><td>−8（賠付）</td><td>0</td></tr>
+  <tr style="color:#fecaca;"><td><strong>淨（無風險）</strong></td><td><strong>+2.33</strong></td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.5rem 0;">
+  <strong>Par Fund 結論：即使沒有明確的保證利率，GSV 合約條款本身就是一個 put option。
+  OTC 市場按 Q-measure 為等價 put 定價，保險公司若用 P-measure，
+  等於把 put option 以 1.17 賣出，而市場正確價格是 3.50。
+  再保公司或對沖基金可透過買入大量 Par 保單 + 賣出等值 OTC put，持續無風險套利。
+  TVOG 必須按 Q-measure 計算，以確保嵌入期權的估值與 OTC 市場一致。</strong>
+</p>
+
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
   Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
