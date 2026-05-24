@@ -1493,12 +1493,91 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 <table style="color:#fecaca;">
   <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">步驟</th><th style="background:rgba(127,29,29,0.6); color:#fff;">操作</th><th style="background:rgba(127,29,29,0.6); color:#fff;">本例數字</th></tr>
   <tr style="color:#fecaca;"><td><strong>① 取 OTM receiver swaption 市場價</strong></td><td>取 strike = 目前 swap rate − 3%（對應「利率大跌 3%」情景）的 receiver swaption 價格</td><td>假設 Bloomberg 報價：swaption premium = 3.50（折現後）</td></tr>
-  <tr style="color:#fecaca;"><td><strong>② 識別 swaption 的賠付結構</strong></td><td>receiver swaption 賠付 = max(K − r_swap, 0) × annuity，類比於 par fund GSV put 賠付 = max(GSV − AS, 0)。令兩者等價：「利率跌 3%」≈ AS 跌至 72</td><td>swaption 賠付 ≈ 8（與 GSV put 賠付對齊）</td></tr>
+  <tr style="color:#fecaca;"><td><strong>② 識別 swaption 的賠付結構</strong></td><td>詳見下方展開說明</td><td>swaption 賠付 ≈ 8（與 GSV put 賠付對齊，推導見下）</td></tr>
   <tr style="color:#fecaca;"><td><strong>③ 從市場價格反推 Q-weight</strong></td><td>已知 swaption price = Q(利率大跌) × 賠付 / (1+r)<br/>
     \[ Q(s=1) = \frac{\text{swaption price} \times (1+r)}{\text{賠付}} = \frac{3.50 \times 1.03}{8} \approx 0.45 \]</td><td>Q(s=1) = 3.50 × 1.03 / 8 ≈ <strong>45%</strong></td></tr>
   <tr style="color:#fecaca;"><td><strong>④ 為何 Q(s=1) = 45% ≫ P(s=1) = 15%？</strong></td><td>市場投資者厭惡利率下行（保險公司、退休基金都是 receiver），對低利率情景支付額外溢價 → Q-weight 被拉高。這個溢價即「利率風險溢價（term premium）」在 Q-measure 中的體現</td><td>45% vs 15%：Q 是 P 的 3 倍，反映市場對利率尾部風險的定價</td></tr>
 </table>
 </div>
+
+<!-- ② 賠付結構展開說明 -->
+<p style="font-size:0.86rem; color:#fca5a5; margin:0.5rem 0 0.2rem 0;"><strong>▶ 展開：② Swaption 賠付如何計算？怎麼對齊 GSV put 賠付 = 8？</strong></p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.25rem 0;">
+  <strong>Receiver Swaption 賠付公式拆解</strong><br/>
+  一個 receiver swaption 在到期時的賠付是：
+  \[ \text{Payoff} = N \times \max(K - r_{\text{swap}},\; 0) \times A(r_{\text{swap}}, T_{\text{swap}}) \]
+  其中：
+</p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">符號</th><th style="background:rgba(127,29,29,0.6); color:#fff;">含義</th><th style="background:rgba(127,29,29,0.6); color:#fff;">本例設定</th></tr>
+  <tr style="color:#fecaca;"><td>\(N\)</td><td>名義本金（Notional）</td><td>N = 27.8（後面計算得出）</td></tr>
+  <tr style="color:#fecaca;"><td>\(K\)</td><td>行權利率（Strike rate）= 此 swaption 鎖定的固定利率</td><td>K = 4%（當前 HKD 10Y swap rate）</td></tr>
+  <tr style="color:#fecaca;"><td>\(r_{\text{swap}}\)</td><td>到期時市場上的 10Y swap rate</td><td>s=1（利率跌 3%）時：r_swap = 1%</td></tr>
+  <tr style="color:#fecaca;"><td>\(\max(K - r_{\text{swap}}, 0)\)</td><td>利率差值（只在利率低於 K 時有賠付）</td><td>max(4% − 1%, 0) = <strong>3%</strong></td></tr>
+  <tr style="color:#fecaca;"><td>\(A(r, T)\)</td><td>Annuity factor = 互換期限內每期 1 元固定收益的現值之和</td><td>A(1%, 10Y) ≈ 9.47</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;">
+  <strong>Annuity Factor 是什麼？</strong><br/>
+  利率互換（IRS）是每半年或每年交換一次現金流。
+  「收取固定，支付浮動」的 receiver swap，每年固定收益 = K × N。
+  把這些未來收益折現回現在，總現值 = N × K × A。
+  <br/>因此 annuity factor A 等於：
+  \[ A(r, T) = \sum_{i=1}^{T} \frac{1}{(1+r)^i} \]
+  本例：A(1%, 10Y) = 1/1.01 + 1/1.01² + … + 1/1.01¹⁰ ≈ <strong>9.47</strong>
+  <br/>直觀理解：如果年利率只有 1%，10 年現金流的現值合計是名義本金的 9.47 倍。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;">
+  <strong>本例賠付計算（不對齊 GSV 前）</strong>
+</p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">項目</th><th style="background:rgba(127,29,29,0.6); color:#fff;">s=1（利率跌 3%）</th><th style="background:rgba(127,29,29,0.6); color:#fff;">s=2（正常）</th></tr>
+  <tr style="color:#fecaca;"><td>K − r_swap</td><td>4% − 1% = 3%</td><td>4% − 4% = 0%</td></tr>
+  <tr style="color:#fecaca;"><td>Annuity A</td><td>A(1%, 10Y) ≈ 9.47</td><td>0（不行使）</td></tr>
+  <tr style="color:#fecaca;"><td>Payoff per unit N</td><td>3% × 9.47 = <strong>0.284</strong></td><td>0</td></tr>
+  <tr style="color:#fecaca;"><td>若 N = 1（名義本金）</td><td>賠付 = 0.284</td><td>0</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;">
+  <strong>如何「對齊」至 GSV put 賠付 = 8？——選擇合適的名義本金 N</strong><br/>
+  GSV put 在 s=1 的賠付 = GSV − AS = 80 − 72 = 8。
+  我們希望找到一個名義本金 N，使 swaption 的賠付在 s=1 下也等於 8，從而確認兩者是「等效期權」：
+  \[ N \times 0.284 = 8 \quad \Rightarrow \quad N = \frac{8}{0.284} \approx 28.2 \]
+  即：購買名義本金約 28.2 的 receiver swaption，其 s=1 賠付 ≈ 8，與 GSV put 完全對齊。
+  <br/>這個 N 也代表保單資產組合中受利率影響的「有效債券倉位」。
+</p>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.2rem 0;">
+  <strong>為什麼「利率跌 3%」可以對應「AS 跌至 72」？</strong><br/>
+  AS 的主要資產是長存期債券（本例 duration ≈ 9yr）。利率下行時，債券 MtM 損失：
+  \[ \Delta P \approx -D \times \Delta r = -9 \times (-3\%) = +27\%? \]
+  注意：利率<em>下行</em>時，debt MtM <em>上升</em>（Bond price up when rates down）。
+  <br/>但本例設定 s=1 是「利率大跌」導致 AS 下跌，原因是：
+</p>
+<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<table style="color:#fecaca;">
+  <tr><th style="background:rgba(127,29,29,0.6); color:#fff;">真實情況</th><th style="background:rgba(127,29,29,0.6); color:#fff;">說明</th></tr>
+  <tr style="color:#fecaca;"><td>HTM 債券不 MtM</td><td>Par fund 的大部分債券以 HTM 持有，利率下行帳面值不變，earned rate 卻下降（再投資收益降低）</td></tr>
+  <tr style="color:#fecaca;"><td>再投資利率下降</td><td>到期後的債券只能以低利率再投資，earned rate 逐年下降，AS 增長放慢</td></tr>
+  <tr style="color:#fecaca;"><td>credited rate 跟隨下調</td><td>earned rate 低 → credited rate 低 → AS 累積速度低於 GSV 增長速度</td></tr>
+  <tr style="color:#fecaca;"><td>本例簡化</td><td>將「低利率環境下 AS 增長不足」壓縮為 1 年，直接令 AS(1) = 72 以簡化說明</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
+  <strong>小結：Swaption 賠付對齊流程</strong>
+  <br/>① Swaption payoff = N × max(K − r_swap, 0) × A(r_swap, T)
+  <br/>② 在「利率跌 3%」情景下，per-unit payoff = 0.284
+  <br/>③ 選 N ≈ 28.2，使 swaption payoff = 8 = GSV put payoff
+  <br/>④ OTC 市場對這個 swaption 的定價 = 3.50（折現後）→ 反推 Q(s=1) = 3.50 × 1.03 / 8 ≈ 45%
+  <br/>⑤ 若保險公司用 P-measure 對 GSV put 定價只收 1.17，與市場 3.50 存在 2.33 的無風險套利空間
+</p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <strong>4. 在 ESG 中的實際操作</strong><br/>
