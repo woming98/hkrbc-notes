@@ -221,6 +221,7 @@ MathJax = {
 
   <div class="nav-section">§8 ESG 經濟情景模擬器</div>
   <a href="#esg">§8 ESG Overview &amp; Uses</a>
+  <a href="#esg-hk-practice">§8.0 HK 行業實操</a>
   <a href="#esg-practitioner">§8.A From-Scratch Guide 從零實作</a>
   <a href="#esg-a1">§8.A.1 Yield Curve Bootstrapping</a>
   <a href="#esg-a2">§8.A.2 Parameter Selection</a>
@@ -1049,6 +1050,144 @@ $$MA_{CS\ stressed} = AR \times \left[ADD_{base} + RF \times \left(ADD_{stressed
 
 <!-- ══ §8 ESG ══ -->
 <h2 id="esg">§8 Economic Scenario Generator (ESG) 經濟情景模擬器</h2>
+
+<!-- ══ 香港行業實操 ══ -->
+<h3 id="esg-hk-practice" style="color:#6ee7b7; margin-top:0.5rem;">§8.0 香港保險行業 ESG 實操概覽</h3>
+
+<p style="font-size:0.85rem; color:#9ca3af; margin-bottom:0.5rem;">
+  香港保險公司極少自建 ESG 引擎，而是採購商業化 ESG 平台，配合 IA 發布的監管數據進行校準。以下是行業的典型做法。
+</p>
+
+<h4 style="color:#a5b4fc; margin:0.4rem 0 0.2rem 0;">1. 主流商業 ESG 軟件</h4>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th>軟件</th><th>供應商</th><th>HK 市場使用情況</th><th>主要特點</th></tr>
+  <tr>
+    <td><strong>Moody's Analytics ESG</strong><br/>（前 RiskIntegrity / AXIS ESG）</td>
+    <td>Moody's Analytics</td>
+    <td>大型壽險公司最常用，尤其是有母公司使用 Moody's AXIS 的</td>
+    <td>支持 HW1F/HW2F/LMM；內建 martingale test；可導出為 Prophet 格式</td>
+  </tr>
+  <tr>
+    <td><strong>Conning GEMS</strong><br/>（Global Economic Model Scenarios）</td>
+    <td>Conning</td>
+    <td>以 Real-World ALM 分析為主的公司常用</td>
+    <td>Real-World 和 Risk-Neutral 雙模式；P-measure 宏觀校準功能強</td>
+  </tr>
+  <tr>
+    <td><strong>Milliman GEMS / MG-ALFA ESG</strong></td>
+    <td>Milliman</td>
+    <td>使用 MG-ALFA 建模平台的公司</td>
+    <td>與 MG-ALFA 原生整合，適合 US/HK GAAP 混合項目</td>
+  </tr>
+  <tr>
+    <td><strong>FIS Prophet 內建 ESG</strong></td>
+    <td>FIS（現 SS&amp;C）</td>
+    <td>使用 Prophet 進行 TVOG 計算的公司；在 HK 壽險市場佔有率高</td>
+    <td>直接在 Prophet 模型中調用情景文件（.ESC 格式）；支持 HW1F 標準模型；校準需外部工具輔助</td>
+  </tr>
+  <tr>
+    <td><strong>自建 Python/MATLAB</strong></td>
+    <td>少數大型集團</td>
+    <td>母公司集中校準，子公司使用統一情景庫</td>
+    <td>靈活但需投入大量開發和驗證資源</td>
+  </tr>
+</table>
+</div>
+
+<h4 style="color:#a5b4fc; margin:0.4rem 0 0.2rem 0;">2. 典型 ESG 生產流程（以 TVOG 為目標）</h4>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th>步驟</th><th>操作</th><th>數據來源 / 工具</th><th>頻率</th></tr>
+  <tr>
+    <td><strong>① 取得 IA 監管數據</strong></td>
+    <td>下載 IA 發布的 Schedule 4 無風險利率曲線（Smith-Wilson 外插後的零息曲線）；確認 UFR（見 IA 憲報通告）</td>
+    <td>IA 官網 → HKRBC 資源頁；G.N. 4006 of 2024 等</td>
+    <td>每季（或監管要求時更新）</td>
+  </tr>
+  <tr>
+    <td><strong>② 取得市場波動率數據</strong></td>
+    <td>從 Bloomberg 提取 swaption vol cube（USSV/HDSV）、equity vol surface（OVDV）、credit spread 曲線（CDSW）</td>
+    <td>Bloomberg Terminal；路透社 Eikon</td>
+    <td>每季末（估值日）</td>
+  </tr>
+  <tr>
+    <td><strong>③ 校準 ESG 參數</strong></td>
+    <td>將 HW2F 的 (a₁, a₂, σ₁, σ₂, ρ) 或 LMM 的 vol 參數校準至 swaption vol cube；目標：最小化模型 IV 與市場 IV 的差距</td>
+    <td>ESG 軟件內建優化器；或 Python scipy.optimize</td>
+    <td>每季</td>
+  </tr>
+  <tr>
+    <td><strong>④ 生成情景</strong></td>
+    <td>以 Q-measure 參數生成 ≥1,000 條 monthly 情景（TVOG 用）；另生成 Real-World 情景（ALM 用）</td>
+    <td>ESG 軟件；輸出格式：CSV / Prophet .ESC 文件</td>
+    <td>每季</td>
+  </tr>
+  <tr>
+    <td><strong>⑤ Martingale Test</strong></td>
+    <td>驗證：所有情景下折現資產價格的均值 = 今日市場價格（零息債券、股票指數）；不通過則重新調整參數</td>
+    <td>ESG 軟件內建；或 Python 腳本</td>
+    <td>每次生成後必做</td>
+  </tr>
+  <tr>
+    <td><strong>⑥ 導入精算模型</strong></td>
+    <td>將情景文件導入 Prophet（.ESC 格式）或其他模型；Prophet 按情景逐條計算 TVOG；取平均值即 TVOG</td>
+    <td>Prophet ActPlan / AXIS / MG-ALFA</td>
+    <td>每季估值</td>
+  </tr>
+  <tr>
+    <td><strong>⑦ 情景驗證 &amp; 記錄</strong></td>
+    <td>比較情景統計特性（均值、百分位、波動率）與市場預期是否一致；出具模型驗證報告供 actuarial function 審核及 IA 查閱</td>
+    <td>內部 Model Validation Team；外部顧問</td>
+    <td>每年至少一次完整驗證</td>
+  </tr>
+</table>
+</div>
+
+<h4 style="color:#a5b4fc; margin:0.4rem 0 0.2rem 0;">3. 監管要求摘要（Cap. 41R）</h4>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th>要求</th><th>條款</th><th>行業實操</th></tr>
+  <tr><td>情景數量</td><td>Rule 19：≥1,000 條</td><td>常用 1,000–5,000 條；更多情景提高收斂精度但增加運算時間</td></tr>
+  <tr><td>市場一致性</td><td>Rule 19：market-consistent</td><td>以 Q-measure 校準；swaption vol 為主要校準目標</td></tr>
+  <tr><td>無套利</td><td>Rule 19：arbitrage-free</td><td>Martingale test 必須通過</td></tr>
+  <tr><td>無風險折現率</td><td>Schedule 4</td><td>IA 每季發布；Smith-Wilson 外插至 60 年</td></tr>
+  <tr><td>UFR</td><td>IA Gazette Notice（G.N. 4006/2024）</td><td>HKD/USD 3.8%；RMB 4.6%；EUR 3.45%；定期由 IA 更新</td></tr>
+</table>
+</div>
+
+<h4 style="color:#a5b4fc; margin:0.4rem 0 0.2rem 0;">4. Prophet 與 ESG 的接口（HK 最常見組合）</h4>
+<p style="font-size:0.84rem; color:#9ca3af; margin:0 0 0.3rem 0;">
+  Prophet 讀取的情景文件為 <code>.ESC</code> 格式（ASCII 文本），每行一個時間步的情景值。典型結構：
+</p>
+<pre style="background:#1e1e2e; color:#a6e3a1; padding:0.7rem 1rem; border-radius:6px; font-size:0.8rem; overflow-x:auto; margin-bottom:0.4rem;">
+SCENARIO_COUNT  1000
+TIME_STEPS      360        ! 30年 × 12月
+VARIABLES       RFR_SHORT  EQUITY_TR  CREDIT_SPREAD  FX_USD_HKD
+
+SCENARIO  1
+  0.0320  1.0000  0.0085  7.8000
+  0.0318  1.0065  0.0087  7.8012
+  ...
+SCENARIO  2
+  0.0315  0.9980  0.0092  7.7998
+  ...
+</pre>
+<p style="font-size:0.84rem; color:#9ca3af; margin:0 0 0.5rem 0;">
+  Prophet 內的 Global Parameter <code>ESG_FILE_PATH</code> 指向此文件；模型按 <code>SIM_NUM</code>（情景編號）逐條執行，輸出各情景的 BEL；TVOG = 隨機 BEL 均值 − 確定性 BEL。
+</p>
+
+<h4 style="color:#a5b4fc; margin:0.4rem 0 0.2rem 0;">5. 常見實操挑戰</h4>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.8rem;">
+<table>
+  <tr><th>挑戰</th><th>說明</th><th>業界應對</th></tr>
+  <tr><td><strong>運算時間</strong></td><td>1,000 情景 × 大型模型 → 數小時至數天</td><td>模型點壓縮（MP aggregation）；AWS/Azure 雲端並行計算；Prophet 的 Grid Computing</td></tr>
+  <tr><td><strong>Martingale test 不收斂</strong></td><td>HW 參數校準後仍有小幅 martingale 誤差</td><td>允許 ±0.5% 容差（視公司 policy）；或增加情景數至 2,000–5,000</td></tr>
+  <tr><td><strong>HK Swaption 流動性</strong></td><td>HKD swaption OTM 流動性差，vol 數據不可靠</td><td>以 USD swaption vol 為主，HKD 用 basis 調整；或直接用 IA Sch. 4 forward rates 倒推隱含 vol</td></tr>
+  <tr><td><strong>UFR 更新滯後</strong></td><td>IA 每幾年更新一次 UFR，短期內 yield curve 外插段出現跳躍</td><td>建立 UFR 敏感度分析；每次估值確認最新 Gazette Notice</td></tr>
+  <tr><td><strong>跨貨幣一致性</strong></td><td>HKD/USD/RMB 多幣種資產組合需確保 FX 路徑無套利</td><td>加入 covered interest parity 約束；Cholesky 確保跨幣種相關性一致</td></tr>
+</table>
+</div>
 
 <div class="tbl-wrap" style="font-size:0.85rem; margin-bottom:0.2rem;">
 <table>
