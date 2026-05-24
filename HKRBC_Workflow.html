@@ -1258,18 +1258,145 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
   <tr><th>Risk Factor</th><th>Common Models</th><th>Calibration Targets</th><th>Why this model</th></tr>
   <tr>
     <td><strong>Nominal Interest Rate</strong> 名義利率</td>
-    <td>
-      • <strong>Hull-White 1-Factor</strong> (HW1F): simplest, single mean-reversion<br/>
-      • <strong>Hull-White 2-Factor</strong> (HW2F / G2++)<br/>
-      • <strong>LIBOR Market Model</strong> (LMM): industry standard for sophisticated users
+    <td style="padding:0.5rem 0.6rem; min-width:260px;">
+
+      <!-- HW1F -->
+      <div style="background:#0f2a1a; border-left:3px solid #10b981; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.4rem;">
+        <p style="margin:0 0 0.2rem 0; color:#6ee7b7; font-weight:700; font-size:0.82rem;">① Hull-White 1-Factor（HW1F）</p>
+        <p style="margin:0; font-size:0.79rem; color:#a7f3d0; line-height:1.55;">
+          <strong>SDE：</strong><code>dr = [θ(t)−a·r] dt + σ dW</code><br/>
+          <strong>參數：</strong>a（均值回歸速度）、σ（波動率），僅 2 個<br/>
+          <strong>特點：</strong>精確擬合初始 yield curve；
+          Bond/Swaption 有解析公式（closed-form），無需 MC 即可校準；
+          利率路徑服從正態分布，偶有負利率<br/>
+          <strong>局限：</strong>只有一個隨機因子，yield curve 只能平行移動，
+          無法同時模擬斜率與曲率的獨立變動（利率期限結構變形能力弱）<br/>
+          <strong>適用：</strong>Par Fund TVOG 原型、小型公司起步用、監管壓力下快速交付<br/>
+          <span style="color:#6ee7b7; font-size:0.77rem;">▶ hkrbc-esg 已實現（<code>src/hw1f.py</code>）</span>
+        </p>
+      </div>
+
+      <!-- HW2F / G2++ -->
+      <div style="background:#1a1025; border-left:3px solid #8b5cf6; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0; margin-bottom:0.4rem;">
+        <p style="margin:0 0 0.2rem 0; color:#c4b5fd; font-weight:700; font-size:0.82rem;">② Hull-White 2-Factor / G2++（HW2F）</p>
+        <p style="margin:0; font-size:0.79rem; color:#ddd6fe; line-height:1.55;">
+          <strong>SDE：</strong><code>r(t) = x(t) + y(t) + φ(t)</code><br/>
+          &nbsp;&nbsp;<code>dx = −a·x dt + σ₁ dW₁</code>，
+          <code>dy = −b·y dt + σ₂ dW₂</code>，
+          <code>dW₁·dW₂ = ρ dt</code><br/>
+          <strong>參數：</strong>a, b, σ₁, σ₂, ρ 共 5 個<br/>
+          <strong>特點：</strong>兩個因子分別驅動利率曲線的「水平」與「斜率」，
+          可模擬 bear steepening（長端升短端穩）、bull flattening（短端升長端穩）等真實利率形態；
+          Bond/Swaption 仍有解析公式；
+          ρ 控制兩因子相關性（典型值 −0.7 至 −0.9）<br/>
+          <strong>局限：</strong>參數更多（校準難度上升）；仍為正態分布（允許負利率）<br/>
+          <strong>適用：</strong>主流 HKRBC 生產環境；Conning GEMS、Moody's ESG 商業工具的默認 IR 模型<br/>
+          <span style="color:#c4b5fd; font-size:0.77rem;">▶ Python 可實現：QuantLib / 自編 Euler 離散化（見下方說明）</span>
+        </p>
+      </div>
+
+      <!-- LMM -->
+      <div style="background:#1a1209; border-left:3px solid #f59e0b; padding:0.4rem 0.6rem; border-radius:0 4px 4px 0;">
+        <p style="margin:0 0 0.2rem 0; color:#fcd34d; font-weight:700; font-size:0.82rem;">③ LIBOR Market Model（LMM / BGM）</p>
+        <p style="margin:0; font-size:0.79rem; color:#fef3c7; line-height:1.55;">
+          <strong>SDE：</strong>直接對每個 tenor 的 forward rate <code>Lᵢ(t)</code> 建模：<br/>
+          &nbsp;&nbsp;<code>dLᵢ = μᵢ(L, t) dt + σᵢ(t)·Lᵢ dWᵢ</code>（共 N 個 SDE）<br/>
+          <strong>參數：</strong>各期限的 vol 函數 σᵢ(t) + 相關矩陣，參數維度高（10–30+）<br/>
+          <strong>特點：</strong>直接校準至 swaption vol surface（包含 smile）；
+          各 forward rate 有自己的隨機過程，曲線形態極為靈活；
+          Black 公式直接適用，直觀對應市場 swaption 報價；
+          適合對沖 exotic IR 產品<br/>
+          <strong>局限：</strong>無 closed-form Bond Price（需 MC 估值）；
+          計算量大（N 個 SDE 同時積分）；
+          校準困難，需要完整的 swaption vol cube<br/>
+          <strong>適用：</strong>VA/GMxB 定價（需要精細的 IR + EQ 聯動）、外資 AM 精算部、有 exotic IR 保證的產品<br/>
+          <span style="color:#fcd34d; font-size:0.77rem;">▶ Python 可實現：QuantLib / PyLMM；HK 市場數據獲取是主要瓶頸</span>
+        </p>
+      </div>
+
     </td>
     <td>
       • Initial swap / risk-free yield curve (Sch. 4)<br/>
       • Swaption volatility surface (at-the-money grid)<br/>
       • Mean reversion parameter α from historical
     </td>
-    <td>HW2F captures slope/level decorrelation; LMM models each forward rate directly</td>
+    <td style="font-size:0.81rem;">
+      <strong>HW1F：</strong>2 參數，Bond/Swaption 有公式，起步首選<br/><br/>
+      <strong>HW2F：</strong>5 參數，可模擬曲線斜率變動，主流生產環境<br/><br/>
+      <strong>LMM：</strong>直接建模 forward rate，精確校準 vol surface，適合複雜保證
+    </td>
   </tr>
+  <tr id="ir-models-python-row">
+    <td colspan="4" style="padding:0; background:transparent; border:none;">
+      <!-- Python 實現說明展開框 -->
+      <div style="background:#0f172a; border:1px solid #334155; border-radius:6px; margin:0.3rem 0; padding:0.6rem 1rem; font-size:0.81rem; color:#94a3b8;">
+        <p style="margin:0 0 0.3rem 0; color:#e2e8f0; font-weight:700;">
+          🐍 Python 可以實現哪些 IR 模型？
+        </p>
+        <div class="tbl-wrap" style="margin-top:0.2rem;">
+        <table style="font-size:0.79rem;">
+          <tr>
+            <th>模型</th>
+            <th>Python 實現方式</th>
+            <th>主要庫</th>
+            <th>難度</th>
+            <th>HK 市場數據獲取</th>
+          </tr>
+          <tr>
+            <td><span style="color:#6ee7b7;">HW1F</span></td>
+            <td>精確離散化（closed-form）+ Euler；<br/>hkrbc-esg 已完整實現，開箱即用</td>
+            <td><code>numpy</code>、<code>scipy</code></td>
+            <td>⭐ 簡單</td>
+            <td>IA Sch.4（免費公開），易獲取</td>
+          </tr>
+          <tr>
+            <td><span style="color:#c4b5fd;">HW2F / G2++</span></td>
+            <td>
+              <strong>方案A（推薦）：QuantLib-Python</strong>
+              <pre style="background:#0a0f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.76rem; margin:0.2rem 0;">pip install QuantLib
+import QuantLib as ql
+# G2++ = HW2F
+model = ql.G2(ql.YieldTermStructureHandle(curve))
+engine = ql.JamshidianSwaptionEngine(model)
+# 最小化 swaption 定價誤差進行校準
+optimizer = ql.LevenbergMarquardt()
+model.calibrate(swaptions, engine, optimizer, constraint)</pre>
+              <strong>方案B（自編）：</strong>兩個 OU 過程 Euler 離散化，
+              再疊加 φ(t)（由 Sch.4 確定），約 150 行代碼
+            </td>
+            <td><code>QuantLib</code>（方案A）<br/><code>numpy / scipy</code>（方案B）</td>
+            <td>⭐⭐ 中等</td>
+            <td>需要 HKD swaption vol surface（Bloomberg/Reuters），有一定成本</td>
+          </tr>
+          <tr>
+            <td><span style="color:#fcd34d;">LMM</span></td>
+            <td>
+              <strong>方案A：QuantLib-Python</strong>
+              <pre style="background:#0a0f1a; color:#a6e3a1; padding:0.3rem 0.5rem; border-radius:4px; font-size:0.76rem; margin:0.2rem 0;">model = ql.LiborMarketModel(
+    process,            # LFM 過程
+    correlation_model,  # 相關矩陣
+    calibration_strategy
+)</pre>
+              <strong>方案B：PyLMM</strong>（開源，GitHub 有多個實現）<br/>
+              <strong>方案C：自編</strong>：對 N 個 forward rate 各寫一條 SDE，
+              用 Milstein 或高階 Runge-Kutta 離散化，難點在校準和相關矩陣降維（PCA）
+            </td>
+            <td><code>QuantLib</code>、<code>PyLMM</code><br/><code>numpy / scipy</code></td>
+            <td>⭐⭐⭐ 困難</td>
+            <td>需要完整 swaption vol cube（多 strike × 多 tenor），HK 市場數據稀疏，是主要瓶頸</td>
+          </tr>
+        </table>
+        </div>
+        <div style="background:#1e293b; border-radius:4px; padding:0.4rem 0.6rem; margin-top:0.4rem; font-size:0.79rem; color:#94a3b8;">
+          <strong style="color:#fcd34d;">⚠️ HK 市場實踐建議：</strong>
+          對大多數 Par Fund TVOG 需求，<strong>HW1F 精度已足夠</strong>（±5%–10% 誤差在監管容忍範圍內）。
+          若需要更精確的曲線斜率建模（如長短端利率差的隨機性），升級至 <strong>HW2F（QuantLib）</strong>是性價比最高的選擇。
+          LMM 僅在有 exotic IR 保證（如 cliquet、PRDC）或需要精確校準整個 vol surface 時才值得引入。
+        </div>
+      </div>
+    </td>
+  </tr>
+
   <tr>
     <td><strong>Equity Return</strong> 股票回報</td>
     <td>
