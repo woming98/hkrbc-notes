@@ -4661,6 +4661,13 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
   </tr>
 </table>
 </div>
+<div style="font-size:0.82rem; color:#cbd5e1; background:rgba(255,255,255,0.05); border-radius:4px; padding:0.5rem 0.8rem; margin:0.3rem 0 0.4rem 0;">
+  <strong>術語說明：</strong><br/>
+  • <strong>FVTPL（Fair Value Through Profit or Loss，公允價值計入損益）</strong>：資產每期按市值重估，MtM 盈虧直接進當期 <strong>P&amp;L（損益表）</strong>，影響當期利潤。利率波動 → 利潤波動大。<br/>
+  • <strong>FVOCI（Fair Value Through Other Comprehensive Income，公允價值計入其他綜合收益）</strong>：資產同樣按市值重估，但 MtM 盈虧先進 <strong>OCI（其他綜合收益）</strong>，不影響當期 P&amp;L；待資產出售時才「回收」進 P&amp;L。利率波動 → P&amp;L 相對穩定，但 OCI（淨資產）仍然波動。<br/>
+  • <strong>HTM（Held-to-Maturity，持有至到期）</strong>：按攤余成本入賬，完全不反映市值變動。P&amp;L 最穩定，但流動性最差（tainting rule）。<br/>
+  • <strong>OCI（Other Comprehensive Income）</strong>：財務報表中介於 P&amp;L 和股東權益之間的緩衝層，記錄未實現的公允價值變動，最終匯入「累計其他綜合收益」（AOCI），屬於股東權益的一部分。
+</div>
 <p style="font-size:0.83rem; color:#9ca3af; margin:0.2rem 0 0.4rem 0;">
   <strong>實務組合搭配：</strong>
   多數壽險公司傾向 <strong>FVOCI + IFRS 17 OCI Option</strong>，使資產與負債的利率敏感性同時走 OCI，令 P&amp;L 最穩定。
