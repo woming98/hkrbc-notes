@@ -1221,13 +1221,18 @@ SCENARIO  2
 python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Martingale Test
 # → output/esg_scenarios.csv       導入任意精算平台
 # → output/esg_scenarios.ESC       FIS Prophet 直接讀取</pre>
-  <p style="color:#d1fae5; font-size:0.84rem; margin:0;">
+  <p style="color:#d1fae5; font-size:0.84rem; margin:0 0 0.4rem 0;">
     📂 GitHub 倉庫：
     <a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7; font-weight:700;">
       github.com/woming98/hkrbc-esg
     </a>
     &nbsp;|&nbsp;
     文檔：見倉庫 README.md
+  </p>
+  <p style="color:#a7f3d0; font-size:0.83rem; margin:0;">
+    📖 想了解每一步的完整實作原理（yield curve bootstrapping → HW1F 校準 → martingale test → 輸出）？
+    見本節末尾的完整實作指南：
+    <a href="#esg-practitioner" style="color:#6ee7b7; font-weight:700;">§8.A ESG From-Scratch Practitioner Guide ↓</a>
   </p>
 </div>
 
@@ -1806,9 +1811,35 @@ python examples/run_esg.py          # 生成 1,000 條情景，自動通過 Mart
 <h3 id="esg-practitioner">§8.A ESG From-Scratch Methodology — Practitioner Step-by-Step Guide 從零實作方法論</h3>
 
 <p>
-  The §9.5 overview presented the conceptual menu of ESG models. This subsection gives the <strong>practitioner-level methodology</strong>
-  — a step-by-step decision and implementation path that takes you from "I understand the formulas" to "I can build a working ESG from scratch."
-  Code implementation is the easier part; the hard part is making correct choices at every decision point. Below is the decision &amp; methodology framework.
+  本節為 <strong>實作層面的完整方法論</strong>，逐步解析如何從零構建一個符合 HKRBC 要求的 ESG，
+  並對應到開源項目 <a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7; font-weight:600;">hkrbc-esg</a> 的具體代碼模塊。
+  每一步的「概念原理」與「代碼位置」均一一對應，方便對照閱讀和二次開發。
+</p>
+
+<div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.7rem 1rem; margin-bottom:0.8rem; font-size:0.83rem; color:#94a3b8;">
+  <strong style="color:#6ee7b7;">§8.A 與 hkrbc-esg 的對應關係</strong>
+  <div class="tbl-wrap" style="margin-top:0.4rem;">
+  <table>
+    <tr><th>本節步驟</th><th>原理說明</th><th>hkrbc-esg 對應文件</th><th>核心函數/類</th></tr>
+    <tr><td>§8.A.1 Yield Curve</td><td>IA Sch.4 零息曲線 → 瞬時遠期利率 f(0,t)</td><td><code>src/yield_curve.py</code></td><td><code>YieldCurve.forward_rate(t)</code></td></tr>
+    <tr><td>§8.A.2 Parameter Selection</td><td>HW1F 參數 (a, σ) 校準至 swaption vol</td><td><code>config/esg_config.yaml</code></td><td><code>hull_white_1f.a / sigma</code></td></tr>
+    <tr><td>§8.A.3 Drift θ(t)</td><td>θ(t) 由 f(0,t) 唯一確定，確保精確擬合 yield curve</td><td><code>src/hw1f.py</code></td><td><code>HullWhite1F.alpha(t)</code></td></tr>
+    <tr><td>§8.A.4 Discretization</td><td>精確離散化（Exact discretization），非 Euler</td><td><code>src/hw1f.py</code></td><td><code>HullWhite1F.simulate()</code></td></tr>
+    <tr><td>§8.A.5 Monte Carlo</td><td>1,000 條情景 + 對偶變量法（antithetic variates）</td><td><code>examples/run_esg.py</code></td><td><code>main() → hw.simulate()</code></td></tr>
+    <tr><td>§8.A.6 Cholesky</td><td>多因子相關性（IR, EQ, CS, FX）</td><td><code>src/cholesky_corr.py</code></td><td><code>generate_correlated_normals()</code></td></tr>
+    <tr><td>§8.A.7 Validation</td><td>Martingale Test（Rule 19 要求）</td><td><code>src/martingale_test.py</code></td><td><code>test_bond_martingale() / test_equity_martingale()</code></td></tr>
+    <tr><td>§8.A.8 Output</td><td>CSV + Prophet .ESC 格式導出</td><td><code>src/scenario_output.py</code></td><td><code>export_to_csv() / export_prophet_esc()</code></td></tr>
+  </table>
+  </div>
+  <p style="margin:0.4rem 0 0 0; color:#64748b;">
+    一鍵運行：<code style="color:#a6e3a1;">python examples/run_esg.py</code>，即可完成上述全部步驟並輸出情景文件。
+    完整代碼：<a href="https://github.com/woming98/hkrbc-esg" target="_blank" style="color:#6ee7b7;">github.com/woming98/hkrbc-esg</a>
+  </p>
+</div>
+
+<p style="color:#9ca3af; font-size:0.85rem;">
+  以下各子節逐步說明每個決策點的原理、典型問題及解決方案。
+  代碼實現是較易的部分；難點在於每個決策點上做出正確選擇。
 </p>
 
 <!-- ─── §8.A.0 Model Selection Decision Tree ─── -->
