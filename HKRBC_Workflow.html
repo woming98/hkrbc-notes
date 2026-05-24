@@ -4601,6 +4601,55 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 
 <h3 id="alm-ir">§11.1 Interest Rate Risk PCR — Duration Mismatch Mechanics 利率風險PCR與久期錯配</h3>
 
+<!-- ── 利率上行的兩個反向效應 ── -->
+<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
+<p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>利率上行的兩個反向效應（ALM 核心矛盾）</strong></p>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
+<table style="color:#e5e7eb;">
+  <tr><th>效應</th><th>方向</th><th>機制</th><th>時間窗口</th></tr>
+  <tr style="color:#e5e7eb;"><td><strong>MtM 損失</strong>（存量債券）</td><td>負面 ↓</td><td>現有債券市值下跌：ΔP ≈ −D × Δr<br/>（例：7yr × +1% = −7%）</td><td>即時發生</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>Reinvestment Rate 上升</strong>（新現金流）</td><td>正面 ↑</td><td>到期本息再投資、新保費可買更高息債券</td><td>逐步累積（數年）</td></tr>
+</table>
+</div>
+<p style="font-size:0.84rem; color:#ccc; margin:0.3rem 0;">
+  <strong>淨效應取決於持有期 vs 資產久期：</strong><br/>
+  • 短期（&lt; 資產久期）：MtM 損失先行，reinvestment 未積累 → 淨效果為負<br/>
+  • 長期（&gt; 資產久期）：reinvestment 持續積累，最終超過 MtM 損失 → 淨效果轉正<br/>
+  • <strong>久期匹配點</strong>：資產久期 = 負債久期時，兩個效應在負債兌付時間窗口內恰好抵消 → 利率中性（ALM 目標）
+</p>
+<p style="font-size:0.84rem; color:#ccc; margin:0.3rem 0 0;">
+  <strong>對 Par Fund 的影響：</strong>
+  利率上行短期壓低 earned rate → credited rate 跟不上 → DPB lapse 上升（β₁ 觸發）；
+  但 2–3 年後 reinvestment rate 回升，earned rate 修復。
+  低利率才是 Par Fund 的長期風險（guaranteed rate &gt; earned rate 持續無法靠 reinvestment 修復）
+  → 這是 TVOG 主要由低利率情景驅動的原因。
+</p>
+</div>
+
+<!-- ── HTM vs MtM ── -->
+<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.6rem 0 1rem 0;">
+<p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>HTM vs MtM — 會計分類 vs HKRBC EBS 處理</strong></p>
+<div class="tbl-wrap" style="font-size:0.84rem; margin-bottom:0.5rem;">
+<table style="color:#e5e7eb;">
+  <tr><th></th><th>HTM（持有至到期，攤余成本）</th><th>FVTPL / FVOCI（公允價值）</th></tr>
+  <tr style="color:#e5e7eb;"><td><strong>HKFRS 9 賬面</strong></td><td>攤余成本，不反映利率變動 → P&amp;L 穩定</td><td>即時反映 MtM：FVTPL → P&amp;L；FVOCI → OCI</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>實際經濟價值</strong></td><td colspan="2" style="text-align:center;">完全相同！利率上行時，兩者的經濟價值都下跌 ΔP ≈ −D × Δr</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>HKRBC EBS</strong></td><td colspan="2" style="text-align:center;">全部按<strong>市場價值</strong>計量（Rule 11–12），與 HKFRS 9 分類無關 → HTM 債券在 EBS 下同樣 MtM</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>息票 / 再投資</strong></td><td colspan="2" style="text-align:center;">完全相同，會計分類不影響現金流</td></tr>
+  <tr style="color:#e5e7eb;"><td><strong>流動性風險</strong></td><td>⚠️ 更高：HKFRS 9 "tainting rule"，賣出任一 HTM 債券 → 整個 HTM 組合須重分類</td><td>隨時可賣，但實現賬面虧損</td></tr>
+</table>
+</div>
+<p style="font-size:0.84rem; color:#fca5a5; background:#2d1515; border-left:3px solid #f87171; padding:0.4rem 0.6rem; margin:0.3rem 0 0.3rem 0;">
+  ⛔ HTM 只是<strong>會計外觀上的平滑</strong>，不提供任何經濟保護。
+  ESG / ALM 建模必須用 MtM（經濟價值）建模，否則低估利率風險。
+</p>
+<p style="font-size:0.84rem; color:#ccc; margin:0.3rem 0 0;">
+  <strong>對 Par Fund earned rate 的影響：</strong><br/>
+  • 正確做法（EBS 口徑）：earned rate 包含 MtM 變動，即使債券為 HTM 會計分類<br/>
+  • 常見簡化：部分公司的 AS 模型僅計算息票收入，忽略 HTM 組合的 MtM → 低估利率上行時的短期 earned rate 衝擊（及低利率時的 MtM 收益）
+</p>
+</div>
+
 <p>
   Under Rule 47, the Interest Rate (IR) stress scenarios apply parallel shifts to the yield curve.
   The resulting <strong>Net ΔNAV = ΔNAV(assets) − ΔNAV(liabilities)</strong> is the risk capital amount.
