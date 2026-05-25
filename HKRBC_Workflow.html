@@ -4861,8 +4861,70 @@ assert r2 &gt; 0.95, f"擬合 R²={r2:.3f} 不足，須擴充訓練情景或提�
   <li>Higher TVOG → higher CE → lower NAV → lower Capital Base</li>
   <li>Under interest rate down stress: guarantees more likely to trigger → TVOG rises → contributes to IR Down PCR (Rule 47)</li>
   <li>Under equity stress: VA GMxB TVOG can spike sharply → significant Equity PCR contribution (Rule 49)</li>
-  <li>TVOG is NOT recalculated in every PCR stress separately — it is part of CE under each stressed valuation</li>
+  <li>TVOG is NOT recalculated in every PCR stress separately — it is part of CE under each stressed valuation（詳見下方）</li>
 </ul>
+
+<div class="callout" style="background:#f0f9ff; border-left:4px solid #0ea5e9; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+  <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>「TVOG 不是 PCR 中獨立重算的項目」是什麼意思？</strong></p>
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
+    HKRBC PCR 採用 <strong>full revaluation</strong> 法：每個壓力情景下，將整個 EBS 重新估值，再用 NAV 差額算 PCR。
+  </p>
+  <div class="formula" style="font-size:0.92rem;">
+    \[
+      \mathrm{PCR}_{\text{stress}} = \mathrm{NAV}_{\text{baseline}} - \mathrm{NAV}_{\text{stress}}
+    \]
+    \[
+      \mathrm{CE}_{\text{stress}} = \underbrace{\mathrm{DetCE}_{\text{stress}}}_{\text{壓力後現金流現值}} + \underbrace{\mathrm{TVOG}_{\text{stress}}}_{\text{用壓力 ESG 重算}}
+    \]
+  </div>
+  <p style="font-size:0.92rem; margin:0.4rem 0;">
+    換言之：TVOG 在每個壓力情景下「自然地」隨 CE 重算而變化，<strong>不存在</strong>一個獨立的「TVOG stress shock」附加項。
+  </p>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>常見誤解 vs 正確做法 Worked Comparison</strong>：</p>
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>方法</th><th>操作</th><th>是否正確</th></tr>
+    <tr>
+      <td>❌ 誤解 A</td>
+      <td>Baseline TVOG = 100；IR Down stress 時直接「TVOG +30%」 → 130，加到原 CE 上算 PCR</td>
+      <td>錯。TVOG 不是 standalone shock</td>
+    </tr>
+    <tr>
+      <td>❌ 誤解 B</td>
+      <td>每個 PCR stress 下只重算 DetCE，TVOG 沿用 baseline 值</td>
+      <td>錯。會嚴重低估壓力下的 CE</td>
+    </tr>
+    <tr>
+      <td>✅ 正確</td>
+      <td>對每個 PCR stress（IR Down／Equity Down／Lapse Up…），用 <strong>該壓力下重新校準的 ESG</strong> 重跑 stochastic projection，得到 \(\mathrm{TVOG}_{\text{stress}}\)，與 \(\mathrm{DetCE}_{\text{stress}}\) 一起構成 \(\mathrm{CE}_{\text{stress}}\)</td>
+      <td>是。Full revaluation 標準作法</td>
+    </tr>
+  </table>
+  </div>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>具體流程示意（以 IR Down 25% 為例）</strong>：</p>
+  <pre class="diagram" style="font-size:0.85rem;">
+  Baseline                          IR Down Stress (Rule 47)
+  ─────────────                     ─────────────────────────
+  HKMA curve r(t)                   r_stress(t) = r(t) × 0.75
+        │                                  │
+        ▼                                  ▼
+  ESG calibrated to r(t)            ESG re-calibrated to r_stress(t)
+        │                                  │
+        ▼                                  ▼
+  CE = DetCE + TVOG = 1,000         CE_stress = DetCE_s + TVOG_s = 1,180
+  NAV = Assets − CE = 500           NAV_stress = Assets − CE_stress = 320
+                                           │
+                                           ▼
+                          PCR_IR_Down = 500 − 320 = 180
+                                  （TVOG 從 100 升至 165 已被自然涵蓋）
+  </pre>
+
+  <p style="font-size:0.92rem; margin:0.4rem 0 0 0; color:#475569;">
+    <strong>實務簡化：</strong> Full revaluation 每個 stress 都重跑 ESG 計算量極大，業界普遍用 §10.1.5(c) <strong>Curve Fitting / Proxy Function</strong> 預先擬合 \(\mathrm{TVOG} = f(\text{IR level, Equity, Vol, ...})\)，每個 stress 僅代入函數秒級得到 \(\mathrm{TVOG}_{\text{stress}}\)。此即「TVOG 內嵌於 CE 重估」的工程實現。
+  </p>
+</div>
 
 <h4>§10.1.8 Practical Production Setup 實務生產配置</h4>
 
