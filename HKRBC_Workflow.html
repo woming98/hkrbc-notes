@@ -234,9 +234,9 @@ MathJax = {
 
   <div class="nav-section">§9 Asset Share 資產份額</div>
   <a href="#asset-share">§9 Asset Share Overview</a>
-  <a href="#as-credited">§9.1 Credited Rate &amp; Bonus</a>
-  <a href="#as-dpb">§9.2 DPB Lapse 動態退保</a>
-  <a href="#as-recursion">§9.3 AS Recursion 遞推公式</a>
+  <a href="#as-recursion">§9.1 AS Recursion 遞推公式</a>
+  <a href="#as-credited">§9.2 Credited Rate &amp; Bonus 計息率</a>
+  <a href="#as-dpb">§9.3 DPB Lapse 動態退保</a>
 
   <div class="nav-section">§10 TVOG 時間價值</div>
   <a href="#tvog">§10 TVOG Deep-Dive</a>
@@ -3618,357 +3618,15 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   The two purposes require different AS architectures. See §10 for how AS feeds into the TVOG calculation pipeline.
 </p>
 
-<h3 id="as-credited" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Credited Rate &amp; Bonus Declaration</h3>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
-  Apply the smoothing rule to derive the credited rate from the earned rate:
-  \[
-    r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
-  \]
-  Reversionary Bonus (RB) is declared annually based on credited rate minus guaranteed rate minus expense loading.<br/>
-  Terminal Bonus (TB) is set as a function of <em>AS(t,s)</em> — typically: \(\mathrm{TB}(t,s) = \max(AS(t,s) - \mathrm{Sum\,Assured} - \text{Accrued\,RB},\;0)\).<br/>
-  <em>Key GL34 constraint</em>: the smoothing rule must be pre-defined and consistently applied across scenarios — management cannot change it scenario by scenario.
-</p>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<h3 id="as-dpb" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.2 Dynamic Policyholder Behaviour (DPB) Lapse</h3>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.4rem 0;">
-  The full DPB formula has <strong>two drivers</strong> — interest rate gap and TB anticipation:
-  \[
-    q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
-    + \underbrace{\beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)}_{\text{interest rate substitution effect}}
-    + \underbrace{\beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t{+}1,s)}{TB(t,s)},\;0\right)}_{\text{TB lock-in anticipation effect}}\right)
-  \]
-</p>
+<h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Asset Share Recursion 遞推公式</h3>
 
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Term</th><th>Driver</th><th>Intuition</th><th>Typical β</th></tr>
-  <tr>
-    <td><strong>β₁ term</strong></td>
-    <td>Market rate − credited rate</td>
-    <td>When external products offer more than the credited rate, policyholders switch out</td>
-    <td>1.5–3.0</td>
-  </tr>
-  <tr>
-    <td><strong>β₂ term</strong></td>
-    <td>Expected TB decline ratio</td>
-    <td>Policyholders surrender early to lock in current TB before it falls next year</td>
-    <td>1.0–2.0</td>
-  </tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Implementation in Prophet</strong></p>
-<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
-# Prophet variable pseudo-code
-
-RFR_SHORT     = ESG_FACTOR("rfr_short", T, S)                          # from ESG file
-CREDITED_RATE = AVG(EARNED_RATE[-2], EARNED_RATE[-1], EARNED_RATE[0])  # 3-yr smooth
-
-# β₁ — interest rate substitution effect
-IR_EXCESS = MAX(RFR_SHORT - CREDITED_RATE, 0)
-
-# β₂ — TB lock-in anticipation
-# IMPORTANT: TB(t-1) as proxy for TB_exp(t+1) gives WRONG direction —
-#   when rates fall, TB(t) < TB(t-1) → β₂ term = 0, but lapse should be high.
-# Three correct approaches below:
-
-# Approach A: Use credited rate vs guaranteed rate as trigger (recommended)
-TB_DROPPING     = IF(CREDITED_RATE < GUARANTEED_RATE, 1, 0)
-TB_DROP_APPROX  = MAX(1 - CREDITED_RATE / GUARANTEED_RATE, 0)  # severity of drop
-
-# Approach B: Two-pass (det first, then stoch uses det TB as TB_exp)
-# TB_EXP = TB_DET[T+1]   # pre-computed from deterministic run (pass 1)
-# TB_DROP_APPROX = MAX((TERMINAL_BONUS[0] - TB_EXP) / MAX(TERMINAL_BONUS[0], 0.001), 0)
-
-# Approach C: Set β₂ = 0 (simplest — skip TB term entirely)
-# Use when TB anticipation is hard to calibrate or β₂ = 0 is actuary judgement
-
-# Full DPB multiplier (using Approach A)
-DPB_MULT = 1 + BETA_1 * IR_EXCESS + BETA_2 * TB_DROP_APPROX * TB_DROPPING
-
-# Apply caps and floors
-LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
-                  lower = BASE_LAPSE / 2,   # floor: lapse never drops to zero
-                  upper = 1.0)              # cap: cannot exceed 100%
-</pre>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: Why It Is Hard and How to Handle It</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
-  Prophet projects step-by-step — TB(t+1) is unknown at time t. Using TB(t−1) as a proxy gives the <strong>wrong direction</strong>:
-  when rates fall and TB is declining, TB(t) &lt; TB(t−1), making the β₂ term zero — exactly when lapse pressure should be highest.
-  The three practical approaches are:
-</p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Approach</th><th>Method</th><th>Direction Correct?</th><th>When to Use</th></tr>
-  <tr>
-    <td><strong>A — credited vs guaranteed trigger</strong></td>
-    <td>β₂ fires when credited_rate &lt; guaranteed_rate; severity = (1 − credited/guaranteed)</td>
-    <td>✅ Yes — fires in low-rate scenarios</td>
-    <td>Recommended default; no look-ahead needed</td>
-  </tr>
-  <tr>
-    <td><strong>B — two-pass (det → stoch)</strong></td>
-    <td>Run deterministic pass first to get TB_det(t+1); use as TB_exp in stochastic pass</td>
-    <td>✅ Yes</td>
-    <td>Most GL34-compliant; requires two Prophet runs per quarter</td>
-  </tr>
-  <tr>
-    <td><strong>C — set β₂ = 0</strong></td>
-    <td>Omit TB anticipation entirely; rely on β₁ to capture rate-driven lapse</td>
-    <td>N/A</td>
-    <td>Most common in practice; safe when TB anticipation is unobservable historically</td>
-  </tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Where Each Component Lives</strong></p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Component</th><th>Where Implemented</th><th>Reason</th></tr>
-  <tr><td>Base lapse rates (q_base)</td><td>External — Experience Study (R / Python)</td><td>Requires historical data regression across large policy population</td></tr>
-  <tr><td>β₁, β₂ calibration</td><td>External — regression analysis (Python statsmodels)</td><td>Statistical modelling; fit against observed lapses vs rate differentials</td></tr>
-  <tr><td>DPB formula itself</td><td><strong>Prophet variable</strong></td><td>Must be evaluated dynamically per scenario per time step</td></tr>
-  <tr><td>credited_rate smoothing</td><td><strong>Prophet variable</strong></td><td>Tracks rolling earned rate history within Prophet</td></tr>
-  <tr><td>rfr_short input</td><td>ESG scenario file (.csv) → Prophet reads at runtime</td><td>Prophet indexes by [scenario, time step]</td></tr>
-  <tr><td>Lapse output validation</td><td>External — Python post-processing</td><td>Check DPB lapse stays within bounds; flag mass-lapse scenarios</td></tr>
-</table>
-</div>
-</div>
-
-<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.3 Asset Share Recursion</h3>
-
-<!-- AS(0) 初始值 -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.4rem 0 0.2rem 0;"><strong>5.0 — Setting AS(0): Initial Value at Valuation Date</strong></p>
-
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  For new policies: \(AS(0) = 0\). For in-force policies (the main HKRBC case), AS(0) must be derived from the Par Fund Net Assets (PFNA) and allocated to each policy / model point.
-</p>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>What is Par Fund Net Assets (PFNA)?</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  The Par fund is a ring-fenced pool. PFNA is what remains after deducting external (non-policyholder) liabilities from total investment assets:
-  \[ \text{PFNA} = \text{Total Investment Assets (MtM)} - \text{External Liabilities} \]
-</p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Asset Side (MtM under EBS)</th><th>Typical Weight</th><th>External Liabilities (deducted)</th></tr>
-  <tr><td>Government &amp; investment-grade bonds</td><td>50–70%</td><td>Tax payable (16.5% on investment income)</td></tr>
-  <tr><td>Equities</td><td>10–25%</td><td>Outstanding claims / reinsurance payables</td></tr>
-  <tr><td>Property (appraised value)</td><td>5–15%</td><td>Unpaid commissions &amp; expenses</td></tr>
-  <tr><td>Cash &amp; equivalents</td><td>5–10%</td><td>Other creditors</td></tr>
-  <tr><td colspan="3" style="color:#aaa; font-size:0.82rem;"><em>Note: Policy liabilities / AS are NOT deducted — AS is what PFNA is being allocated into</em></td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Three Methods to Estimate Per-Policy AS(0)</em></p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Method</th><th>Formula</th><th>Accuracy</th><th>GL34</th></tr>
-  <tr>
-    <td><strong>1. Historical Roll-forward</strong></td>
-    <td>Roll each policy from inception using actual historical i, E, claims, PROF</td>
-    <td>Highest</td>
-    <td>Required for audit purposes</td>
-  </tr>
-  <tr>
-    <td><strong>2. Policy Value Proxy</strong></td>
-    <td>\(AS_i(0)^{\text{raw}} = \text{PFNA}\times V_i / \sum_j V_j\) where \(V_i\) = policy reserve</td>
-    <td>Medium</td>
-    <td>Acceptable as starting point</td>
-  </tr>
-  <tr>
-    <td><strong>3. Sum Assured × Duration Weight</strong></td>
-    <td>Coarse proxy; weighted by SA × policy age factor</td>
-    <td>Low</td>
-    <td>Quick estimate only</td>
-  </tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Workflow: Model Point Aggregation + Fund-Level Scaling</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  Since Prophet projects at model point level (not individual policy), the per-policy AS(0) must be:
-  (a) averaged within each model point group, then (b) scaled to reconcile with PFNA:
-</p>
-<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
-# 1. Group policies into model points (by product / age band / sum assured band)
-#    Each model point j has: AS_j_raw (weighted avg of policy AS_i), in_force_count_j
-
-# 2. Portfolio-level sum before scaling
-AS_portfolio = sum(AS_j_raw * in_force_count_j  for j in model_points)
-
-# 3. Scaling factor (should be close to 1.0; GL34 flag if |α-1| > 5%)
-alpha = PFNA / AS_portfolio
-
-# 4. Final AS(0) per model point — feed into Prophet input file
-AS_j_final = AS_j_raw * alpha   # apply same α to all model points
-                                  # (or different α per product line if gap is concentrated)
-</pre>
-
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Model Point</th><th>AS(0) raw</th><th>In-force count</th><th>Sub-total</th><th>AS(0) after α=1.044</th></tr>
-  <tr><td>MP-01 (30yr Endow, Age 35–44)</td><td>50,000</td><td>80,000</td><td>4,000M</td><td>52,200</td></tr>
-  <tr><td>MP-02 (WL Par, Age 45–54)</td><td>35,000</td><td>120,000</td><td>4,200M</td><td>36,540</td></tr>
-  <tr><td>MP-03 (WL Par, Age 55–64)</td><td>30,000</td><td>80,000</td><td>2,400M</td><td>31,320</td></tr>
-  <tr><td>… other MPs …</td><td>—</td><td>—</td><td>−350M</td><td>—</td></tr>
-  <tr><td><strong>Total</strong></td><td></td><td></td><td><strong>10,200M</strong></td><td></td></tr>
-  <tr><td colspan="5" style="color:#aaa;">PFNA = 10,650M → α = 10,650 / 10,200 = <strong>1.044</strong></td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Is α ≠ 1? Common Sources of Gap</em></p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
-<table>
-  <tr><th>Source</th><th>Explanation</th></tr>
-  <tr><td>Incomplete historical PROF records</td><td>Early-vintage policies may have missing profit transfer data in admin system</td></tr>
-  <tr><td>Model point aggregation smoothing</td><td>Averaging within groups loses within-group AS dispersion</td></tr>
-  <tr><td>Unallocated surplus</td><td>Fund may hold surplus not yet declared as bonus to any policy</td></tr>
-  <tr><td>MtM vs book value mismatch</td><td>PFNA uses MtM assets; historical roll-forward may use book-value earned rates</td></tr>
-</table>
-</div>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
-  GL34 §4 requires α to be documented at each valuation date. If |α − 1| &gt; 5%, a written explanation is required. PFNA itself is scenario-independent in practice — companies use the actual valuation-date PFNA for all ESG scenarios rather than re-computing MtM PFNA per scenario.
-</p>
-
-<!-- AS recursion 正文 -->
-<!-- ── 两种 AS 架构 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.2rem 0;"><strong>5.1 — Two AS Rollforward Architectures</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  In practice two distinct AS architectures exist, serving different purposes:
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
-  <tr><td><strong>Recursion</strong></td>
-      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
-      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
-  <tr><td><strong>DIV_t</strong></td>
-      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
-      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
-  <tr><td><strong>Surrender Value</strong></td>
-      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
-      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
-  <tr><td><strong>AS meaning</strong></td>
-      <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
-      <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
-  <tr><td><strong>Primary use</strong></td>
-      <td>HKRBC TVOG stochastic projection</td>
-      <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
-  <tr><td><strong>TVOG suitability</strong></td>
-      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
-      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
-  If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
-  CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
-  The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
-<table>
-  <tr><th>SV Treatment</th><th>TVOG Result</th><th>Correct?</th></tr>
-  <tr><td>Static CSV table (scenario-independent)</td><td>≈ 0 — all scenarios pay same SV</td><td>❌</td></tr>
-  <tr><td>Dynamic: max(AS(t,s), GSV_floor)</td><td>Reflects option value — higher in stressed scenarios</td><td>✅</td></tr>
-  <tr><td>Architecture B with scenario-dependent DIV + SV</td><td>Equivalent to Architecture A if consistently applied</td><td>✅</td></tr>
-</table>
-</div>
-
-<!-- ── Architecture A 的隐含红利理解 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
-  A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
-</p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
-  <strong>Answer: dividends are deferred, not eliminated.</strong>
-  In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
-  At exit (surrender / maturity / death), the policyholder receives:
-  \[
-    SV = \max\!\bigl(AS(t,s),\; GSV_{\text{floor}}\bigr)
-  \]
-  \[
-    TB(t,s) = \max\!\bigl(AS(t,s) - SA - \text{Accrued RB},\; 0\bigr)
-  \]
-  TB is exactly the "crystallised dividends" — everything the fund accumulated above the guaranteed floor, paid out in one lump sum.
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
-<table>
-  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
-  <tr><td><strong>Each year</strong></td>
-      <td>Dividend stays inside AS, compounds with fund return</td>
-      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
-  <tr><td><strong>At surrender / maturity</strong></td>
-      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
-      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
-  <tr><td><strong>Total policyholder value</strong></td>
-      <td>= SV (lump sum at exit)</td>
-      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
-  <tr><td><strong>Economically equivalent?</strong></td>
-      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
-  <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
-  So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
-  the insurer's floor guarantee is clearly visible as an option.
-  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
-</p>
-
-<!-- ── Prophet 实务分工 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
-  In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
-</p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
-<table>
-  <tr><th></th><th>Architecture A — TVOG / RBC Model</th><th>Architecture B — Bonus Projection Model</th></tr>
-  <tr><td><strong>Prophet model</strong></td><td>HKRBC stochastic run</td><td>Bonus recommendation / management projection</td></tr>
-  <tr><td><strong>Scenarios</strong></td><td>1,000 ESG paths × full projection</td><td>1–5 management scenarios (best estimate ± stress)</td></tr>
-  <tr><td><strong>SV in Prophet</strong></td>
-      <td><code>SV = MAX(AS_THEORETICAL, GSV_FLOOR)</code> — fully path-dependent</td>
-      <td><code>SV = CSV_TABLE[POL_YEAR]</code> or dynamic</td></tr>
-  <tr><td><strong>DPB lapse</strong></td><td>Full β₁ + β₂ formula</td><td>Simplified or static</td></tr>
-  <tr><td><strong>Dividend output</strong></td><td>TB implicit in SB/MB flows at exit</td><td>DIV_t explicit output used for GL34 bonus sustainability report</td></tr>
-  <tr><td><strong>Run frequency</strong></td><td>Quarterly (RBC reporting)</td><td>Annually (bonus recommendation to board)</td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
-  <strong>Why not merge into one model?</strong>
-  (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
-  (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
-  (3) Validation differs: Architecture A is validated via martingale test; Architecture B via historical dividend sustainability back-test.<br/>
-  <em>Small companies with limited IT resources sometimes use Architecture A only, and produce a separate Excel bonus projection workbook for the board.</em>
-</p>
-
-<!-- ── 术语说明 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th>Symbol</th><th>Full Name</th><th>Meaning in Par Context</th></tr>
-  <tr><td><strong>SA</strong></td><td>Sum Assured（保額）</td><td>The guaranteed death benefit written in the policy contract — the minimum floor for death benefit regardless of AS level. If AS &lt; SA (extreme low-rate scenario), insurer tops up from smoothing reserve or capital. TB = max(AS − SA − Accrued RB, 0): SA is the "already-promised" base that TB sits on top of.</td></tr>
-  <tr><td><strong>RB</strong></td><td>Reversionary Bonus（可逆紅利）</td><td>Annual bonus permanently added to guaranteed benefit; once declared cannot be taken back. Accrued RB = Σ of all past RB declarations.</td></tr>
-  <tr><td><strong>TB</strong></td><td>Terminal Bonus（終止紅利）</td><td>Non-guaranteed top-up paid at surrender/death/maturity; set to bridge the gap between SA + Accrued RB and AS. Volatile across scenarios.</td></tr>
-  <tr><td><strong>DIV</strong></td><td>Dividend / Cash Bonus（現金紅利）</td><td>Architecture B only: annual cash payment to policyholders, separate from the guaranteed benefit accumulation. Must be scenario-dependent for TVOG.</td></tr>
-  <tr><td><strong>GSV</strong></td><td>Guaranteed Surrender Value（保證退保價值）</td><td>Contractually guaranteed minimum SV written in policy schedule. SV = max(AS, GSV). GSV is usually &lt; AS in normal scenarios.</td></tr>
-</table>
-</div>
-
-<!-- ── 5.2 正文 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>5.2 — The Recursion (t = 1, 2, …, T)</strong></p>
+<!-- 主递推公式 -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>The Recursion Formula (t = 1, 2, …, T)</strong></p>
 <p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
-  With AS(0) set above, propagate forward year by year (Architecture A shown):
+  Propagate forward year by year (Architecture A shown):
   \[
     AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
   \]
@@ -4140,6 +3798,359 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
   <tr><td><strong>1 — BOY AS</strong></td><td>AS(t−1)</td><td>Lower</td><td>No</td><td>✅ Prophet default</td></tr>
   <tr><td><strong>2 — Two-Pass</strong></td><td>AS_gross(t)</td><td>Medium</td><td>No</td><td>✅ Common for stress scenarios</td></tr>
   <tr><td><strong>3 — Closed Form</strong></td><td>AS(t) exact</td><td>Highest</td><td>No</td><td>✅ When SV = AS</td></tr>
+</table>
+</div>
+
+<!-- 关键术语 -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Symbol</th><th>Full Name</th><th>Meaning in Par Context</th></tr>
+  <tr><td><strong>SA</strong></td><td>Sum Assured（保額）</td><td>The guaranteed death benefit written in the policy contract — the minimum floor for death benefit regardless of AS level. If AS &lt; SA (extreme low-rate scenario), insurer tops up from smoothing reserve or capital. TB = max(AS − SA − Accrued RB, 0): SA is the "already-promised" base that TB sits on top of.</td></tr>
+  <tr><td><strong>RB</strong></td><td>Reversionary Bonus（可逆紅利）</td><td>Annual bonus permanently added to guaranteed benefit; once declared cannot be taken back. Accrued RB = Σ of all past RB declarations.</td></tr>
+  <tr><td><strong>TB</strong></td><td>Terminal Bonus（終止紅利）</td><td>Non-guaranteed top-up paid at surrender/death/maturity; set to bridge the gap between SA + Accrued RB and AS. Volatile across scenarios.</td></tr>
+  <tr><td><strong>DIV</strong></td><td>Dividend / Cash Bonus（現金紅利）</td><td>Architecture B only: annual cash payment to policyholders, separate from the guaranteed benefit accumulation. Must be scenario-dependent for TVOG.</td></tr>
+  <tr><td><strong>GSV</strong></td><td>Guaranteed Surrender Value（保證退保價值）</td><td>Contractually guaranteed minimum SV written in policy schedule. SV = max(AS, GSV). GSV is usually &lt; AS in normal scenarios.</td></tr>
+</table>
+</div>
+
+<!-- ── 5.2 正文 ── -->
+
+<!-- 两种架构 A vs B -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  In practice two distinct AS architectures exist, serving different purposes:
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
+  <tr><td><strong>Recursion</strong></td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
+  <tr><td><strong>DIV_t</strong></td>
+      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
+      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
+  <tr><td><strong>Surrender Value</strong></td>
+      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
+      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
+  <tr><td><strong>AS meaning</strong></td>
+      <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
+      <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
+  <tr><td><strong>Primary use</strong></td>
+      <td>HKRBC TVOG stochastic projection</td>
+      <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
+  <tr><td><strong>TVOG suitability</strong></td>
+      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
+      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
+  CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
+  The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>SV Treatment</th><th>TVOG Result</th><th>Correct?</th></tr>
+  <tr><td>Static CSV table (scenario-independent)</td><td>≈ 0 — all scenarios pay same SV</td><td>❌</td></tr>
+  <tr><td>Dynamic: max(AS(t,s), GSV_floor)</td><td>Reflects option value — higher in stressed scenarios</td><td>✅</td></tr>
+  <tr><td>Architecture B with scenario-dependent DIV + SV</td><td>Equivalent to Architecture A if consistently applied</td><td>✅</td></tr>
+</table>
+</div>
+
+<!-- ── Architecture A 的隐含红利理解 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
+</p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  <strong>Answer: dividends are deferred, not eliminated.</strong>
+  In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
+  At exit (surrender / maturity / death), the policyholder receives:
+  \[
+    SV = \max\!\bigl(AS(t,s),\; GSV_{\text{floor}}\bigr)
+  \]
+  \[
+    TB(t,s) = \max\!\bigl(AS(t,s) - SA - \text{Accrued RB},\; 0\bigr)
+  \]
+  TB is exactly the "crystallised dividends" — everything the fund accumulated above the guaranteed floor, paid out in one lump sum.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
+  <tr><td><strong>Each year</strong></td>
+      <td>Dividend stays inside AS, compounds with fund return</td>
+      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
+  <tr><td><strong>At surrender / maturity</strong></td>
+      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
+      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
+  <tr><td><strong>Total policyholder value</strong></td>
+      <td>= SV (lump sum at exit)</td>
+      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
+  <tr><td><strong>Economically equivalent?</strong></td>
+      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
+  So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
+  the insurer's floor guarantee is clearly visible as an option.
+  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
+</p>
+
+<!-- ── Prophet 实务分工 ── -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A — TVOG / RBC Model</th><th>Architecture B — Bonus Projection Model</th></tr>
+  <tr><td><strong>Prophet model</strong></td><td>HKRBC stochastic run</td><td>Bonus recommendation / management projection</td></tr>
+  <tr><td><strong>Scenarios</strong></td><td>1,000 ESG paths × full projection</td><td>1–5 management scenarios (best estimate ± stress)</td></tr>
+  <tr><td><strong>SV in Prophet</strong></td>
+      <td><code>SV = MAX(AS_THEORETICAL, GSV_FLOOR)</code> — fully path-dependent</td>
+      <td><code>SV = CSV_TABLE[POL_YEAR]</code> or dynamic</td></tr>
+  <tr><td><strong>DPB lapse</strong></td><td>Full β₁ + β₂ formula</td><td>Simplified or static</td></tr>
+  <tr><td><strong>Dividend output</strong></td><td>TB implicit in SB/MB flows at exit</td><td>DIV_t explicit output used for GL34 bonus sustainability report</td></tr>
+  <tr><td><strong>Run frequency</strong></td><td>Quarterly (RBC reporting)</td><td>Annually (bonus recommendation to board)</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+  <strong>Why not merge into one model?</strong>
+  (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
+  (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
+  (3) Validation differs: Architecture A is validated via martingale test; Architecture B via historical dividend sustainability back-test.<br/>
+  <em>Small companies with limited IT resources sometimes use Architecture A only, and produce a separate Excel bonus projection workbook for the board.</em>
+</p>
+
+<!-- ── 术语说明 ── -->
+
+<!-- AS(0) 初始化 -->
+
+<!-- AS(0) 初始值 -->
+<p style="font-size:0.88rem; color:#aaa; margin:0.4rem 0 0.2rem 0;"><strong>AS(0) Initialization: Initial Value at Valuation Date</strong></p>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  For new policies: \(AS(0) = 0\). For in-force policies (the main HKRBC case), AS(0) must be derived from the Par Fund Net Assets (PFNA) and allocated to each policy / model point.
+</p>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>What is Par Fund Net Assets (PFNA)?</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  The Par fund is a ring-fenced pool. PFNA is what remains after deducting external (non-policyholder) liabilities from total investment assets:
+  \[ \text{PFNA} = \text{Total Investment Assets (MtM)} - \text{External Liabilities} \]
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Asset Side (MtM under EBS)</th><th>Typical Weight</th><th>External Liabilities (deducted)</th></tr>
+  <tr><td>Government &amp; investment-grade bonds</td><td>50–70%</td><td>Tax payable (16.5% on investment income)</td></tr>
+  <tr><td>Equities</td><td>10–25%</td><td>Outstanding claims / reinsurance payables</td></tr>
+  <tr><td>Property (appraised value)</td><td>5–15%</td><td>Unpaid commissions &amp; expenses</td></tr>
+  <tr><td>Cash &amp; equivalents</td><td>5–10%</td><td>Other creditors</td></tr>
+  <tr><td colspan="3" style="color:#aaa; font-size:0.82rem;"><em>Note: Policy liabilities / AS are NOT deducted — AS is what PFNA is being allocated into</em></td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Three Methods to Estimate Per-Policy AS(0)</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Method</th><th>Formula</th><th>Accuracy</th><th>GL34</th></tr>
+  <tr>
+    <td><strong>1. Historical Roll-forward</strong></td>
+    <td>Roll each policy from inception using actual historical i, E, claims, PROF</td>
+    <td>Highest</td>
+    <td>Required for audit purposes</td>
+  </tr>
+  <tr>
+    <td><strong>2. Policy Value Proxy</strong></td>
+    <td>\(AS_i(0)^{\text{raw}} = \text{PFNA}\times V_i / \sum_j V_j\) where \(V_i\) = policy reserve</td>
+    <td>Medium</td>
+    <td>Acceptable as starting point</td>
+  </tr>
+  <tr>
+    <td><strong>3. Sum Assured × Duration Weight</strong></td>
+    <td>Coarse proxy; weighted by SA × policy age factor</td>
+    <td>Low</td>
+    <td>Quick estimate only</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Workflow: Model Point Aggregation + Fund-Level Scaling</em></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+  Since Prophet projects at model point level (not individual policy), the per-policy AS(0) must be:
+  (a) averaged within each model point group, then (b) scaled to reconcile with PFNA:
+</p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
+# 1. Group policies into model points (by product / age band / sum assured band)
+#    Each model point j has: AS_j_raw (weighted avg of policy AS_i), in_force_count_j
+
+# 2. Portfolio-level sum before scaling
+AS_portfolio = sum(AS_j_raw * in_force_count_j  for j in model_points)
+
+# 3. Scaling factor (should be close to 1.0; GL34 flag if |α-1| > 5%)
+alpha = PFNA / AS_portfolio
+
+# 4. Final AS(0) per model point — feed into Prophet input file
+AS_j_final = AS_j_raw * alpha   # apply same α to all model points
+                                  # (or different α per product line if gap is concentrated)
+</pre>
+
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Model Point</th><th>AS(0) raw</th><th>In-force count</th><th>Sub-total</th><th>AS(0) after α=1.044</th></tr>
+  <tr><td>MP-01 (30yr Endow, Age 35–44)</td><td>50,000</td><td>80,000</td><td>4,000M</td><td>52,200</td></tr>
+  <tr><td>MP-02 (WL Par, Age 45–54)</td><td>35,000</td><td>120,000</td><td>4,200M</td><td>36,540</td></tr>
+  <tr><td>MP-03 (WL Par, Age 55–64)</td><td>30,000</td><td>80,000</td><td>2,400M</td><td>31,320</td></tr>
+  <tr><td>… other MPs …</td><td>—</td><td>—</td><td>−350M</td><td>—</td></tr>
+  <tr><td><strong>Total</strong></td><td></td><td></td><td><strong>10,200M</strong></td><td></td></tr>
+  <tr><td colspan="5" style="color:#aaa;">PFNA = 10,650M → α = 10,650 / 10,200 = <strong>1.044</strong></td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Is α ≠ 1? Common Sources of Gap</em></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>Source</th><th>Explanation</th></tr>
+  <tr><td>Incomplete historical PROF records</td><td>Early-vintage policies may have missing profit transfer data in admin system</td></tr>
+  <tr><td>Model point aggregation smoothing</td><td>Averaging within groups loses within-group AS dispersion</td></tr>
+  <tr><td>Unallocated surplus</td><td>Fund may hold surplus not yet declared as bonus to any policy</td></tr>
+  <tr><td>MtM vs book value mismatch</td><td>PFNA uses MtM assets; historical roll-forward may use book-value earned rates</td></tr>
+</table>
+</div>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+  GL34 §4 requires α to be documented at each valuation date. If |α − 1| &gt; 5%, a written explanation is required. PFNA itself is scenario-independent in practice — companies use the actual valuation-date PFNA for all ESG scenarios rather than re-computing MtM PFNA per scenario.
+</p>
+
+<!-- AS recursion 正文 -->
+<!-- ── 两种 AS 架构 ── -->
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<h3 id="as-credited" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.2 Credited Rate &amp; Bonus Declaration 計息率與紅利宣告</h3>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+  Apply the smoothing rule to derive the credited rate from the earned rate:
+  \[
+    r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
+  \]
+  Reversionary Bonus (RB) is declared annually based on credited rate minus guaranteed rate minus expense loading.<br/>
+  Terminal Bonus (TB) is set as a function of <em>AS(t,s)</em> — typically: \(\mathrm{TB}(t,s) = \max(AS(t,s) - \mathrm{Sum\,Assured} - \text{Accrued\,RB},\;0)\).<br/>
+  <em>Key GL34 constraint</em>: the smoothing rule must be pre-defined and consistently applied across scenarios — management cannot change it scenario by scenario.
+</p>
+</div>
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<h3 id="as-dpb" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.3 Dynamic Policyholder Behaviour (DPB) Lapse</h3>
+<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.4rem 0;">
+  The full DPB formula has <strong>two drivers</strong> — interest rate gap and TB anticipation:
+  \[
+    q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
+    + \underbrace{\beta_1\cdot\max\!\bigl(r^f(t,s) - r^{\text{cred}}(t,s),\;0\bigr)}_{\text{interest rate substitution effect}}
+    + \underbrace{\beta_2\cdot\max\!\left(\frac{TB(t,s)-TB^{\text{exp}}(t{+}1,s)}{TB(t,s)},\;0\right)}_{\text{TB lock-in anticipation effect}}\right)
+  \]
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Term</th><th>Driver</th><th>Intuition</th><th>Typical β</th></tr>
+  <tr>
+    <td><strong>β₁ term</strong></td>
+    <td>Market rate − credited rate</td>
+    <td>When external products offer more than the credited rate, policyholders switch out</td>
+    <td>1.5–3.0</td>
+  </tr>
+  <tr>
+    <td><strong>β₂ term</strong></td>
+    <td>Expected TB decline ratio</td>
+    <td>Policyholders surrender early to lock in current TB before it falls next year</td>
+    <td>1.0–2.0</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Implementation in Prophet</strong></p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
+# Prophet variable pseudo-code
+
+RFR_SHORT     = ESG_FACTOR("rfr_short", T, S)                          # from ESG file
+CREDITED_RATE = AVG(EARNED_RATE[-2], EARNED_RATE[-1], EARNED_RATE[0])  # 3-yr smooth
+
+# β₁ — interest rate substitution effect
+IR_EXCESS = MAX(RFR_SHORT - CREDITED_RATE, 0)
+
+# β₂ — TB lock-in anticipation
+# IMPORTANT: TB(t-1) as proxy for TB_exp(t+1) gives WRONG direction —
+#   when rates fall, TB(t) < TB(t-1) → β₂ term = 0, but lapse should be high.
+# Three correct approaches below:
+
+# Approach A: Use credited rate vs guaranteed rate as trigger (recommended)
+TB_DROPPING     = IF(CREDITED_RATE < GUARANTEED_RATE, 1, 0)
+TB_DROP_APPROX  = MAX(1 - CREDITED_RATE / GUARANTEED_RATE, 0)  # severity of drop
+
+# Approach B: Two-pass (det first, then stoch uses det TB as TB_exp)
+# TB_EXP = TB_DET[T+1]   # pre-computed from deterministic run (pass 1)
+# TB_DROP_APPROX = MAX((TERMINAL_BONUS[0] - TB_EXP) / MAX(TERMINAL_BONUS[0], 0.001), 0)
+
+# Approach C: Set β₂ = 0 (simplest — skip TB term entirely)
+# Use when TB anticipation is hard to calibrate or β₂ = 0 is actuary judgement
+
+# Full DPB multiplier (using Approach A)
+DPB_MULT = 1 + BETA_1 * IR_EXCESS + BETA_2 * TB_DROP_APPROX * TB_DROPPING
+
+# Apply caps and floors
+LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
+                  lower = BASE_LAPSE / 2,   # floor: lapse never drops to zero
+                  upper = 1.0)              # cap: cannot exceed 100%
+</pre>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: Why It Is Hard and How to Handle It</strong></p>
+<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+  Prophet projects step-by-step — TB(t+1) is unknown at time t. Using TB(t−1) as a proxy gives the <strong>wrong direction</strong>:
+  when rates fall and TB is declining, TB(t) &lt; TB(t−1), making the β₂ term zero — exactly when lapse pressure should be highest.
+  The three practical approaches are:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Approach</th><th>Method</th><th>Direction Correct?</th><th>When to Use</th></tr>
+  <tr>
+    <td><strong>A — credited vs guaranteed trigger</strong></td>
+    <td>β₂ fires when credited_rate &lt; guaranteed_rate; severity = (1 − credited/guaranteed)</td>
+    <td>✅ Yes — fires in low-rate scenarios</td>
+    <td>Recommended default; no look-ahead needed</td>
+  </tr>
+  <tr>
+    <td><strong>B — two-pass (det → stoch)</strong></td>
+    <td>Run deterministic pass first to get TB_det(t+1); use as TB_exp in stochastic pass</td>
+    <td>✅ Yes</td>
+    <td>Most GL34-compliant; requires two Prophet runs per quarter</td>
+  </tr>
+  <tr>
+    <td><strong>C — set β₂ = 0</strong></td>
+    <td>Omit TB anticipation entirely; rely on β₁ to capture rate-driven lapse</td>
+    <td>N/A</td>
+    <td>Most common in practice; safe when TB anticipation is unobservable historically</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Where Each Component Lives</strong></p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th>Component</th><th>Where Implemented</th><th>Reason</th></tr>
+  <tr><td>Base lapse rates (q_base)</td><td>External — Experience Study (R / Python)</td><td>Requires historical data regression across large policy population</td></tr>
+  <tr><td>β₁, β₂ calibration</td><td>External — regression analysis (Python statsmodels)</td><td>Statistical modelling; fit against observed lapses vs rate differentials</td></tr>
+  <tr><td>DPB formula itself</td><td><strong>Prophet variable</strong></td><td>Must be evaluated dynamically per scenario per time step</td></tr>
+  <tr><td>credited_rate smoothing</td><td><strong>Prophet variable</strong></td><td>Tracks rolling earned rate history within Prophet</td></tr>
+  <tr><td>rfr_short input</td><td>ESG scenario file (.csv) → Prophet reads at runtime</td><td>Prophet indexes by [scenario, time step]</td></tr>
+  <tr><td>Lapse output validation</td><td>External — Python post-processing</td><td>Check DPB lapse stays within bounds; flag mass-lapse scenarios</td></tr>
 </table>
 </div>
 </div>
