@@ -3,7 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>HKRBC Calculation Framework — Workflow Notes</title>
+<title>HKRBC Calculation Framework — Nelson Qiu | Actuarial Reference</title>
+<meta name="author" content="Nelson Qiu" />
+<meta name="description" content="Comprehensive HKRBC Cap. 41R actuarial reference by Nelson Qiu — covering TVOG, ESG, Asset Share, MA, PCR and Prophet modelling." />
+<!-- Open Graph for LinkedIn / social sharing -->
+<meta property="og:title" content="HKRBC Actuarial Reference — Nelson Qiu" />
+<meta property="og:description" content="Cap. 41R · TVOG · ESG · Asset Share · Prophet — In-depth technical notes by a senior actuarial analyst." />
+<meta property="og:type" content="website" />
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontSize: 15 });</script>
 <script>
@@ -398,6 +404,77 @@ MathJax = {
     </div>
   </div>
 </section>
+
+<!-- ══════════ AUTHOR PROFILE ══════════ -->
+<div id="author-band" style="
+  background:#fff;
+  border-bottom:1px solid #d1d9e6;
+  padding:1.4rem 2.5rem;
+">
+  <div style="max-width:1180px; margin:0 auto; display:flex; align-items:center; gap:1.6rem; flex-wrap:wrap;">
+
+    <!-- 头像 -->
+    <div style="
+      width:56px; height:56px; border-radius:50%; flex-shrink:0;
+      background:linear-gradient(135deg,#0f2044,#1e4080);
+      display:flex; align-items:center; justify-content:center;
+      font-size:1.25rem; font-weight:700; color:#c6993a;
+      letter-spacing:0.02em; box-shadow:0 2px 8px rgba(15,32,68,0.25);
+    ">NQ</div>
+
+    <!-- 姓名与标题 -->
+    <div style="flex-shrink:0;">
+      <div style="font-size:1.08rem; font-weight:700; color:#0f2044; letter-spacing:0.01em;">Nelson Qiu</div>
+      <div style="font-size:0.8rem; color:#5a6a7a; margin-top:2px;">
+        Senior Actuarial Analyst &nbsp;·&nbsp; Nearly Fellow &nbsp;·&nbsp; HKRBC Specialist
+      </div>
+    </div>
+
+    <!-- 分割线 -->
+    <div style="width:1px; height:44px; background:#d1d9e6; flex-shrink:0;"></div>
+
+    <!-- 简介 -->
+    <div style="flex:1; min-width:260px; font-size:0.84rem; color:#3a4a5a; line-height:1.6;">
+      Senior actuarial professional specialising in <strong>HKRBC (Cap. 41R)</strong> risk capital modelling,
+      stochastic <strong>TVOG</strong> valuation and <strong>ESG</strong> construction for Par funds.
+      Builds production-grade models bridging regulatory frameworks with quantitative Python implementation.
+      Progressing towards <strong>Fellowship</strong>.
+    </div>
+
+    <!-- 技能标签 -->
+    <div style="display:flex; flex-wrap:wrap; gap:5px; flex-shrink:0; max-width:260px;">
+      <span style="background:#f0f4f8; border:1px solid #d1d9e6; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#0f2044; font-weight:600;">Python</span>
+      <span style="background:#f0f4f8; border:1px solid #d1d9e6; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#0f2044; font-weight:600;">Prophet (FIS)</span>
+      <span style="background:#f0f4f8; border:1px solid #d1d9e6; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#0f2044; font-weight:600;">R</span>
+      <span style="background:#f0f4f8; border:1px solid #d1d9e6; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#0f2044; font-weight:600;">Excel / VBA</span>
+      <span style="background:#f0f4f8; border:1px solid #d1d9e6; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#0f2044; font-weight:600;">SQL</span>
+      <span style="background:#f8f0dc; border:1px solid #e0c870; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#7a5a10; font-weight:600;">TVOG</span>
+      <span style="background:#f8f0dc; border:1px solid #e0c870; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#7a5a10; font-weight:600;">ESG</span>
+      <span style="background:#f8f0dc; border:1px solid #e0c870; border-radius:12px; padding:2px 9px; font-size:0.72rem; color:#7a5a10; font-weight:600;">GL34</span>
+    </div>
+
+    <!-- 联系按钮 -->
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+      <a href="mailto:womingqiu@gmail.com" style="
+        display:inline-flex; align-items:center; gap:5px;
+        background:#0f2044; color:#fff; text-decoration:none;
+        font-size:0.78rem; font-weight:600; border-radius:5px;
+        padding:0.42rem 0.95rem; transition:background 0.15s;
+      " onmouseover="this.style.background='#1e4080'" onmouseout="this.style.background='#0f2044'">
+        ✉ Email
+      </a>
+      <a href="https://github.com/woming98" target="_blank" rel="noopener" style="
+        display:inline-flex; align-items:center; gap:5px;
+        background:transparent; color:#0f2044; text-decoration:none;
+        font-size:0.78rem; font-weight:600; border-radius:5px;
+        padding:0.42rem 0.95rem; border:1px solid #d1d9e6; transition:all 0.15s;
+      " onmouseover="this.style.background='#f0f4f8'" onmouseout="this.style.background='transparent'">
+        ⌥ GitHub
+      </a>
+    </div>
+
+  </div>
+</div>
 
 <!-- ══════════ CONTENT LAYOUT ══════════ -->
 <div class="content-layout">
