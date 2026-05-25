@@ -242,8 +242,15 @@ MathJax = {
   <a href="#as-dpb">§9.6 DPB Lapse 動態退保</a>
 
   <div class="nav-section">§10 TVOG 時間價值</div>
-  <a href="#tvog">§10 TVOG Deep-Dive</a>
-  <a href="#par-tvog">§10.2 Par Fund TVOG 分紅基金</a>
+  <a href="#tvog">§10 TVOG Overview</a>
+  <a href="#tvog-q-rationale">§10.0 Why Q-measure?</a>
+  <a href="#tvog-q-ftap">§10.0.1 FTAP &amp; Girsanov</a>
+  <a href="#tvog-q-par-gsv">§10.0.2 Par Fund GSV Put</a>
+  <a href="#tvog-q-measure-divergence">§10.0.3 Measure Divergence</a>
+  <a href="#tvog-q-regulatory">§10.0.4 Intuition &amp; Rule 19</a>
+  <a href="#alm-model-tvog">§10.1 TVOG Fundamentals</a>
+  <a href="#esg-q-mode">§10.1.9 Worked Example</a>
+  <a href="#par-tvog">§10.2 Par Fund TVOG</a>
   <a href="#alm-model-prophet">§10.3 Prophet End-to-End</a>
 
   <div class="nav-section">§11 ALM 資產負債管理</div>
@@ -3963,6 +3970,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 <div style="background:#2a1010; border:1px solid #7f1d1d; border-radius:6px; padding:0.9rem 1.1rem; margin:0.5rem 0 0.3rem 0;">
 <p style="font-size:0.9rem; color:#fca5a5; margin:0 0 0.5rem 0;"><strong>⛔ 為什麼 TVOG 不能用 Real-World（P-measure）情景？</strong></p>
 
+<h4 id="tvog-q-ftap" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.1 Mathematical Foundation — FTAP &amp; Girsanov Theorem 數學根源</h4>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
   <strong>1. 數學根源：無套利定價必須在 Q-measure 下進行</strong>
 </p>
@@ -4020,8 +4028,9 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <strong>類比保險精算：</strong> 保險公司定價用的死亡率，不是真實人群死亡率，而是加了風險邊際的「定價死亡率」——同樣是「虛構」但在定價框架內自洽，目的是確保定價的一致性和充足性。Q-measure 概率亦然。
 </p>
 
+<h4 id="tvog-q-par-gsv" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.2 Par Fund Application — GSV Put &amp; Swaption Pricing 分紅基金應用</h4>
 <!-- Par Fund 無保證利率，但有 GSV Put -->
-<p style="font-size:0.88rem; color:#fca5a5; margin:0.6rem 0 0.3rem 0;"><strong>Par Fund 特殊情境：沒有保證利率，仍需 Q-measure</strong></p>
+<p style="font-size:0.88rem; color:#fca5a5; margin:0.4rem 0 0.3rem 0;"><strong>Par Fund 特殊情境：沒有保證利率，仍需 Q-measure</strong></p>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   Par Fund 的 TVOG 不來自「保證利率 g」，而來自兩個隱含的硬性期權：
 </p>
@@ -4220,6 +4229,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   TVOG 必須按 Q-measure 計算，以確保嵌入期權的估值與 OTC 市場一致。</strong>
 </p>
 
+<h4 id="tvog-q-measure-divergence" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.3 Measure Divergence &amp; Martingale Test 測度偏差量化</h4>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
   Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
@@ -4239,6 +4249,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 </p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
+  <h4 id="tvog-q-regulatory" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.4 Intuition &amp; Regulatory Requirement 直觀理解與監管依據</h4>
   <strong>2. 直觉理解：P-measure 低估了極端情景的權重</strong><br/>
   P-measure 的 drift 更高（含 ERP 和 term premium），路徑平均向上偏移：
 </p>
@@ -4288,7 +4299,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <li><strong>Stochastic CE (隨機式現時估計值):</strong> Arithmetic mean of PV of cash flows across N ≥ 1,000 risk-neutral economic scenarios.</li>
 </ul>
 
-<h4>Why TVOG ≠ 0 — Jensen's Inequality</h4>
+<h4>§10.1.1b Why TVOG ≠ 0 — Jensen's Inequality 為何 TVOG 不為零</h4>
 
 <p>The root cause of non-zero TVOG is <strong>asymmetric payoff</strong> from policyholder options and insurer guarantees. By Jensen's inequality, for a convex payoff function f(X):</p>
 
@@ -4306,7 +4317,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   \]
 </div>
 
-<h4>Intuitive Example: Universal Life with 2% Minimum Crediting Rate</h4>
+<h4>§10.1.1c Intuitive Example: Universal Life with 2% MGCR 直觀例子</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -4674,7 +4685,7 @@ for t in range(1, T+1):
 <!-- ══════════════════════════════════════════════════════════════ -->
 <div style="border-left:4px solid #10b981; padding-left:0.8rem; margin:0.8rem 0 0.4rem 0;">
   <h4 id="esg-q-mode" style="color:#6ee7b7; margin:0 0 0.2rem 0;">
-    §8.A-Q &nbsp; HKRBC TVOG 模式（Q-measure / 風險中性）
+    §10.1.9 &nbsp; HKRBC TVOG Q-mode 端到端操作（Q-measure / 風險中性）
   </h4>
   <p style="font-size:0.84rem; color:#a7f3d0; margin:0;">
     適用於：HKRBC Cap. 41R Rule 19 TVOG 計算、IFRS 17 MRB 計量。<br/>
@@ -4683,7 +4694,7 @@ for t in range(1, T+1):
 </div>
 
 <!-- ══ 完整操作案例 ══ -->
-<h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§8.A-Q.* 完整操作案例：從配置到 TVOG（Par Fund，10年期）</h4>
+<h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§10.1.9a 完整操作案例：從 ESG 配置到 TVOG（Par Fund，10年期）</h4>
 <p style="font-size:0.84rem; color:#9ca3af; margin-bottom:0.5rem;">
   以下用 hkrbc-esg 的實際執行結果，端到端演示：設定 → 執行 → 讀取輸出 → 解讀情景 → 連接 TVOG。<br/>
   假設：HKD Par Fund，SA=100，GSV=80，10年期，IA Sch.4 HKD 利率曲線（3.35%–3.80%）。
