@@ -3614,7 +3614,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   (1) <strong>TVOG / RBC</strong>: stochastic projection under ESG scenarios to compute the option value of guarantees;<br/>
   (2) <strong>Bonus determination</strong>: GL34-compliant retrospective rollforward to support reversionary and terminal bonus recommendations to the board.
 </p>
-<p style="font-size:0.88rem; color:#aaa;">
+<p style="font-size:0.88rem; color:#475569;">
   The two purposes require different AS architectures. See §10 for how AS feeds into the TVOG calculation pipeline.
 </p>
 
@@ -3624,8 +3624,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Asset Share Recursion 遞推公式</h3>
 
 <!-- 主递推公式 -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>The Recursion Formula (t = 1, 2, …, T)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>The Recursion Formula (t = 1, 2, …, T)</strong></p>
+<p style="margin:0.3rem 0 0.5rem 0;">
   Propagate forward year by year (Architecture A shown):
   \[
     AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
@@ -3692,8 +3692,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.3rem 0 0.3rem 0;"><strong>Other Decrements beyond Death and Lapse?</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.3rem 0 0.3rem 0;"><strong>Other Decrements beyond Death and Lapse?</strong></p>
+<p style="margin:0.2rem 0 0.7rem 0;">
   For a standard Par whole life / endowment, the two main decrements are <strong>death</strong> (q<sub>d</sub>) and <strong>lapse/surrender</strong> (q<sub>w</sub>).
   Additional decrements apply depending on product design:
 </p>
@@ -3708,15 +3708,15 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr><td><strong>Maturity</strong></td><td>Endowment / term policies</td><td>Not a decrement per se — 100% of in-force exits at policy end; AS(T,s) + TB(T,s) paid out</td></tr>
 </table>
 </div>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+<p style="margin:0.2rem 0 0.7rem 0;">
   The AS formula above should include all applicable decrements for the specific product being modelled.
   The AS path is <strong>fully path-dependent across time</strong> — you cannot vectorise across t or skip steps.
 </p>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.3rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.3rem 0;">
   <strong>Why AS Recursion Comes After DPB Lapse (Steps 3–4) in Execution Order</strong>
 </p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+<p style="margin:0.2rem 0 0.5rem 0;">
   AS(t,s) requires q_lapse(t,s) to compute SB_t. Since q_lapse is now computed in Step 4 (before this step),
   AS(t,s) can be calculated in a single pass with no circularity.
   The remaining question is which AS value the surrender payment SB should be based on — that is where the three methods below differ:
@@ -3724,7 +3724,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
 <!-- 方法一 -->
 <p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 1 — Use Beginning-of-Year AS (Prophet default)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="margin:0.2rem 0 0.3rem 0;">
   Surrender value is based on <em>last year's</em> AS, avoiding any circularity:
   \[
     SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS(t{-}1,s),\; SV_{\text{floor}}\bigr)
@@ -3746,7 +3746,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
 <!-- 方法二 -->
 <p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 2 — Two-Pass (Gross then Net)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="margin:0.2rem 0 0.3rem 0;">
   First compute a "gross" AS ignoring surrenders, then deduct surrenders based on that gross value:
   \[
     AS^{\text{gross}}(t,s) = AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
@@ -3771,7 +3771,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
 <!-- 方法三 -->
 <p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 3 — Closed-Form Solution (when SV = AS)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="margin:0.2rem 0 0.3rem 0;">
   When surrender value equals AS (i.e. SV_floor not binding), substituting \(SB_t = q_{\text{lapse}}\cdot AS(t,s)\) into the recursion and rearranging gives a direct solution:
   \[
     AS(t,s)\cdot\bigl(1 + q_{\text{lapse}}(t,s)\bigr) = AS(t{-}1,s)\cdot(1+i_t) + P_t - DB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
@@ -3802,7 +3802,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </div>
 
 <!-- 关键术语 -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Key Terms in the AS Formula</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
   <tr><th>Symbol</th><th>Full Name</th><th>Meaning in Par Context</th></tr>
@@ -3817,8 +3817,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <!-- ── 5.2 正文 ── -->
 
 <!-- 两种架构 A vs B -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
   In practice two distinct AS architectures exist, serving different purposes:
 </p>
 
@@ -3846,8 +3846,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
   If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
   CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
   The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
@@ -3863,11 +3863,11 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </div>
 
 <!-- ── Architecture A 的隐含红利理解 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
+<p style="margin:0.2rem 0 0.3rem 0;">
   A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
 </p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="margin:0.2rem 0 0.3rem 0;">
   <strong>Answer: dividends are deferred, not eliminated.</strong>
   In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
   At exit (surrender / maturity / death), the policyholder receives:
@@ -3897,7 +3897,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+<p style="margin:0.2rem 0 0.5rem 0;">
   <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
   So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
   the insurer's floor guarantee is clearly visible as an option.
@@ -3905,8 +3905,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </p>
 
 <!-- ── Prophet 实务分工 ── -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
+<p style="margin:0.2rem 0 0.3rem 0;">
   In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
@@ -3923,7 +3923,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+<p style="margin:0.2rem 0 0.5rem 0;">
   <strong>Why not merge into one model?</strong>
   (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
   (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
@@ -3936,14 +3936,14 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <!-- AS(0) 初始化 -->
 
 <!-- AS(0) 初始值 -->
-<p style="font-size:0.88rem; color:#aaa; margin:0.4rem 0 0.2rem 0;"><strong>AS(0) Initialization: Initial Value at Valuation Date</strong></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.4rem 0 0.2rem 0;"><strong>AS(0) Initialization: Initial Value at Valuation Date</strong></p>
 
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="margin:0.2rem 0 0.4rem 0;">
   For new policies: \(AS(0) = 0\). For in-force policies (the main HKRBC case), AS(0) must be derived from the Par Fund Net Assets (PFNA) and allocated to each policy / model point.
 </p>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>What is Par Fund Net Assets (PFNA)?</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>What is Par Fund Net Assets (PFNA)?</em></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
   The Par fund is a ring-fenced pool. PFNA is what remains after deducting external (non-policyholder) liabilities from total investment assets:
   \[ \text{PFNA} = \text{Total Investment Assets (MtM)} - \text{External Liabilities} \]
 </p>
@@ -3954,11 +3954,11 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr><td>Equities</td><td>10–25%</td><td>Outstanding claims / reinsurance payables</td></tr>
   <tr><td>Property (appraised value)</td><td>5–15%</td><td>Unpaid commissions &amp; expenses</td></tr>
   <tr><td>Cash &amp; equivalents</td><td>5–10%</td><td>Other creditors</td></tr>
-  <tr><td colspan="3" style="color:#aaa; font-size:0.82rem;"><em>Note: Policy liabilities / AS are NOT deducted — AS is what PFNA is being allocated into</em></td></tr>
+  <tr><td colspan="3" style="color:#64748b; font-size:0.82rem;"><em>Note: Policy liabilities / AS are NOT deducted — AS is what PFNA is being allocated into</em></td></tr>
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Three Methods to Estimate Per-Policy AS(0)</em></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Three Methods to Estimate Per-Policy AS(0)</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
   <tr><th>Method</th><th>Formula</th><th>Accuracy</th><th>GL34</th></tr>
@@ -3983,8 +3983,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Prophet Workflow: Model Point Aggregation + Fund-Level Scaling</em></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Prophet Workflow: Model Point Aggregation + Fund-Level Scaling</em></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
   Since Prophet projects at model point level (not individual policy), the per-policy AS(0) must be:
   (a) averaged within each model point group, then (b) scaled to reconcile with PFNA:
 </p>
@@ -4003,7 +4003,7 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
                                   # (or different α per product line if gap is concentrated)
 </pre>
 
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
+<p style="margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
   <tr><th>Model Point</th><th>AS(0) raw</th><th>In-force count</th><th>Sub-total</th><th>AS(0) after α=1.044</th></tr>
@@ -4012,11 +4012,11 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
   <tr><td>MP-03 (WL Par, Age 55–64)</td><td>30,000</td><td>80,000</td><td>2,400M</td><td>31,320</td></tr>
   <tr><td>… other MPs …</td><td>—</td><td>—</td><td>−350M</td><td>—</td></tr>
   <tr><td><strong>Total</strong></td><td></td><td></td><td><strong>10,200M</strong></td><td></td></tr>
-  <tr><td colspan="5" style="color:#aaa;">PFNA = 10,650M → α = 10,650 / 10,200 = <strong>1.044</strong></td></tr>
+  <tr><td colspan="5" style="color:#475569;">PFNA = 10,650M → α = 10,650 / 10,200 = <strong>1.044</strong></td></tr>
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><em>Why Is α ≠ 1? Common Sources of Gap</em></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Why Is α ≠ 1? Common Sources of Gap</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
 <table>
   <tr><th>Source</th><th>Explanation</th></tr>
@@ -4026,7 +4026,7 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
   <tr><td>MtM vs book value mismatch</td><td>PFNA uses MtM assets; historical roll-forward may use book-value earned rates</td></tr>
 </table>
 </div>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.7rem 0;">
+<p style="margin:0.2rem 0 0.7rem 0;">
   GL34 §4 requires α to be documented at each valuation date. If |α − 1| &gt; 5%, a written explanation is required. PFNA itself is scenario-independent in practice — companies use the actual valuation-date PFNA for all ESG scenarios rather than re-computing MtM PFNA per scenario.
 </p>
 
@@ -4036,7 +4036,7 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <h3 id="as-credited" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.2 Credited Rate &amp; Bonus Declaration 計息率與紅利宣告</h3>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="margin:0.3rem 0 0.7rem 0;">
   Apply the smoothing rule to derive the credited rate from the earned rate:
   \[
     r^{\text{cred}}(t,s) = \frac{1}{W}\sum_{\tau=t-W+1}^{t} i(\tau,s), \qquad W = \text{smoothing window (e.g. 3 yrs)}
@@ -4049,7 +4049,7 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <h3 id="as-dpb" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.3 Dynamic Policyholder Behaviour (DPB) Lapse</h3>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.4rem 0;">
+<p style="margin:0.3rem 0 0.4rem 0;">
   The full DPB formula has <strong>two drivers</strong> — interest rate gap and TB anticipation:
   \[
     q^{\text{lapse}}(t,s) = q^{\text{base}} \times \left(1
@@ -4076,7 +4076,7 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Implementation in Prophet</strong></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>Implementation in Prophet</strong></p>
 <pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
 # Prophet variable pseudo-code
 
@@ -4111,8 +4111,8 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
                   upper = 1.0)              # cap: cannot exceed 100%
 </pre>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: Why It Is Hard and How to Handle It</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.3rem 0;">
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>TB_expected: Why It Is Hard and How to Handle It</strong></p>
+<p style="margin:0.2rem 0 0.3rem 0;">
   Prophet projects step-by-step — TB(t+1) is unknown at time t. Using TB(t−1) as a proxy gives the <strong>wrong direction</strong>:
   when rates fall and TB is declining, TB(t) &lt; TB(t−1), making the β₂ term zero — exactly when lapse pressure should be highest.
   The three practical approaches are:
@@ -4141,7 +4141,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>Where Each Component Lives</strong></p>
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>Where Each Component Lives</strong></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
   <tr><th>Component</th><th>Where Implemented</th><th>Reason</th></tr>
