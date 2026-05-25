@@ -4932,12 +4932,110 @@ assert r2 &gt; 0.95, f"擬合 R²={r2:.3f} 不足，須擴充訓練情景或提�
 <table>
   <tr><th>Aspect</th><th>Typical Setup</th></tr>
   <tr><td>Scenario Engine</td><td>Moody's B&amp;H / Conning GEMS / WTW STAR / self-built Python</td></tr>
-  <tr><td>CF Projection Model</td><td>Prophet ALS (stochastic mode) / AXIS / RiskAgility</td></tr>
+  <tr><td>CF Projection Model</td><td>Prophet ALS (stochastic mode) / AXIS / RiskAgility（詳見下方）</td></tr>
   <tr><td>Run Time</td><td>1,000-5,000 scenarios × 100 yrs × 500K policies ≈ 12-36 hours on grid (50-100 nodes)</td></tr>
   <tr><td>Frequency</td><td>Quarterly (HKRBC reporting); annually (ORSA)</td></tr>
   <tr><td>Validation</td><td>5-test ESG validation + product-level convergence test + sensitivity analysis</td></tr>
   <tr><td>Sign-off</td><td>Chief Actuary + Investment Officer (joint for Par fund / VA)</td></tr>
 </table>
+</div>
+
+<div class="callout" style="background:#f0f9ff; border-left:4px solid #0ea5e9; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+  <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>Prophet ALS Stochastic Mode vs Deterministic Mode 兩種模式的實質差異</strong></p>
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
+    Prophet（FIS / SunGard，現 Prophet Professional + Prophet Enterprise）一個 model library 可在兩種執行模式下運行，差異不僅是「跑幾次」，而是輸入、變數定義、資產模型、執行引擎全面不同：
+  </p>
+
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>面向</th><th>Deterministic Mode（一般定價／IFRS17 BEL）</th><th>Stochastic Mode（ALS／DCS，用於 TVOG / RBC）</th></tr>
+    <tr>
+      <td><strong>情景數</strong></td>
+      <td>1 條（Best Estimate 或 HKMA 規定曲線）</td>
+      <td>N 條 ESG 情景（1,000–50,000，Q-measure 校準）</td>
+    </tr>
+    <tr>
+      <td><strong>輸入</strong></td>
+      <td>單一 yield curve、單一 equity return 假設</td>
+      <td>ESG 輸出檔（.esg / .csv）含 IR、Equity、FX、Credit Spread 等全因子按情景索引</td>
+    </tr>
+    <tr>
+      <td><strong>執行引擎</strong></td>
+      <td>Run（單 cell 運算）</td>
+      <td>ALS（Asset-Liability Strategy）／DCS（Dynamic Capital Solvency）；支援 nested stochastic（VA 對沖成本）</td>
+    </tr>
+    <tr>
+      <td><strong>Variable 寫法</strong></td>
+      <td><code>YieldCurve(t)</code> 直接讀 input table</td>
+      <td><code>DV_RandomVar("EqRet", t, scen)</code> 或 <code>DV_Scenario("IR_1Y", t)</code> 按情景索引</td>
+    </tr>
+    <tr>
+      <td><strong>資產模型</strong></td>
+      <td>簡化 book yield 或固定 reinvestment rate</td>
+      <td>完整 asset rebalancing：每情景下逐年買賣、計提 unrealised gain/loss、credit default 觸發</td>
+    </tr>
+    <tr>
+      <td><strong>Crediting Rate</strong></td>
+      <td>固定公式（如 5% 或 portfolio yield）</td>
+      <td>Dynamic Management Action：每情景下視 portfolio return 動態決定，受 board policy buffer / cap / floor 約束</td>
+    </tr>
+    <tr>
+      <td><strong>DPB Lapse</strong></td>
+      <td>靜態 lapse table（按 policy year）</td>
+      <td><code>q_lapse = q_base × (1 + β·max(r_mkt − r_credit, 0))</code>，每情景動態</td>
+    </tr>
+    <tr>
+      <td><strong>Output Variable</strong></td>
+      <td>OOV 單一值</td>
+      <td>OOV 按情景索引，可輸出 (T, N) 矩陣供後處理</td>
+    </tr>
+    <tr>
+      <td><strong>結果聚合</strong></td>
+      <td>單一 PV(CF) = BEL</td>
+      <td>\(\mathrm{TVOG} = \tfrac{1}{N}\sum_s \mathrm{PV}^{(s)}(\mathrm{CF}) - \mathrm{DetCE}\)</td>
+    </tr>
+    <tr>
+      <td><strong>隨機數控制</strong></td>
+      <td>不適用</td>
+      <td>Antithetic Variates、Sobol、Scenario Seed 鎖定（可重現）</td>
+    </tr>
+    <tr>
+      <td><strong>運算時間</strong></td>
+      <td>秒至分鐘級（單機）</td>
+      <td>小時至日級（須 grid 50–100 nodes）</td>
+    </tr>
+    <tr>
+      <td><strong>典型用途</strong></td>
+      <td>定價、IFRS17 BEL、簡單 reserving、Risk Margin 的 BE leg</td>
+      <td>TVOG、HKRBC EBS、ORSA、VA hedging、Par fund GL34 估值</td>
+    </tr>
+  </table>
+  </div>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>關鍵概念：同一份 model library</strong></p>
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
+    Prophet 的設計哲學是<strong>一份 Product Library 共用於 Det 與 Stoch 模式</strong>，靠 <em>環境變數</em>（<code>SCENARIO_INDEX</code>、<code>RUN_TYPE</code>）切換。實務上會在 Variable 中寫條件：
+  </p>
+
+<pre class="codeblock"><code>// Prophet DCS-style variable
+EARNED_RATE(t) =
+    IF RUN_TYPE = "DET" THEN
+        BookYield(t)
+    ELSE
+        DV_Scenario("PortfolioReturn", t, SCENARIO_INDEX)
+    ENDIF</code></pre>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>實作上的常見坑 Common Pitfalls</strong>：</p>
+  <ul style="font-size:0.92rem; margin:0.2rem 0 0 1.2rem; padding:0;">
+    <li>Det 模式下沒寫 <code>DV_</code>，切到 Stoch 時所有情景變成同一條 → TVOG ≈ 0</li>
+    <li>ESG 情景檔與 model library 的時間粒度不一致（月 vs 年）→ 隱性 mis-alignment</li>
+    <li>Stoch 模式忘記設定 <code>SeedReset</code>，每次跑結果隨機抖動</li>
+    <li>Det 模式跑出來的 BEL 直接拿來與 Stoch 的 \(E^Q[\mathrm{PV}]\) 相減算 TVOG，未對齊 discount basis</li>
+  </ul>
+
+  <p style="font-size:0.92rem; margin:0.5rem 0 0 0; color:#475569;">
+    <strong>結論：</strong> 用同一 Prophet library 時，<strong>Det 是 Stoch 的退化情形（N=1 且所有 <code>DV_</code> 退化為固定值）</strong>。TVOG 必須在 Stoch / ALS 模式跑，且須與 Det 結果的 discount curve / decrement basis 嚴格對齊。AXIS（Moody's）與 RiskAgility（WTW）有類似的 deterministic/stochastic 雙模式架構。
+  </p>
 </div>
 
 <!-- ════════ §9.7 Par fund TVOG Deep-Dive ════════ -->
