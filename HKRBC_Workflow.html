@@ -5072,60 +5072,158 @@ EARNED_RATE(t) =
 <!-- ══ 完整操作案例 ══ -->
 <h4 id="esg-worked-example" style="color:#a5b4fc; margin:0.6rem 0 0.3rem 0;">§10.1.9a 完整操作案例：從 ESG 配置到 TVOG（Par Fund，10年期）</h4>
 <p style="font-size:0.84rem; color:#9ca3af; margin-bottom:0.5rem;">
-  以下用 hkrbc-esg 的實際執行結果，端到端演示：設定 → 執行 → 讀取輸出 → 解讀情景 → 連接 TVOG。<br/>
-  假設：HKD Par Fund，SA=100，GSV=80，10年期，IA Sch.4 HKD 利率曲線（3.35%–3.80%）。
+  以下用開源項目 <a href="https://github.com/woming98/hkrbc-esg" style="color:#93c5fd;">github.com/woming98/hkrbc-esg</a> v2.0 的真實執行結果，端到端演示：設定 → 執行 → 讀取 10 列輸出 → 解讀情景 → 連接 TVOG。<br/>
+  假設：HKD Par Fund，SA=100，GSV=80，10年期，IA Sch.4 HKD 利率曲線（3.35%–3.80%），1,000 條 Q-measure 情景。
 </p>
 
-<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 1：更新配置（2 分鐘）</strong></p>
-<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.4rem; overflow-x:auto;"># config/esg_config.yaml — 每季更新 IA Sch.4 利率，其餘保持不變
-ia_schedule4:
+<!-- ─── 項目結構與輸出列對應 ─── -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 0：項目結構與輸出列對應（hkrbc-esg v2.0）</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.78rem; margin-bottom:0.3rem; overflow-x:auto;">hkrbc-esg/
+├── src/
+│   ├── yield_curve.py        # IA Schedule 4 利率曲線 + 瞬時遠期 f(0,t)
+│   ├── hw1f.py               # Hull-White 1F（Q-measure，精確離散化）  → rfr_short, disc_factor
+│   ├── hw2f.py               # Hull-White 2F (G2++)                   → rfr_short, disc_factor
+│   ├── lmm.py                # LIBOR Market Model                     → rfr_short, disc_factor
+│   ├── equity.py             # GBM 股票總回報（Q：drift=r；P：drift=r+ERP）→ eq_total_return
+│   ├── cir.py                # CIR 信用利差過程                       → credit_spread
+│   ├── fx.py                 # Garman-Kohlhagen 雙幣利差              → fx_rate
+│   ├── property_return.py    # Property Proxy（β·equity + lag + idio）→ prop_return
+│   ├── inflation.py          # OU 通脹過程                            → cpi_index, inflation_rate
+│   ├── cholesky_corr.py      # 4 因子 Cholesky 相關性 + 對偶變量法
+│   ├── martingale_test.py    # Bond/Equity 鞅檢驗（Rule 19）
+│   └── scenario_output.py    # CSV (10 列全因子) + Prophet .ESC 導出
+├── config/esg_config.yaml    # 統一參數：曲線、相關性、6 個因子模型
+├── examples/run_esg.py       # 主入口
+└── output/                   # esg_scenarios.csv / .ESC / esg_summary.csv</pre>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 1：更新配置（每季調整一次）</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.4rem; overflow-x:auto;"># config/esg_config.yaml
+mode: Q              # Q = TVOG / IFRS17；P = ALM/ORSA
+ir_model: HW1F       # HW1F / HW2F / LMM
+
+ia_schedule4:        # 每季更新 IA Sch.4 利率
   maturities: [1, 2, 3, 4, 5, 7, 10, 15, 20, 25, 30]
   spot_rates:  [0.0335, 0.0340, 0.0342, 0.0344, 0.0346,
                 0.0350, 0.0355, 0.0362, 0.0368, 0.0374, 0.0380]
-  ufr: 0.038   # IA G.N. 4006/2024：HKD/USD UFR = 3.8%
+  ufr: 0.038         # IA G.N. 4006/2024：HKD/USD UFR = 3.8%
 
 simulation:
-  n_scenarios: 1000   # HKRBC Rule 19 最低要求
-  projection_years: 30</pre>
+  n_scenarios: 1000          # HKRBC Rule 19 最低要求
+  projection_years: 30
+  time_step: monthly         # 月步長 → 360 步
+  random_seed: 42
 
-<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 2：一鍵執行（&lt; 10 秒）</strong></p>
-<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.8rem; margin-bottom:0.3rem; overflow-x:auto;">$ python examples/run_esg.py
+correlation:                 # 4 因子相關矩陣（Cholesky）
+  ir_eq: -0.20    ir_cs: -0.30    ir_fx:  0.10
+  eq_cs:  0.40    eq_fx: -0.15    cs_fx: -0.10
 
-[配置] 情景數=1000 | 期限=30年 | 步長=monthly | 種子=42
+hull_white_1f:  {a: 0.05, sigma: 0.01, term_premium_Q: 0.0, term_premium_P: 0.008}
+equity:         {s0: 1.0, sigma_eq: 0.20, equity_risk_premium_Q: 0.0, equity_risk_premium_P: 0.045}
+credit_spread:  {kappa: 0.15, mu: 0.01, sigma: 0.025, cs0: 0.0085}
+fx:             {enabled: true, s0: 1.0, sigma_fx: 0.001, r_f: 0.045}
+property_return:{enabled: true, beta: 0.6, lag_steps: 4, sigma_idio: 0.08, prop0: 1.0}
+inflation:      {enabled: true, pi0: 0.02, mu_pi: 0.03, kappa_pi: 0.2, sigma_pi: 0.015}
+
+martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 2：一鍵執行（實測 ≈ 20 秒，含 Martingale Test）</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.78rem; margin-bottom:0.3rem; overflow-x:auto;">$ python examples/run_esg.py
+
+  HKRBC ESG Generator v2.0
+  IR: HW1F / HW2F(G2++) / LMM
+  因子: IR · EQ · CS(CIR) · FX(GK) · Property · Inflation
+
+[配置]
+  模式     : Q-measure（風險中性 → HKRBC TVOG）
+  IR 模型  : HW1F
+  情景數   : 1000 | 期限: 30年 | 步長: monthly | 種子: 42
+
 [利率曲線] 已加載 11 個期限點，UFR=3.8%
-[HW1F] a=0.05, σ=0.01 | 正在生成 1000 條利率路徑...
-       利率路徑生成完成。r(0)=0.0326          ← 初始短端利率 3.26%
+[隨機數]   4 因子 Cholesky 相關矩陣生成完成（對偶變量法）
 
-[Martingale Test] 正在驗證情景的市場一致性...
-  債券鞅檢驗  1Y: 誤差 0.09% ✅   5Y: 誤差 0.41% ✅
-              7Y: 誤差 0.53% ✅  10Y: 誤差 0.68% ✅  15Y: 誤差 0.91% ✅
-  股票鞅檢驗  3Y: 誤差 0.09% ✅   9Y: 誤差 0.34% ✅  15Y: 誤差 0.86% ✅
+[IR 模型: HW1F]
+  a=0.05, σ=0.01, term_premium=0.0000
+  ✓ 利率路徑生成完成。r(0)=0.0326（3.26%）
+
+[股票 GBM] σ_eq=20%, ERP=0.0%
+  ✓ 期望年化回報 ≈ 3.26%（Q-measure：drift = r，無風險溢價）
+
+[信用利差 CIR] cs0=0.85%, μ=1%, κ=0.15, σ=0.025
+  ✓ 信用利差路徑生成完成。平均 10Y: 0.0082
+
+[FX GK] σ_fx=0.1%, r_f=4.5%
+  ✓ 匯率路徑生成完成。30Y 均值: 1.1123
+
+[房地產 Proxy] β=0.6, lag=4步, σ_idio=8%
+  ✓ 房地產路徑生成完成。30Y 均值: 2.1040
+
+[通脹 OU] π(0)=2.0%, μ=3.0%, κ=0.2, σ=1.5%
+  ✓ 通脹路徑生成完成。30Y 累計 CPI 均值: 2.5255（年化 3.14%）
+
+[Martingale Test] Q-mode：驗證情景市場一致性（Rule 19）...
+  [債券鞅檢驗] 允許誤差 ±1.0%   總體結果: ✅ PASSED
+    1Y 誤差 0.09%   3Y 誤差 0.26%   5Y 誤差 0.41%
+    7Y 誤差 0.53%  10Y 誤差 0.68%  15Y 誤差 0.91%
+  [股票鞅檢驗] 允許誤差 ±1.0%   總體結果: ✅ PASSED
+    3Y 誤差 0.09%   6Y 誤差 0.09%   9Y 誤差 0.34%
+   12Y 誤差 0.98%  15Y 誤差 0.86%
   最終結論: ✅ 情景符合 HKRBC Rule 19 鞅條件
 
-[輸出] output/esg_scenarios.csv (361,000 行)
-       output/esg_scenarios.ESC (FIS Prophet 格式)</pre>
+[輸出]
+  已保存 1000 條情景至: output/esg_scenarios.csv（共 361,000 行，10 列）
+  情景統計摘要已保存至:  output/esg_summary.csv
+  Prophet .ESC 文件已保存至: output/esg_scenarios.ESC</pre>
 
-<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 3：讀取情景文件（output/esg_scenarios.csv 前幾行）</strong></p>
-<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 3：讀取情景文件 — 完整 10 列（output/esg_scenarios.csv 前幾行）</strong></p>
+<div class="tbl-wrap" style="font-size:0.78rem; margin-bottom:0.3rem;">
 <table>
-  <tr><th>scenario</th><th>time_yr</th><th>rfr_short</th><th>disc_factor</th><th>eq_total_return</th><th>credit_spread</th></tr>
-  <tr><td>1</td><td>0.000</td><td>0.03259</td><td>1.00000</td><td>1.00000</td><td>0.00850</td></tr>
-  <tr><td>1</td><td>0.083</td><td>0.03329</td><td>0.99729</td><td>1.01884</td><td>0.00854</td></tr>
-  <tr><td>1</td><td>0.167</td><td>0.03306</td><td>0.99453</td><td>1.12939</td><td>0.00894</td></tr>
-  <tr><td>2</td><td>0.000</td><td>0.03259</td><td>1.00000</td><td>1.00000</td><td>0.00850</td></tr>
-  <tr><td>2</td><td>0.083</td><td>0.02191</td><td>0.99818</td><td>0.97844</td><td>0.00746</td></tr>
-  <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>
+  <tr><th>scenario</th><th>time_yr</th><th>rfr_short</th><th>disc_factor</th><th>eq_total_return</th><th>credit_spread</th><th>fx_rate</th><th>prop_return</th><th>cpi_index</th><th>inflation_rate</th></tr>
+  <tr><td>1</td><td>0.000</td><td>0.03259</td><td>1.00000</td><td>1.00000</td><td>0.00850</td><td>1.00000</td><td>1.00000</td><td>1.00000</td><td>0.02000</td></tr>
+  <tr><td>1</td><td>0.083</td><td>0.03329</td><td>0.99729</td><td>1.01884</td><td>0.00854</td><td>0.99903</td><td>0.97108</td><td>1.00167</td><td>0.02132</td></tr>
+  <tr><td>1</td><td>0.167</td><td>0.03306</td><td>0.99453</td><td>1.12939</td><td>0.00891</td><td>0.99795</td><td>0.92971</td><td>1.00345</td><td>0.02572</td></tr>
+  <tr><td>1</td><td>29.917</td><td>0.06442</td><td>0.31658</td><td>3.04441</td><td>0.01176</td><td>0.82016</td><td>1.82865</td><td>1.97703</td><td>−0.01713</td></tr>
+  <tr><td>2</td><td>0.083</td><td>0.02191</td><td>0.99818</td><td>0.97844</td><td>0.00746</td><td>1.00084</td><td>0.96134</td><td>1.00188</td><td>0.02256</td></tr>
+  <tr><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td><td>…</td></tr>
 </table>
 </div>
-<div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.4rem;">
+<p style="font-size:0.78rem; color:#9ca3af; margin:0 0 0.4rem 0;">
+  CSV 規模 = N × (T/dt + 1) = 1,000 × 361 = <strong>361,000 行 × 10 列</strong>。實際運行示例：情景 1 在 t=29.9 年時 rfr=6.44%、disc=0.317、股票指數累計 3.04、地產 1.83、CPI 1.98。
+</p>
+
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 3b：10 列含義與下游使用（每列對應 hkrbc-esg 中具體模塊）</strong></p>
+<div class="tbl-wrap" style="font-size:0.8rem; margin-bottom:0.4rem;">
 <table>
-  <tr><th>列名</th><th>含義</th><th>如何使用（Prophet / Excel）</th></tr>
-  <tr><td><code>rfr_short</code></td><td>當期瞬時無風險利率（年化）。初始 3.26%，各情景隨時間隨機波動</td><td>作為折現率、credited rate 的基準；在 Prophet 中賦值給 <code>RFR_SHORT</code> 全局參數</td></tr>
-  <tr><td><code>disc_factor</code></td><td>從 t=0 至當期的累計折現因子 exp(−∫r dt)。每月遞減</td><td>折現未來現金流至今日；TVOG = Σ (disc × CF) 的情景均值差</td></tr>
-  <tr><td><code>eq_total_return</code></td><td>股票累計總回報（以 1.0 為基準）。包括資本增值，不含稅</td><td>驅動 Par fund 資產端的股票倉位市值；與 rfr_short 負相關（ρ=−0.20）</td></tr>
-  <tr><td><code>credit_spread</code></td><td>IG 信用利差（年化）。初始 85bps，均值回歸至 80bps</td><td>驅動公司債 earned rate：earned rate ≈ rfr + credit_spread − EL</td></tr>
+  <tr><th>列名</th><th>含義 / 模型</th><th>源 Python 模塊</th><th>下游用途（Prophet / TVOG）</th></tr>
+  <tr><td><code>scenario</code></td><td>情景編號 1–N（前半 antithetic，後半為對偶）</td><td><code>scenario_output.py</code></td><td>Prophet 中 <code>SCENARIO_INDEX</code></td></tr>
+  <tr><td><code>time_yr</code></td><td>時間軸（年），monthly = 1/12 步長</td><td><code>scenario_output.py</code></td><td>Prophet 投影時間軸</td></tr>
+  <tr><td><code>rfr_short</code></td><td>瞬時無風險利率 r(t)，初始 3.26%</td><td><code>hw1f.py</code> / <code>hw2f.py</code> / <code>lmm.py</code></td><td>折現率、credited rate floor、DPB lapse 公式中 r_market</td></tr>
+  <tr><td><code>disc_factor</code></td><td>累計折現因子 \(D(t)=\exp(-\int_0^t r\,du)\)</td><td><code>hw1f.py</code>（內生）</td><td>負債現金流折現至今日：PV = Σ CF·D</td></tr>
+  <tr><td><code>eq_total_return</code></td><td>股票累計總回報指數（含資本增值）</td><td><code>equity.py</code></td><td>Par fund 股票倉位市值、UL/VA 帳戶價值 AV(t)</td></tr>
+  <tr><td><code>credit_spread</code></td><td>IG 信用利差（CIR 過程，初始 85bps）</td><td><code>cir.py</code></td><td>公司債 earned rate = rfr + cs − EL；MGCR 觸發判定</td></tr>
+  <tr><td><code>fx_rate</code></td><td>外幣對 HKD 匯率（GK 模型）</td><td><code>fx.py</code></td><td>USD/CNY 計價負債轉 HKD；多幣種對沖</td></tr>
+  <tr><td><code>prop_return</code></td><td>房地產累計回報指數（β·equity + lag + idio）</td><td><code>property_return.py</code></td><td>Par fund 地產倉位市值；HKRBC 房地產壓力測試</td></tr>
+  <tr><td><code>cpi_index</code></td><td>CPI 指數路徑（OU 通脹）</td><td><code>inflation.py</code></td><td>通脹掛鉤產品（CPI-linked annuity）、實質回報計算</td></tr>
+  <tr><td><code>inflation_rate</code></td><td>瞬時通脹率 π(t)</td><td><code>inflation.py</code></td><td>實質折現率 r_real = rfr − π；ORSA 通脹敏感性</td></tr>
 </table>
 </div>
+
+<!-- ─── 六因子在 Par fund TVOG 中的角色 ─── -->
+<p style="font-size:0.86rem; color:#c4b5fd; margin:0.4rem 0 0.1rem 0;"><strong>Step 3c：六因子在 Par fund TVOG 計算鏈中的角色</strong></p>
+<pre style="background:#0f172a; color:#a6e3a1; padding:0.6rem 0.9rem; border-radius:6px; font-size:0.78rem; margin-bottom:0.4rem; overflow-x:auto;">  IR (rfr_short, disc_factor) ───┬──→ 折現率：PV = Σ CF·D
+                                  ├──→ Earned rate 基準 + DPB lapse 觸發
+                                  └──→ Crediting rate 上限受 r 約束（GL34）
+  Equity (eq_total_return) ───────┬──→ Par fund 股票倉位市值演化
+                                  └──→ Asset Share 中股票部分回報
+  Credit Spread (credit_spread) ──┬──→ 公司債 earned rate
+                                  └──→ MGCR 觸發判定（earned &lt; floor → TVOG 增）
+  FX (fx_rate) ───────────────────┬──→ 多幣負債折回 HKD
+                                  └──→ 對沖 P&amp;L 與 EBS 重估
+  Property (prop_return) ─────────└──→ Par fund 地產倉位市值
+  Inflation (cpi/π) ──────────────└──→ CPI-linked 給付額；實質折現
+
+         所有 6 因子 ──→ Asset Share 演化 ──→ CF(t,s) ──→ BEL(s)
+                                                            │
+                              TVOG = (1/N)·Σ_s BEL(s) − BEL_deterministic</pre>
 
 <p style="font-size:0.86rem; color:#c4b5fd; margin:0.3rem 0 0.1rem 0;"><strong>Step 4：解讀 4 條代表性情景（t=10Y，情景 1/2/501/1000）</strong></p>
 <p style="font-size:0.83rem; color:#9ca3af; margin:0 0 0.2rem 0;">
