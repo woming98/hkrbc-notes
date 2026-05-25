@@ -3636,9 +3636,16 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
       <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
       <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
   <tr><td><strong>SB<sub>t</sub> (Surrender Benefit)</strong></td>
-      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max(AS(t,s),\,GSV)\) — same as Architecture B</td>
-      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max(AS_{\text{after-DIV}}(t,s),\,GSV)\)<br/>
-          <span style="color:#64748b; font-size:0.82rem;">SB 是退保賠付（離開的保單），DIV 是在保保單的年度現金分紅，兩者同時存在，不可混淆</span></td></tr>
+      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS(t,s),\;GSV_{\text{floor}}\bigr)\)<br/>
+          <span style="color:#64748b; font-size:0.82rem;">Dynamic by construction — both q<sub>lapse</sub>(s) and AS(t,s) are scenario-dependent</span></td>
+      <td>
+        <strong>For TVOG:</strong> must be dynamic<br/>
+        \(SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS_{\text{after-DIV}}(t,s),\;GSV_{\text{floor}}\bigr)\)<br/>
+        <span style="color:#64748b; font-size:0.82rem;">✅ Both q<sub>lapse</sub>(s) and AS<sub>after-DIV</sub>(t,s) vary by scenario → SB is dynamic</span><br/><br/>
+        <strong>For GL34 bonus management (typical use):</strong> often static<br/>
+        \(SB_t = q_{\text{lapse}}\times GSV_{\text{table}}[\text{policy year}]\)<br/>
+        <span style="color:#64748b; font-size:0.82rem;">⚠️ GSV table is scenario-independent → acceptable for dividend projection, but <strong>breaks TVOG</strong> (CE<sub>stoch</sub> ≈ CE<sub>det</sub> → TVOG ≈ 0)</span>
+      </td></tr>
   <tr><td><strong>DIV_t</strong></td>
       <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
       <td>Explicitly deducted each year: annual cash bonus declared to <em>in-force</em> policyholders; separate from SB which is paid to <em>lapsing</em> policyholders</td></tr>
