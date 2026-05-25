@@ -3735,26 +3735,29 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
 <table>
-  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
-  <tr><td><strong>Each year</strong></td>
-      <td>Dividend stays inside AS, compounds with fund return</td>
-      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
-  <tr><td><strong>At surrender / maturity</strong></td>
-      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
-      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
-  <tr><td><strong>Total policyholder value</strong></td>
-      <td>= SV (lump sum at exit)</td>
-      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
-  <tr><td><strong>Economically equivalent?</strong></td>
-      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
+  <tr><th></th><th>Architecture A — TVOG</th><th>Architecture B — GL34 Bonus</th></tr>
+  <tr><td><strong>每年</strong></td>
+      <td>分紅留在 AS 內滾存，不做任何現金支出（RB 增加保額，但 AS 不縮減）</td>
+      <td>每年支付現金分紅 DIV_t 給在保保單持有人，AS 每年縮減</td></tr>
+  <tr><td><strong>退保 / 到期時</strong></td>
+      <td>SV = max(AS(t,s), GSV) — AS 因多年滾存而「肥」；TB = max(AS − SA − RB, 0) 一次性釋放所有積累分紅</td>
+      <td>SV = GSV_table[policy year]（靜態，按保單年度查表）— AS 因每年派息而「瘦」，但保單持有人已累積收到多年現金分紅</td></tr>
+  <tr><td><strong>保單持有人總收益</strong></td>
+      <td>= SV（一次性退保金，含 TB）</td>
+      <td>= <strong>Σ DIV_t</strong>（歷年現金分紅，逐年領取） <strong>+ SV</strong>（靜態 GSV，退保時領取）<br/>
+          <span style="color:#64748b; font-size:0.82rem;">兩項加總才是保單持有人的完整收益；僅看 SV 會低估 Architecture B 的實際回報</span></td></tr>
+  <tr><td><strong>理論上等價？</strong></td>
+      <td colspan="2">✅ 等價 — 若 credited rate 相同、假設一致，兩種架構的總收益 PV 相等：<br/>
+          Architecture A 的大 SV ≈ Architecture B 的 Σ DIV_t + 小 SV（在同一折現率下）</td></tr>
 </table>
 </div>
 
 <p style="margin:0.2rem 0 0.5rem 0;">
   <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
   So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
-  the insurer's floor guarantee is clearly visible as an option.
-  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
+  the insurer's floor guarantee is clearly visible as an option → TVOG &gt; 0.<br/>
+  In Architecture B, SV = GSV_table (static) → identical across all scenarios → TVOG ≈ 0.
+  This is why Architecture B should <strong>not</strong> be used for TVOG calculation.
 </p>
 
 <!-- ── Prophet 实务分工 ── -->
