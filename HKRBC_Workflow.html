@@ -3127,43 +3127,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<!-- ─── §8.A.11 Implementation Roadmap ─── -->
-<h4>§8.A.11 Implementation Roadmap 實作路線圖</h4>
-
-<div class="tbl-wrap">
-<table>
-  <tr><th>Maturity Level</th><th>Scope</th><th>Effort</th><th>Output Quality</th></tr>
-  <tr>
-    <td><strong>Level 0 — MVP</strong></td>
-    <td>HW1F (IR) + GBM (Equity), constant correlation, antithetic only, monthly Δt, 1000 scenarios, martingale ZCB test only</td>
-    <td>1-2 weeks (1 person)</td>
-    <td>Good enough for internal monitoring / learning / interview demo</td>
-  </tr>
-  <tr>
-    <td><strong>Level 1 — Working Production</strong></td>
-    <td>+ Credit spread (CIR), + 5-test validation, + Sobol QMC, + multi-currency, + parquet output, + ESG version control</td>
-    <td>1-2 months (small team)</td>
-    <td>Usable for HKRBC TVOG for non-Par / UL products; mid-size insurer</td>
-  </tr>
-  <tr>
-    <td><strong>Level 2 — Production Grade</strong></td>
-    <td>+ HW2F (G2++), + Heston equity, + jump-diffusion credit, + cross-asset correlation, + full swaption calibration, + automated validation reports</td>
-    <td>6-12 months (specialist team)</td>
-    <td>Acceptable for full HKRBC TVOG including Par fund; large insurer</td>
-  </tr>
-  <tr>
-    <td><strong>Level 3 — Industry Top</strong></td>
-    <td>+ LMM (IR), + Local-Stoch Vol (equity), + multi-factor credit, + SSV / SABR vol surface, + dedicated calibration engine</td>
-    <td>2-3 years (PhD team)</td>
-    <td>Sophisticated VA hedging support; Moody's / Conning benchmark</td>
-  </tr>
-</table>
-</div>
-
-<p style="font-size:0.93rem; color:var(--muted); margin-top:1rem;">
-  <strong>Recommendation:</strong> For a personal portfolio / new hire learning path, target Level 0 first (validates that you understand the mechanics),
-  then iterate to Level 1 for production use. Level 2-3 are realistic ambitions only with team support and 1+ year horizon.
-</p>
+<!-- §8.A.11 Implementation Roadmap 已删除 -->
 
 <!-- ─── §9.6 TVOG Deep-Dive ─── -->
 
