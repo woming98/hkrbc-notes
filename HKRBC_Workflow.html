@@ -3635,23 +3635,18 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr><td><strong>Recursion</strong></td>
       <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
       <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
-  <tr><td><strong>SB<sub>t</sub> (Surrender Benefit)</strong></td>
-      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS(t,s),\;GSV_{\text{floor}}\bigr)\)<br/>
-          <span style="color:#64748b; font-size:0.82rem;">Dynamic by construction — both q<sub>lapse</sub>(s) and AS(t,s) are scenario-dependent</span></td>
+  <tr><td><strong>SB<sub>t</sub> &amp; Surrender Value</strong></td>
       <td>
-        <strong>For TVOG:</strong> must be dynamic<br/>
-        \(SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS_{\text{after-DIV}}(t,s),\;GSV_{\text{floor}}\bigr)\)<br/>
-        <span style="color:#64748b; font-size:0.82rem;">✅ Both q<sub>lapse</sub>(s) and AS<sub>after-DIV</sub>(t,s) vary by scenario → SB is dynamic</span><br/><br/>
-        <strong>For GL34 bonus management (typical use):</strong> often static<br/>
+        \(SB_t = q_{\text{lapse}}(t,s)\times\max\!\bigl(AS(t,s),\;GSV_{\text{floor}}\bigr)\)<br/>
+        <span style="color:#64748b; font-size:0.82rem;">Dynamic — q<sub>lapse</sub>(s) from DPB; SV = max(AS(s), GSV) is scenario-dependent by construction</span>
+      </td>
+      <td>
         \(SB_t = q_{\text{lapse}}\times GSV_{\text{table}}[\text{policy year}]\)<br/>
-        <span style="color:#64748b; font-size:0.82rem;">⚠️ GSV table is scenario-independent → acceptable for dividend projection, but <strong>breaks TVOG</strong> (CE<sub>stoch</sub> ≈ CE<sub>det</sub> → TVOG ≈ 0)</span>
+        <span style="color:#64748b; font-size:0.82rem;">Static GSV table (scenario-independent) — acceptable for GL34 bonus projection where TVOG is not required</span>
       </td></tr>
   <tr><td><strong>DIV_t</strong></td>
-      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
-      <td>Explicitly deducted each year: annual cash bonus declared to <em>in-force</em> policyholders; separate from SB which is paid to <em>lapsing</em> policyholders</td></tr>
-  <tr><td><strong>Surrender Value basis</strong></td>
-      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
-      <td>Dynamic: \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\) — must use post-DIV AS so that surrendering policyholders don't receive dividends already paid to others</td></tr>
+      <td>Not explicit — dividends accumulate inside AS; crystallised as TB at exit</td>
+      <td>Explicitly deducted each year: annual cash bonus to <em>in-force</em> policyholders (distinct from SB paid to <em>lapsing</em> policyholders)</td></tr>
   <tr><td><strong>AS meaning</strong></td>
       <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
       <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
@@ -3659,8 +3654,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
       <td>HKRBC TVOG stochastic projection</td>
       <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
   <tr><td><strong>TVOG suitability</strong></td>
-      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
-      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
+      <td>✅ Fully suitable — SV is dynamic by construction</td>
+      <td>❌ Not designed for TVOG — static SB means CE<sub>stoch</sub> ≈ CE<sub>det</sub> → TVOG ≈ 0</td></tr>
 </table>
 </div>
 
