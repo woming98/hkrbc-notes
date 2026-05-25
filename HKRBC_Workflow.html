@@ -3589,43 +3589,56 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <div style="background:#fef3c7; border-left:4px solid #d97706; border-radius:6px; padding:0.9rem 1.1rem; margin:0.9rem 0 0 0;">
     <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>Prophet 中如何實現「逐單滾動 + 基金層管理動作」兩層耦合</strong></p>
 
+    <div style="background:rgba(234,88,12,0.08); border-left:3px solid #d97706; padding:0.6rem 0.9rem; margin:0 0 0.6rem 0; font-size:0.92rem;">
+      <strong>Architecture A 要用 ALS library 嗎？</strong><br/>
+      <strong>不一定</strong>——兩層耦合的<em>概念</em>獨立於 Prophet 庫類型：
+      <ul style="margin:0.3rem 0 0 1.2rem; padding:0;">
+        <li><strong>Lagged Feedback（主流）</strong>：用<strong>普通產品庫</strong> + <code>DV_GLOBAL_PREV()</code> 存基金層結果即可，不需要 ALS。</li>
+        <li><strong>Same-step 同步聚合</strong>：才需要 <strong>ALS library</strong>（或 DCS module）。ALS 的核心是 Asset Pool↔Liability Segment 原生掛鉤，支持同步資產端 <em>i_actual</em> 計算與負債端 AS 演化。</li>
+      </ul>
+      香港 HKRBC TVOG production 大多數用<strong>普通庫 + Lagged Feedback</strong>；ALS 主要用於需要精確 asset-liability matching 的 ALM / ORSA 場景。
+    </div>
+
     <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
-      Prophet 原生支持 <strong>Fund Mode</strong>（FIS 文檔稱 "Pool Mode" 或 "Fund Mode Run"），允許在 stochastic projection 中同時跑保單層與基金層變量。香港實務有三種落實方式：
+      Prophet 中三種庫類型與基金層聚合的對應：
     </p>
 
     <div class="tbl-wrap">
     <table style="font-size:0.88rem;">
-      <tr><th>方式</th><th>同步性</th><th>性能</th><th>適用</th><th>HK 採用率</th></tr>
+      <tr><th>Prophet 庫類型</th><th>基金層聚合機制</th><th>同步性</th><th>性能</th><th>典型用途</th><th>HK 採用率</th></tr>
       <tr>
-        <td><strong>A. Lagged Feedback</strong><br/>（最常用）</td>
-        <td>用 \(\mathrm{AS}_i(t{-}1)\)、\(\mathrm{AAS}(t{-}1)\) 驅動 \(t\) 期管理動作（滯後一年）</td>
-        <td>快（與單 cell 相同）</td>
+        <td><strong>普通產品庫<br/>+ DV_GLOBAL</strong></td>
+        <td><code>DV_GLOBAL_PREV(AAS_TOTAL)</code> 等全局變量存滯後聚合值，<code>Accumulation</code> 匯總結果</td>
+        <td>滯後一期（t-1 聚合 → t 決策）</td>
+        <td>最快</td>
         <td>HKRBC TVOG、GL34 bonus illustration、ORSA</td>
         <td>≈ 80%+</td>
       </tr>
       <tr>
-        <td><strong>B. Same-step Fund Mode</strong></td>
-        <td>同 \((t,s)\) 內：聚合 → 決策 → 回灌（需 Prophet 二次掃描 cells）</td>
+        <td><strong>ALS library</strong><br/>（Asset-Liability Strategy）</td>
+        <td>Asset Pool 原生連結 Liability Segment；<code>FUND_VAR()</code>/<code>FUND_TOT()</code> 同步聚合；i_actual 由 Pool 資產端自動計算</td>
+        <td>同步（t 聚合 → t 決策）</td>
         <td>慢 30–50%</td>
-        <td>嚴格 PRE 測試、特殊產品 stress test</td>
+        <td>ALM 資產配置、Par fund 精確 i_actual、嚴格 PRE stress test</td>
         <td>≈ 15%</td>
       </tr>
       <tr>
-        <td><strong>C. Two-pass Iterative</strong></td>
-        <td>整個 projection 跑兩遍，第二遍用第一遍聚合結果校準</td>
-        <td>×2 時間</td>
-        <td>VA / GMxB 對沖、極複雜 path-dependent</td>
+        <td><strong>DCS module</strong><br/>（Dynamic Capital Solvency，2023+）</td>
+        <td>ALS 升級版，加入資本層（PCR、SCR）同步管理動作，支持基金→資本→bonus 三層耦合</td>
+        <td>同步 + 資本層</td>
+        <td>最慢</td>
+        <td>HKRBC 含 PCR trigger 的動態管理動作、VA/GMxB 對沖</td>
         <td>&lt; 5%</td>
       </tr>
     </table>
     </div>
 
-    <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>為什麼 Lagged Feedback (A) 是主流</strong>：</p>
+    <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>為什麼 Lagged Feedback（普通庫）是 TVOG 主流，而 ALS 用於 ALM</strong>：</p>
     <ul style="font-size:0.91rem; margin:0.2rem 0 0.5rem 1.2rem; padding:0;">
-      <li>Prophet 在單個 time step 內按 model point 順序處理，<strong>同步聚合需要 Run Engine 二次掃描</strong>，性能損耗大。</li>
-      <li>Par fund 是 long-term business（30 年+），滯後 1 年的管理動作對 PV 影響可忽略（典型 &lt; 0.05%）。</li>
-      <li>實際 board 也是<strong>事後</strong>看上年度 PFNA / Estate 決定下年 bonus，與 Lagged Feedback 一致。</li>
-      <li>Prophet 標準函數 <code>DV_PREV()</code>、<code>DV_GLOBAL_PREV()</code> 原生支持。</li>
+      <li>Par fund 是 long-term business（30 年+），滯後 1 年的管理動作對折現後 PV 影響可忽略（典型 &lt; 0.05%）。</li>
+      <li>實際 board 也是<strong>事後</strong>看上年度 PFNA / Estate 決定下年 bonus，與 Lagged Feedback 完全吻合。</li>
+      <li>普通庫的 <code>DV_PREV()</code>、<code>DV_GLOBAL_PREV()</code> 原生支持，無需額外 module 授權。</li>
+      <li><strong>ALS 的優勢在 i_actual 的精確計算</strong>：ALS 的 Asset Pool 直接模擬資產端買賣、再投資、unrealised G/L，<em>i_actual(t,s)</em> 由資產模型自動產生；普通庫則須手動從 ESG 列構造 earned rate 公式。HKRBC TVOG 對 i_actual 精度要求相對寬鬆，故普通庫已足夠；ALM / ORSA 的資產配置優化分析才真正需要 ALS。</li>
     </ul>
 
     <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>Prophet 關鍵語法（Lagged Feedback 示意）</strong>：</p>
