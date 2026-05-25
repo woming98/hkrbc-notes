@@ -4068,6 +4068,70 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
                                   # (or different α per product line if gap is concentrated)
 </pre>
 
+<!-- Model Point 精度讨论 -->
+<div style="background:#fefce8; border:1px solid #fbbf24; border-radius:8px; padding:0.6rem 0.9rem; margin:0.4rem 0 0.6rem 0;">
+  <p style="font-weight:600; color:#92400e; margin:0 0 0.3rem 0;">⚠️ Model Point Grouping 對精確度的影響</p>
+
+  <p style="margin:0.2rem 0 0.4rem 0; color:#78350f;">
+    <strong>核心問題：Jensen's Inequality（凸性偏差）</strong><br/>
+    TVOG 的核心保費是 <em>max(AS, floor)</em>，這是一個凸函數（convex payoff）。
+    對 AS 先取平均再投影，會系統性低估 TVOG：
+    \[
+      \mathbb{E}\!\left[\max\!\bigl(\bar{AS},\,K\bigr)\right] \;\le\; \mathbb{E}\!\left[\max\!\bigl(AS_i,\,K\bigr)\right]
+    \]
+    即「先平均再取 max」 &lt; 「先取 max 再平均」。Model point 組內的 AS 分散性被抹平，低 AS 保單（接近 floor）和高 AS 保單的非線性效應無法被正確捕捉。
+  </p>
+
+  <div class="tbl-wrap" style="font-size:0.82rem; margin:0.3rem 0 0.4rem 0;">
+  <table>
+    <tr><th>誤差來源</th><th>影響方向</th><th>嚴重程度</th><th>何時最顯著</th></tr>
+    <tr>
+      <td><strong>Jensen 凸性偏差</strong><br/>組內 AS 分散被平均</td>
+      <td>低估 TVOG</td>
+      <td>🔴 高</td>
+      <td>組內 AS/GSV 比值差異大；接近保底時</td>
+    </tr>
+    <tr>
+      <td><strong>DPB 異質性損失</strong><br/>同組保單有不同 MGCR 或 TB 結構</td>
+      <td>低估或高估 DPB 效應</td>
+      <td>🟡 中</td>
+      <td>組內混合了不同合約條款</td>
+    </tr>
+    <tr>
+      <td><strong>久期錯誤匹配</strong><br/>同一 age band 內保單已繳年期差異</td>
+      <td>現金流時序偏移</td>
+      <td>🟡 中</td>
+      <td>age band 跨度過寬（如 10 歲一組）</td>
+    </tr>
+    <tr>
+      <td><strong>TB 路徑依賴錯誤</strong><br/>TB = max(AS − SA − RB, 0) 的非線性</td>
+      <td>低估 TB 波動</td>
+      <td>🔴 高</td>
+      <td>部分保單 AS ≈ SA + RB（TB ≈ 0 邊界附近）</td>
+    </tr>
+  </table>
+  </div>
+
+  <p style="margin:0.2rem 0 0.3rem 0; color:#78350f;">
+    <strong>行業實踐與緩解措施：</strong>
+  </p>
+  <ul style="margin:0.1rem 0 0.3rem 0; padding-left:1.3rem; color:#92400e; font-size:0.85rem; line-height:1.8;">
+    <li><strong>細化分組維度</strong>：至少按 product × age band（5 歲）× policy year band × SA band 四維分組。
+        保單數 &gt; 100 萬時，業界通常保留 500–2,000 個 model points</li>
+    <li><strong>按「入值度（moneyness）」增設維度</strong>：moneyness = AS / GSV_current。
+        near-the-money（0.9–1.1）的保單對 TVOG 敏感度最高，應單獨成組</li>
+    <li><strong>誤差驗收測試（Compression Test）</strong>：用 5–10% 的個別保單隨機樣本計算精確 TVOG，
+        對比 model point 結果；誤差通常要求 &lt; 1–2% of total TVOG</li>
+    <li><strong>HKRBC 監管立場</strong>：Cap. 41R 不强制逐保單投影，但 Appointed Actuary 需在 ORSA 報告中陳述
+        model point 壓縮的重大性評估（materiality statement）</li>
+  </ul>
+
+  <p style="margin:0.3rem 0 0 0; font-size:0.83rem; color:#92400e;">
+    <strong>結論：</strong>若 TVOG 佔 CE 的比重超過 0.5%，建議對組內 AS 分散度做敏感測試，
+    或考慮將接近 floor 的保單（moneyness &lt; 1.05）單獨分組，以控制 Jensen 偏差在 5% 以內。
+  </p>
+</div>
+
 <p style="margin:0.2rem 0 0.4rem 0;"><strong>Numerical Example:</strong></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
 <table>
