@@ -184,6 +184,19 @@ MathJax = {
     pre.codeblock { font-size: 0.78rem; padding: 0.8rem; }
     pre.diagram { font-size: 0.72rem; }
   }
+
+  /* 深色容器内的表格修复 */
+  .dark-tbl-fix table { background: transparent !important; border-collapse: collapse; width: 100%; }
+  .dark-tbl-fix th    { background: rgba(30,30,60,0.85) !important; color: #e2e8f0 !important;
+                        border-bottom: 1px solid rgba(148,163,184,0.3); padding: 6px 10px; }
+  .dark-tbl-fix td    { background: transparent !important; color: #cbd5e1 !important;
+                        border-bottom: 1px solid rgba(148,163,184,0.12) !important;
+                        padding: 5px 10px; }
+  .dark-tbl-fix tr:nth-child(even) td { background: rgba(148,163,184,0.06) !important; }
+  .dark-tbl-fix tr:hover td           { background: rgba(148,163,184,0.12) !important; }
+  .dark-tbl-fix td code { background: rgba(148,163,184,0.15); color: #fcd34d;
+                          padding: 0 0.25rem; border-radius: 3px; }
+  .dark-tbl-fix td span[style*="color:#64748b"] { color: #94a3b8 !important; }
 </style>
 </head>
 <body>
@@ -2307,7 +2320,7 @@ simulation:
 </div>
 
 <!-- ══ 全參數對比表 ══ -->
-<div style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.7rem 1rem; margin-bottom:0.8rem; font-size:0.83rem; color:#94a3b8;">
+<div class="dark-tbl-fix" style="background:#1e293b; border:1px solid #334155; border-radius:8px; padding:0.7rem 1rem; margin-bottom:0.8rem; font-size:0.83rem; color:#94a3b8;">
   <strong style="color:#e2e8f0;">§8.A 代碼模塊對應（兩種模式共用框架）</strong>
   <div class="tbl-wrap" style="margin-top:0.4rem;">
   <table>
@@ -2430,7 +2443,7 @@ simulation:
 </div>
 
 <!-- Q vs P 核心差異說明 -->
-<div style="background:#1a0d2e; border:1px solid #6d28d9; border-radius:8px; padding:0.8rem 1rem; margin-bottom:0.6rem; font-size:0.84rem;">
+<div class="dark-tbl-fix" style="background:#1a0d2e; border:1px solid #6d28d9; border-radius:8px; padding:0.8rem 1rem; margin-bottom:0.6rem; font-size:0.84rem;">
   <p style="color:#c4b5fd; font-weight:700; margin:0 0 0.4rem 0;">Q vs P：根本差異在於「漂移項（drift）」</p>
   <div class="tbl-wrap">
   <table>
