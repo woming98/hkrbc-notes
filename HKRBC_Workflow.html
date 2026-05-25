@@ -3634,13 +3634,17 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
   <tr><td><strong>Recursion</strong></td>
       <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
-      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
+  <tr><td><strong>SB<sub>t</sub> (Surrender Benefit)</strong></td>
+      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max(AS(t,s),\,GSV)\) — same as Architecture B</td>
+      <td>\(SB_t = q_{\text{lapse}}(t,s)\times\max(AS_{\text{after-DIV}}(t,s),\,GSV)\)<br/>
+          <span style="color:#64748b; font-size:0.82rem;">SB 是退保賠付（離開的保單），DIV 是在保保單的年度現金分紅，兩者同時存在，不可混淆</span></td></tr>
   <tr><td><strong>DIV_t</strong></td>
       <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
-      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
-  <tr><td><strong>Surrender Value</strong></td>
+      <td>Explicitly deducted each year: annual cash bonus declared to <em>in-force</em> policyholders; separate from SB which is paid to <em>lapsing</em> policyholders</td></tr>
+  <tr><td><strong>Surrender Value basis</strong></td>
       <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
-      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
+      <td>Dynamic: \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\) — must use post-DIV AS so that surrendering policyholders don't receive dividends already paid to others</td></tr>
   <tr><td><strong>AS meaning</strong></td>
       <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
       <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
