@@ -8907,6 +8907,233 @@ V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42
 </table>
 </div>
 
+<!-- ══ §12.1a 供應商模型 ══ -->
+<h4 id="ifrs17-vendors">§12.1a 主流供應商模型 Vendor Systems</h4>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">供應商 / 系統</th><th style="width:20%">產品</th><th style="width:32%">IFRS 17 功能特點</th><th>香港市場佔有率</th></tr>
+
+  <tr>
+    <td><strong>FIS（Financial Software Inc.）</strong></td>
+    <td>Prophet Enterprise / ALS</td>
+    <td>
+      原生支持 GMM / VFA / PAA 計量<br/>
+      內建 IFRS 17 CSM Roll-forward 模塊<br/>
+      可與 HKRBC Schedule 4/5 共用現金流引擎<br/>
+      Hong Kong 本地化（GL34、IA Schedule 4）
+    </td>
+    <td>🔴 <strong>最主流</strong><br/>HK 大型壽險公司首選<br/>AIA、FWD、Manulife 等廣泛使用</td>
+  </tr>
+
+  <tr>
+    <td><strong>Moody's Analytics</strong></td>
+    <td>RiskAgility FM<br/>（原 R3S / Barrie &amp; Hibbert）</td>
+    <td>
+      強於利率模型和隨機情景（ESG 內置）<br/>
+      IFRS 17 模塊成熟，支持 OCI Option<br/>
+      與 Prophet 競爭，在歐洲市場更強
+    </td>
+    <td>🟡 <strong>部分使用</strong><br/>主要為全球性保險集團亞太分部</td>
+  </tr>
+
+  <tr>
+    <td><strong>Actuarial Systems Corp.</strong></td>
+    <td>AXIS</td>
+    <td>
+      靈活的現金流引擎，支持 IFRS 17<br/>
+      北美市場主流，HK 使用較少<br/>
+      Python / R 集成能力強
+    </td>
+    <td>🟢 <strong>少數使用</strong><br/>部分再保公司和外資小型分支</td>
+  </tr>
+
+  <tr>
+    <td><strong>Slope Software</strong></td>
+    <td>Slope</td>
+    <td>
+      雲端原生，SaaS 模式<br/>
+      專為 IFRS 17 設計的新興系統<br/>
+      適合中小型公司，無需 IT 基礎設施
+    </td>
+    <td>🟢 <strong>新興</strong><br/>中小公司和保險科技公司</td>
+  </tr>
+
+  <tr>
+    <td><strong>In-house Python / Excel</strong></td>
+    <td>自建模型</td>
+    <td>
+      完全定制，成本低<br/>
+      適合保單結構簡單的中小公司<br/>
+      需投入精算 + 開發資源維護
+    </td>
+    <td>🟡 <strong>中小公司 / 捕捉公司</strong><br/>RBC 捕捉公司、小型壽險、再保</td>
+  </tr>
+</table>
+</div>
+
+<!-- ══ §12.1b Python/Excel 落地方法 ══ -->
+<h4 id="ifrs17-python">§12.1b 小型公司落地方案 Python / Excel Implementation</h4>
+
+<p style="font-size:0.92rem; color:var(--text);">
+  對於保單結構相對標準（定期壽險、終身壽險、醫療保險）的中小型公司，
+  無需購置昂貴供應商系統，以下提供<strong>可落地的 GMM + PAA 精簡實現方法論</strong>。
+</p>
+
+<!-- 方法论架构 -->
+<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+<p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.8rem 0;"><strong>⚙️ 落地方法論架構（GMM 精簡版）</strong></p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 1 — 保單分組（Grouping）</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0.7rem 1rem;">
+  依 IFRS 17 要求將保單分組：同一產品 × 同一年度承保 × 盈利性（有利 / 不利 / 虧損）<br/>
+  <em>實務簡化：按產品線 × 年度分 cohort，每 cohort 最多細分為有利 / 虧損兩組</em>
+</p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 2 — 現金流投影</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0.7rem 1rem;">
+  每個 cohort 按期投影：保費流入、死亡賠付、退保退款、費用支出<br/>
+  使用 best estimate 假設（無安全邊際）
+</p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 3 — PVFCF 計算</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0.7rem 1rem;">
+  以 IFRS 17 折現率折現所有未來現金流（底部法 = 無風險 + 流動性溢價）
+</p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 4 — RA 計算（簡化）</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0.7rem 1rem;">
+  簡化選項：RA = PVFCF × ρ%（ρ 通常 3–8%，依風險複雜度）<br/>
+  或：對現金流施加假設波動 σ，RA = Φ⁻¹(75%) × σ × PVFCF
+</p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 5 — CSM 初始確認</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0.7rem 1rem;">
+  <code>CSM₀ = max(0, −(PVFCF + RA))</code>（虧損合約：CSM = 0，差額入損益）
+</p>
+
+<p style="font-size:0.86rem; color:#94a3b8; margin:0 0 0.3rem 0;"><strong>Step 6 — 後續計量（每期 Roll-forward）</strong></p>
+<p style="font-size:0.86rem; color:#cbd5e1; margin:0 0 0 1rem;">
+  CSM 按覆蓋單位（保額 × 在保人數）逐期攤銷
+</p>
+</div>
+
+<!-- Python代码 -->
+<pre class="codeblock">
+# ── IFRS 17 GMM 精簡實現（Python）────────────────────────────────────
+import numpy as np
+import pandas as pd
+
+# ── 1. 保單 cohort 參數 ───────────────────────────────────────────────
+cohort = {
+    'product':       'Term Life 20yr',
+    'issue_year':    2020,
+    'n_policies':    1000,
+    'sum_assured':   500_000,       # HKD per policy
+    'annual_prem':   3_000,         # HKD per policy
+    'coverage_yrs':  20,
+    'payment_yrs':   20,
+}
+
+# ── 2. 精算假設（Best Estimate）──────────────────────────────────────
+years       = np.arange(1, cohort['coverage_yrs'] + 1)
+q_x         = 0.002 + 0.0002 * years          # 死亡率（隨年齡遞增）
+lapse_rate  = np.where(years <= 3, 0.08, 0.03) # 前 3 年高退保
+expense_pct = 0.05                             # 保費的 5% 費用
+
+# ── 3. 現金流投影 ─────────────────────────────────────────────────────
+survivors = np.ones(len(years))
+for i in range(1, len(years)):
+    survivors[i] = survivors[i-1] * (1 - q_x[i-1]) * (1 - lapse_rate[i-1])
+
+prem_cf    = survivors * cohort['annual_prem'] * cohort['n_policies']
+claims_cf  = survivors * q_x * cohort['sum_assured'] * cohort['n_policies']
+lapse_cf   = survivors * lapse_rate * cohort['sum_assured'] * 0.5 * cohort['n_policies']
+expense_cf = prem_cf * expense_pct
+net_cf     = prem_cf - claims_cf - lapse_cf - expense_cf   # 正 = 公司淨流入
+
+# ── 4. PVFCF（底部法折現率）──────────────────────────────────────────
+rfr_curve  = np.array([0.040, 0.039, 0.038, 0.037, 0.037,
+                        0.037, 0.038, 0.038, 0.039, 0.039,
+                        0.040, 0.040, 0.041, 0.041, 0.042,
+                        0.042, 0.042, 0.043, 0.043, 0.043])
+illiq_prem = 0.008                             # 流動性溢價 80bp
+ifrs17_rate = rfr_curve + illiq_prem
+
+disc_factors = np.cumprod(1 / (1 + ifrs17_rate))
+pvfcf = -np.sum(net_cf * disc_factors)         # 負值 = 負債，正值 = 資產
+
+# ── 5. Risk Adjustment（VaR 75% 簡化法）─────────────────────────────
+ra_pct = 0.05                                  # RA = PVFCF × 5%
+ra = abs(pvfcf) * ra_pct
+
+# ── 6. CSM 初始確認 ───────────────────────────────────────────────────
+csm_0 = max(0.0, -(pvfcf + ra))               # 有利合約：CSM > 0
+
+print(f"PVFCF:  HK${pvfcf/1e6:,.2f}M")
+print(f"RA:     HK${ra/1e6:,.2f}M")
+print(f"CSM₀:   HK${csm_0/1e6:,.2f}M")
+print(f"Liab₀:  HK${(pvfcf + ra + csm_0)/1e6:,.2f}M  (= Day 1 利潤為零)")
+
+# ── 7. CSM Roll-forward（按覆蓋單位攤銷）────────────────────────────
+lock_in_rate = ifrs17_rate[0]                  # 鎖定利率 = 初始利率
+coverage_units = survivors * cohort['n_policies']  # 覆蓋單位 = 在保人數
+
+csm = csm_0
+records = []
+for t, (cu, cf_yr) in enumerate(zip(coverage_units, net_cf), start=1):
+    accretion = csm * lock_in_rate             # 利率吸積
+    csm += accretion
+    cu_remaining = coverage_units[t-1:].sum()
+    release = csm * (cu / cu_remaining) if cu_remaining > 0 else 0.0
+    csm -= release
+    records.append({'Year': t, 'CU': round(cu), 'CSM_before_release': round(csm+release),
+                    'CSM_release': round(release), 'CSM_end': round(csm)})
+
+df_csm = pd.DataFrame(records)
+print("\nCSM Roll-forward (HKD):")
+print(df_csm.head(5).to_string(index=False))
+</pre>
+
+<!-- Excel 简化方案 -->
+<div style="background:#1e2a1e; border-left:4px solid #6ee7b7; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#6ee7b7; font-size:0.9rem; margin:0 0 0.5rem 0;"><strong>📊 Excel 落地方案（無 Python 環境）</strong></p>
+  <div class="tbl-wrap dark-box" style="font-size:0.85rem;">
+  <table style="color:#d1fae5;">
+    <tr><th style="color:#6ee7b7;">工作表</th><th style="color:#6ee7b7;">內容</th><th style="color:#6ee7b7;">關鍵公式</th></tr>
+    <tr style="color:#d1fae5;">
+      <td><strong>Assumptions</strong></td>
+      <td>qx 表、退保率、費用率、折現率曲線</td>
+      <td>VLOOKUP / 動態陣列</td>
+    </tr>
+    <tr style="color:#d1fae5;">
+      <td><strong>CF_Projection</strong></td>
+      <td>每年保費 / 賠付 / 費用 / 退保現金流</td>
+      <td>SCAN / REDUCE（Excel 365）或輔助列遞推</td>
+    </tr>
+    <tr style="color:#d1fae5;">
+      <td><strong>PVFCF</strong></td>
+      <td>折現因子 × 淨現金流，SUMPRODUCT 計算 PV</td>
+      <td><code>=SUMPRODUCT(net_cf, disc_factors)</code></td>
+    </tr>
+    <tr style="color:#d1fae5;">
+      <td><strong>CSM_Rollforward</strong></td>
+      <td>期初 + 吸積 ± 假設變動 − 釋放 = 期末</td>
+      <td>按行逐期計算，引用上行期末值</td>
+    </tr>
+    <tr style="color:#d1fae5;">
+      <td><strong>PnL</strong></td>
+      <td>Insurance Revenue = CSM 釋放 + RA 釋放 + 期望賠付</td>
+      <td>彙總各 cohort 的貢獻</td>
+    </tr>
+  </table>
+  </div>
+  <p style="color:#a7f3d0; font-size:0.84rem; margin:0.5rem 0 0 0;">
+    💡 <strong>實務建議</strong>：Excel 方案適合 ≤ 10 個 cohort、結構簡單的保單組合。
+    超過此規模建議切換至 Python（pandas + numpy）或考慮 Slope 等 SaaS 系統。
+  </p>
+</div>
+
 <!-- ══ §12.2 ══ -->
 <h3 id="ifrs17-bba">§12.2 GMM 建模邏輯（Building Block Approach）</h3>
 
