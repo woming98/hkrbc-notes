@@ -8414,6 +8414,423 @@ V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42
 </table>
 </div>
 
+<!-- ══ §11.13 Quarterly ALM Production ══ -->
+<h3 id="alm-production">§11.13 季度 ALM 生產流程 Quarterly ALM Production Workflow</h3>
+
+<p style="font-size:0.93rem; color:var(--text);">
+  每季度精算 ALM 工作的完整執行流程，從數據提取到監管提交，通常在季末後 <strong>T+25 至 T+30 工作日</strong>完成。
+</p>
+
+<!-- 季度日历 -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:12%">時間節點</th><th style="width:25%">工作任務</th><th style="width:38%">具體內容</th><th>負責方</th></tr>
+
+  <tr>
+    <td><strong>T+0 ~ T+3</strong><br/>季末後 1–3 日</td>
+    <td>資產持倉數據提取</td>
+    <td>
+      從托管行（custodian）提取季末持倉：面值、市值、應計利息、YTM<br/>
+      核對 ISIN、幣種、會計分類（HTM / FVTPL / FVOCI）<br/>
+      計算匯率換算（統一折算至本位幣）
+    </td>
+    <td>投資 / 精算</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+3 ~ T+7</strong></td>
+    <td>負債現金流提取<br/>Liability CF Extraction</td>
+    <td>
+      從 Prophet 提取各期次的預期現金流出（保單賠付、滿期、退保）<br/>
+      使用季末最新精算假設（lapse rate、mortality、credited rate）<br/>
+      生成 CF 向量：按季度 / 年度分檔，期限至最長保單到期
+    </td>
+    <td>精算（壽險）</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+5 ~ T+10</strong></td>
+    <td>數據質檢 &amp; Reconciliation</td>
+    <td>
+      資產市值 vs 帳面報表 reconciliation（容許誤差 &lt;0.1%）<br/>
+      負債 BEL vs 上季對比（大幅異動需解釋）<br/>
+      久期計算校驗：Modified Duration vs 前季 + 時間流逝 + 新增/到期效應<br/>
+      浮動利率債券：核實參考利率（HIBOR/SOFR）取值日期
+    </td>
+    <td>精算 QA</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+8 ~ T+15</strong></td>
+    <td>ALM 模型運行<br/>Core ALM Run</td>
+    <td>
+      更新收益率曲線（IA Schedule 4 最新零息利率）<br/>
+      重新計算：Duration Gap、KRD Profile、DV01、CS01、Convexity<br/>
+      運行 MA 引擎：DF、PF、ACS%、AR、最終 MA 值（Schedule 5）<br/>
+      運行 PCR 壓測：IR ±shock、CS spread widening、Equity stress<br/>
+      生成對冲建議：Gap vs 目標 → 是否需要 swap overlay 調整
+    </td>
+    <td>精算 / 投資</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+15 ~ T+20</strong></td>
+    <td>ALCO Report Pack 編制</td>
+    <td>
+      模塊 1：執行摘要（Duration Gap、MA、PCR 資本概覽）<br/>
+      模塊 2：Duration Gap 監控（KRD Profile、資產 vs 負債 DV01）<br/>
+      模塊 3：MA 計算（DF/PF/AR/ACS% 詳情，與上季比較）<br/>
+      模塊 4：PCR 資本拆解（市場風險、信用風險、對手方違約）<br/>
+      模塊 5：投資組合表現（YTM、Earned Rate、信用評級分佈）<br/>
+      模塊 6：對冲敞口報告（swap DV01、FX 敞口）<br/>
+      模塊 7：前瞻壓力測試（利率 ±200bp NII 影響、ACS% 敏感性）
+    </td>
+    <td>精算</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+20 ~ T+22</strong></td>
+    <td>ALCO 會議</td>
+    <td>
+      提交 Report Pack → ALCO 審議<br/>
+      若 |Duration Gap| &gt; 觸發閾值（如 ±0.5yr）：提出再平衡方案<br/>
+      若 ACS% 接近臨界值：討論流動性管理行動<br/>
+      批准季度分紅 / 信用利率建議
+    </td>
+    <td>ALCO 委員</td>
+  </tr>
+
+  <tr>
+    <td><strong>T+25 ~ T+30</strong></td>
+    <td>監管提交<br/>Regulatory Filing</td>
+    <td>
+      填寫 IA Form IS-1（Insurance Statutory Return）相關 ALM 欄位<br/>
+      MA 計算結果提交（Schedule 5 附表）<br/>
+      PCR 計算結果提交（Schedule 7）<br/>
+      Appointed Actuary 簽核
+    </td>
+    <td>精算 / AA</td>
+  </tr>
+</table>
+</div>
+
+<!-- 常见实务陷阱 -->
+<div style="background:#1e2a3a; border-left:4px solid #f59e0b; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#fde68a; font-size:0.9rem; margin:0 0 0.5rem 0;"><strong>⚠️ 實務常見陷阱（季度生產）</strong></p>
+  <ul style="color:#d1d5db; font-size:0.86rem; margin:0; padding-left:1.2rem;">
+    <li><strong>浮動利率債 HIBOR 取值日期</strong>：需用季末前兩個工作日的定盤利率，而非季末當日</li>
+    <li><strong>MWC 債券久期</strong>：應計算至到期日（非 callable date），除非再融資利率明顯低於 MWC spread</li>
+    <li><strong>新增資產的 settlement lag</strong>：季末前 T-2 成交的債券，季末可能尚未交割 → 需確認是否計入持倉</li>
+    <li><strong>ACS% 三場景</strong>：Base、Lapse Up、Mass Lapse 均需跑完，任何一個 ≥ 100% 即 PF = 0</li>
+    <li><strong>Prophet 版本管理</strong>：負債 CF 須與 BEL 計算使用同一版本假設，避免 CF vs BEL 不一致</li>
+  </ul>
+</div>
+
+<!-- ══ §11.14 Hedging Program ══ -->
+<h3 id="alm-hedging">§11.14 對冲程序 Hedging Program</h3>
+
+<p style="font-size:0.93rem; color:var(--text);">
+  ALM 對冲的核心目標是在不大幅改變投資組合的前提下，精準調整 Duration Gap、FX 敞口或股票風險。
+  主要工具為利率互換（IRS）、外匯遠期（FX Forward）和股票期權（Equity Option）。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:18%">工具</th><th style="width:28%">機制</th><th style="width:30%">ALM 應用場景</th><th>HKRBC / 會計影響</th></tr>
+
+  <tr>
+    <td><strong>利率互換<br/>Interest Rate Swap (IRS)</strong><br/>收固定、付浮動<br/>（Receiver Swap）</td>
+    <td>
+      公司收取固定利率、支付 HIBOR/SOFR<br/>
+      Receiver Swap 的 DV01 為正值 → 等效於持有固定利率債券<br/>
+      <code>DV01_swap ≈ Notional × Duration_swap × 0.0001</code>
+    </td>
+    <td>
+      資產久期 &lt; 負債久期（Duration Gap &lt; 0）<br/>
+      → 買入 receiver swap 拉長有效久期<br/>
+      無需購買長債，節省資本佔用<br/>
+      <em>例：缺口 −2yr，組合 DV01 100K → 需 200K DV01 的 10yr swap</em>
+    </td>
+    <td>
+      Swap 不佔用 PCR（衍生品 counterparty 風險另計）<br/>
+      若作 Fair Value Hedge：IRS 以公允價值計量，對冲收益 / 損失在 P&amp;L 抵消
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>付固定互換<br/>Payer Swap</strong></td>
+    <td>公司付固定、收浮動<br/>DV01 為負值 → 等效於做空固定利率債券</td>
+    <td>
+      資產久期 &gt; 負債久期（Duration Gap &gt; 0）<br/>
+      → 通過 payer swap 縮短有效久期<br/>
+      常用於保護利率下行時的再投資風險
+    </td>
+    <td>P&amp;L 影響與 receiver swap 相反</td>
+  </tr>
+
+  <tr>
+    <td><strong>外匯遠期<br/>FX Forward</strong></td>
+    <td>
+      鎖定未來某日期的匯率<br/>
+      遠期匯率 ≈ 即期匯率 × (1 + r_HKD) / (1 + r_foreign)
+    </td>
+    <td>
+      持有 USD / EUR 計價債券 → 對冲匯率風險<br/>
+      HKD/USD 聯繫匯率制下，USD 對冲成本極低（&lt;5bp）<br/>
+      CNY、EUR 計價資產對冲成本較高（50–150bp）
+    </td>
+    <td>
+      HKRBC FX PCR 大幅降低<br/>
+      HKFRS 9 下可指定為 Cash Flow Hedge（OCI 遞延）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>股票 Put Option<br/>Equity Overlay</strong></td>
+    <td>
+      買入 OTM put option 保護下行風險<br/>
+      Put Delta ≈ −0.3 ~ −0.5（取決於行使價）
+    </td>
+    <td>
+      Par Fund 持有股票 → 用 put 限制大幅下跌損失<br/>
+      降低 Equity PCR 的有效敞口<br/>
+      成本：期權金（premium）每年約 1–3% of notional
+    </td>
+    <td>
+      若未指定對冲關係：期權以 FVTPL 計，P&amp;L 波動大<br/>
+      HKRBC：net equity exposure = Delta-adjusted notional
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>利率上限 / 下限<br/>Cap / Floor</strong></td>
+    <td>
+      Cap：利率超過行使價則收差額（保護浮動付款方）<br/>
+      Floor：利率低於行使價則收差額（保護再投資收益）
+    </td>
+    <td>
+      持有浮動利率資產 → 買入 floor 保護利率下行時的收益<br/>
+      浮動利率負債 → 買入 cap 限制融資成本上升
+    </td>
+    <td>FVTPL 計量；Vega 風險需單獨監控</td>
+  </tr>
+</table>
+</div>
+
+<!-- 对冲有效性测试 -->
+<div style="background:#1e3a1e; border-left:4px solid #6ee7b7; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#6ee7b7; font-size:0.9rem; margin:0 0 0.5rem 0;"><strong>📋 對冲有效性測試（HKFRS 9 Hedge Accounting）</strong></p>
+  <div class="tbl-wrap" style="font-size:0.85rem;">
+  <table style="color:#d1fae5;">
+    <tr><th style="color:#6ee7b7;">測試</th><th style="color:#6ee7b7;">方法</th><th style="color:#6ee7b7;">通過標準</th></tr>
+    <tr style="color:#d1fae5;"><td>前瞻性測試（Prospective）</td><td>美元偏移法（Dollar Offset）或回歸法</td><td>對冲比率在 80%–125% 範圍內</td></tr>
+    <tr style="color:#d1fae5;"><td>回顧性測試（Retrospective）</td><td>比較被對冲項目與對冲工具的公允價值變動</td><td>累計偏移在 80%–125% 範圍內</td></tr>
+    <tr style="color:#d1fae5;"><td>無效部分（Ineffectiveness）</td><td>計算超出對冲比率的部分</td><td>立即計入 P&amp;L</td></tr>
+  </table>
+  </div>
+  <p style="color:#a7f3d0; font-size:0.84rem; margin:0.5rem 0 0 0;">
+    若對冲關係失效（如 basis risk 過大），需終止 hedge accounting 指定，
+    OCI 中累計的遞延損益立即釋放至 P&amp;L。
+  </p>
+</div>
+
+<!-- ══ §11.15 IFRS 9 / HKFRS 17 Interaction ══ -->
+<h3 id="alm-accounting">§11.15 IFRS 9 / HKFRS 17 與 ALM 的交互 Accounting Interaction</h3>
+
+<p style="font-size:0.93rem; color:var(--text);">
+  ALM 決策（買賣哪類資產、持有多久、對冲方式）直接影響 HKFRS 9 的會計分類，
+  進而影響損益表（P&amp;L）和其他全面收益（OCI）的波動性。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:15%">會計分類</th><th style="width:25%">業務模型測試（Business Model）</th><th style="width:30%">對 ALM 的約束</th><th>HKRBC 互動</th></tr>
+
+  <tr>
+    <td><strong>HTM<br/>攤余成本<br/>Amortised Cost</strong></td>
+    <td>業務目的為「持有至到期收取合同現金流」<br/>（Collect Contractual Cash Flows）</td>
+    <td>
+      <strong>不得在到期前出售</strong>，否則觸發「污染規則」（Tainting Rule）：<br/>
+      須將整個 HTM 組合重分類至 FVTPL，產生大額一次性損益<br/>
+      例外：距到期 &lt;3 個月、或 isolated / insignificant 金額
+    </td>
+    <td>
+      HTM 組合不隨利率波動而波動（帳面值穩定）<br/>
+      但仍須計算 MA 和 PCR（用公允價值，非帳面）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>FVOCI<br/>公允價值<br/>計入 OCI</strong></td>
+    <td>業務目的兼顧「收取現金流」和「出售」<br/>（Collect and Sell）</td>
+    <td>
+      允許出售，但浮動盈虧計入 OCI（不過 P&amp;L）<br/>
+      利率上升 → 債券價格跌 → OCI 出現浮虧 → 股東權益下降<br/>
+      出售時，OCI 累計損益「回收」（recycle）至 P&amp;L
+    </td>
+    <td>
+      OCI 浮動對 PCR Eligible Capital 有影響<br/>
+      HKFRS 17 OCI option：保險負債也用 OCI，兩端對沖可降低 P&amp;L 波動
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>FVTPL<br/>公允價值<br/>計入損益</strong></td>
+    <td>交易性資產，或無法滿足以上條件</td>
+    <td>
+      最靈活，但每期市值變動直接衝擊 P&amp;L<br/>
+      利率大幅變動 → 債券價格波動大 → 每季 EPS 不穩定<br/>
+      一般用於高收益債、浮動利率債、衍生品
+    </td>
+    <td>
+      FVTPL 資產不符合 MA 合資格資產條件（non-eligible）<br/>
+      對 MA 計算不利
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- HKFRS 17 OCI option -->
+<div style="background:#1a1a35; border-left:4px solid #818cf8; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#a5b4fc; font-size:0.9rem; margin:0 0 0.4rem 0;"><strong>📌 HKFRS 17 OCI Option — 消除會計錯配的關鍵機制</strong></p>
+  <p style="color:#c7d2fe; font-size:0.86rem; margin:0 0 0.3rem 0;">
+    問題：資產（FVOCI）利率上升 → OCI 出現浮虧；但負債（BEL 以現行利率折現）也下降 → 兩個效應方向相反，理應對沖。
+  </p>
+  <p style="color:#c7d2fe; font-size:0.86rem; margin:0 0 0.3rem 0;">
+    解決：HKFRS 17 允許將保險負債公允價值的利率敏感部分也計入 OCI（OCI option）→ 資產 OCI 浮虧與負債 OCI 浮盈互相抵消 → P&amp;L 不再因利率波動而劇烈震蕩。
+  </p>
+  <p style="color:#c7d2fe; font-size:0.86rem; margin:0;">
+    實務：選擇 OCI option 通常對保險公司有利，但須一致性適用（不可逐期切換）。
+    ALM 在選擇資產會計分類時，須與 HKFRS 17 OCI 選項配合考慮。
+  </p>
+</div>
+
+<!-- Tainting Rule 警告 -->
+<div style="background:#2a1a1a; border-left:4px solid #f87171; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#fca5a5; font-size:0.9rem; margin:0 0 0.3rem 0;"><strong>⚠️ HTM 污染規則（Tainting Rule）實務警示</strong></p>
+  <ul style="color:#fecaca; font-size:0.85rem; margin:0; padding-left:1.2rem;">
+    <li>若在觀察期（通常前 2 年）內出售超過 insignificant 金額的 HTM 資產 → 整個 HTM 組合強制重分類至 FVTPL</li>
+    <li>重分類時的公允價值 vs 帳面值差額一次性入 P&amp;L → 可能對當期利潤造成重大衝擊</li>
+    <li>ALM 策略：需要流動性時，優先出售 FVTPL / FVOCI 資產，保留 HTM 組合完整性</li>
+    <li>MA 資產組合通常採用 HTM 分類，一旦出售即違反 buy-and-hold 原則，MA 資格喪失</li>
+  </ul>
+</div>
+
+<!-- ══ §11.16 SAA & Investment Policy Statement ══ -->
+<h3 id="alm-saa">§11.16 戰略資產配置與投資政策 SAA &amp; Investment Policy Statement</h3>
+
+<p style="font-size:0.93rem; color:var(--text);">
+  戰略資產配置（Strategic Asset Allocation，SAA）是在 ALM 久期約束和 HKRBC 資本約束下，
+  尋找<strong>最大化風險調整後回報</strong>的長期資產組合比例。
+  投資政策聲明（Investment Policy Statement，IPS）將 SAA 結論固化為治理文件。
+</p>
+
+<!-- SAA优化框架 -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">優化維度</th><th style="width:40%">約束條件</th><th>典型香港壽險公司設定</th></tr>
+
+  <tr>
+    <td><strong>回報目標</strong></td>
+    <td>
+      Earned Rate ≥ Credited Rate + 運營利差<br/>
+      通常：Earned Rate &gt; 保證利率 + 100bp
+    </td>
+    <td>目標 Earned Rate ≈ 4.0–4.5%（HKD 組合，2024Q4）</td>
+  </tr>
+
+  <tr>
+    <td><strong>久期約束</strong></td>
+    <td>
+      |Duration Gap| ≤ 閾值（如 ±1yr）<br/>
+      KRD 各期限點偏差 ≤ 上限
+    </td>
+    <td>分紅保單負債久期 ≈ 8–12yr → 資產目標久期同範圍</td>
+  </tr>
+
+  <tr>
+    <td><strong>信用質量</strong></td>
+    <td>
+      平均評級 ≥ A-（MA 合資格要求）<br/>
+      單一發行人集中度 ≤ 5%（或監管上限）<br/>
+      非投資級（BB 以下）≤ 5% of portfolio
+    </td>
+    <td>典型：AAA/AA 35%，A 40%，BBB 20%，現金 5%</td>
+  </tr>
+
+  <tr>
+    <td><strong>流動性要求</strong></td>
+    <td>
+      30 天流動資產 ≥ 壓力情景下的現金流出<br/>
+      FVTPL + FVOCI 資產佔比 ≥ 最低流動性緩衝
+    </td>
+    <td>現金 + 可變現資產 ≥ 3 個月保單賠付預測值</td>
+  </tr>
+
+  <tr>
+    <td><strong>資本效率</strong></td>
+    <td>
+      PCR Asset Capital / AUM ≤ 目標比率<br/>
+      MA 貢獻最大化（DF × AR × Adjusted Spread）
+    </td>
+    <td>目標：PCR Asset Capital ≤ 10% of AUM</td>
+  </tr>
+
+  <tr>
+    <td><strong>貨幣匹配</strong></td>
+    <td>
+      外幣淨敞口 ≤ 上限（如 USD 10%、其他 5%）<br/>
+      超出部分須對冲（FX forward / NDF）
+    </td>
+    <td>HKD ≥ 80%，USD ≤ 15%（聯繫匯率，低對冲成本）</td>
+  </tr>
+</table>
+</div>
+
+<!-- IPS核心章节 -->
+<div style="background:#1e2a3a; border-left:4px solid #38bdf8; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#7dd3fc; font-size:0.9rem; margin:0 0 0.5rem 0;"><strong>📄 Investment Policy Statement（IPS）核心章節</strong></p>
+  <div class="tbl-wrap" style="font-size:0.85rem;">
+  <table style="color:#bae6fd;">
+    <tr><th style="color:#7dd3fc;">章節</th><th style="color:#7dd3fc;">內容</th></tr>
+    <tr style="color:#bae6fd;"><td><strong>1. 投資目標</strong></td><td>最低回報要求、風險容忍度、與保單利率的關係</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>2. 資產類別範圍</strong></td><td>允許持有的資產類別（含 GL34 §9 對 Par Fund 的特殊限制）</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>3. Duration / KRD 限制</strong></td><td>Duration Gap 警戒線、再平衡觸發條件（如 Gap &gt; 1yr → T+5 工作日內再平衡）</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>4. 集中度限制</strong></td><td>單一發行人、單一行業、單一國家上限</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>5. 對冲政策</strong></td><td>允許使用的衍生品、對冲比率範圍、hedge accounting 指定條件</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>6. 違規處理</strong></td><td>超限後的彙報路徑（投資團隊 → ALCO → Board）和處置期限</td></tr>
+    <tr style="color:#bae6fd;"><td><strong>7. 審閱週期</strong></td><td>IPS 每年由 ALCO 審閱，重大市場變化時臨時更新</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- SAA vs TAA -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%"> </th><th>戰略資產配置 SAA</th><th>戰術資產配置 TAA</th></tr>
+  <tr>
+    <td><strong>時間維度</strong></td>
+    <td>3–5 年長期目標配置</td>
+    <td>季度 / 月度短期調整（±5% 偏離 SAA）</td>
+  </tr>
+  <tr>
+    <td><strong>決策依據</strong></td>
+    <td>ALM 約束 + 長期資本市場假設（CMAs）</td>
+    <td>市場估值、利率走勢、信用周期判斷</td>
+  </tr>
+  <tr>
+    <td><strong>審批層級</strong></td>
+    <td>Board 批准（年度）</td>
+    <td>ALCO 批准（季度）</td>
+  </tr>
+  <tr>
+    <td><strong>ALM 約束</strong></td>
+    <td>Duration Gap 須在 SAA 目標範圍內</td>
+    <td>TAA 偏離不得使 Duration Gap 超出 IPS 限制</td>
+  </tr>
+</table>
+</div>
+
 <!-- ─── §9.5 ESG ─── -->
 <h2 id="appendix-esg">Appendix A: ESG Minimum Requirements <span class="ref">Cap. 41R Rule 19(2)</span> <span class="ref circ">IA Circular 12 Jun 2024, Appendix 1</span></h2>
 
