@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>HKRBC Calculation Framework — Nelson Qiu | Actuarial Reference</title>
+<title>Hong Kong Life Insurance Actuarial Technical Reference — Nelson Qiu</title>
 <meta name="author" content="Nelson Qiu" />
-<meta name="description" content="Comprehensive HKRBC Cap. 41R actuarial reference by Nelson Qiu — covering TVOG, ESG, Asset Share, MA, PCR and Prophet modelling." />
+<meta name="description" content="Hong Kong Life Insurance actuarial technical reference by Nelson Qiu — covering HKRBC Cap. 41R, IFRS 17, TVOG, ESG, Asset Share, MA, PCR, ALM and Prophet modelling." />
 <!-- Open Graph for LinkedIn / social sharing -->
-<meta property="og:title" content="HKRBC Actuarial Reference — Nelson Qiu" />
-<meta property="og:description" content="Cap. 41R · TVOG · ESG · Asset Share · Prophet — In-depth technical notes by a senior actuarial analyst." />
+<meta property="og:title" content="HK Life Insurance Actuarial Technical Reference — Nelson Qiu" />
+  <meta property="og:description" content="HKRBC · IFRS 17 · TVOG · ESG · ALM · Asset Share — In-depth technical reference by a senior actuarial analyst." />
 <meta property="og:type" content="website" />
 <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
 <script>mermaid.initialize({ startOnLoad: true, theme: 'neutral', fontSize: 15 });</script>
@@ -341,8 +341,8 @@ MathJax = {
 <!-- ══════════ TOP NAVIGATION ══════════ -->
 <nav id="topnav">
   <div class="brand">
-    HKRBC <span>Notes</span>
-    <small>Cap. 41R — Actuarial Reference</small>
+    HK Life <span>Actuarial</span>
+    <small>Technical Reference — Nelson Qiu</small>
   </div>
   <div class="nav-tabs">
     <a href="#overview"     data-sec="overview">§1–2 總覽</a>
@@ -353,6 +353,7 @@ MathJax = {
     <a href="#asset-share"  data-sec="as">§9 Asset Share</a>
     <a href="#tvog"         data-sec="tvog">§10 TVOG</a>
     <a href="#alm"          data-sec="alm">§11 ALM</a>
+    <a href="#ifrs17"       data-sec="ifrs17">§12 IFRS 17</a>
     <a href="#appendix-esg" data-sec="app">附錄</a>
   </div>
   <div class="nav-right">
@@ -364,8 +365,8 @@ MathJax = {
 <section id="hero-section">
   <div class="hero-inner">
     <div class="hero-eyebrow">Hong Kong Insurance Authority · Cap. 41R · Effective 1 Jul 2024</div>
-    <h1>HKRBC Calculation Framework<br/><em>香港風險為本資本制度</em> — 工作流筆記</h1>
-    <div class="hero-sub">Insurance (Valuation and Capital) Rules — Actuarial Study Notes</div>
+    <h1>Hong Kong Life Insurance<br/><em>Actuarial Technical Reference</em></h1>
+    <div class="hero-sub">HKRBC · IFRS 17 · MA · PCR · TVOG · ESG · ALM · Asset Share</div>
     <div class="hero-meta">Cap. 41R · GL34 · IA Circulars (2024) · For reference only — not regulatory advice</div>
 
     <div class="hero-stats">
@@ -391,8 +392,8 @@ MathJax = {
       </div>
       <div class="stat-card">
         <div class="stat-label">Coverage</div>
-        <div class="stat-value">11 Sections</div>
-        <div class="stat-sub">EBS · MA · PCR · TVOG · ALM</div>
+        <div class="stat-value">12 Sections</div>
+        <div class="stat-sub">HKRBC · IFRS 17 · MA · PCR · ALM</div>
       </div>
     </div>
 
@@ -8827,6 +8828,479 @@ V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42
     <td><strong>ALM 約束</strong></td>
     <td>Duration Gap 須在 SAA 目標範圍內</td>
     <td>TAA 偏離不得使 Duration Gap 超出 IPS 限制</td>
+  </tr>
+</table>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════════ -->
+<!-- ══ §12 IFRS 17 ══ -->
+<!-- ══════════════════════════════════════════════════════════════════ -->
+
+<h2 id="ifrs17">§12 IFRS 17 Hong Kong Life Insurance Reporting 保險合約財務報告</h2>
+
+<p style="font-size:0.93rem; color:var(--text);">
+  IFRS 17（香港對應準則：HKFRS 17）於 <strong>2023 年 1 月 1 日</strong>生效，
+  取代 IFRS 4，確立保險合約統一計量框架。
+  它與 HKRBC 同樣以現行利率折現保險負債，但目的不同：
+  <strong>HKRBC 是資本充足性監管，IFRS 17 是財務報告準則</strong>——兩套 BEL 計算方式、折現率均可能不同。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:22%">維度</th><th>IFRS 17</th><th>HKRBC（Cap. 41R）</th></tr>
+  <tr><td><strong>目的</strong></td><td>財務報告，反映合約公允利潤</td><td>資本監管，保護保單持有人</td></tr>
+  <tr><td><strong>BEL 折現率</strong></td><td>市場一致性：無風險利率 + 流動性溢價（底部法）<br/>或資產收益率 − 信用風險（頂部法）</td><td>IA Schedule 4 零息曲線（UFR 3.8%）</td></tr>
+  <tr><td><strong>風險調整</strong></td><td>Risk Adjustment（RA）：非財務風險補償，公司自訂置信水平</td><td>Risk Margin（RM）：CoC 法，6% 資本成本率</td></tr>
+  <tr><td><strong>未賺利潤</strong></td><td>Contractual Service Margin（CSM）：遞延至服務期內釋放</td><td>無對應概念（HKRBC BEL 不含未賺利潤）</td></tr>
+  <tr><td><strong>分紅保險計量</strong></td><td>Variable Fee Approach（VFA）</td><td>Asset Share + GSV Floor + TVOG</td></tr>
+  <tr><td><strong>利率變動</strong></td><td>OCI option：P&amp;L 用鎖定利率，OCI 承載當期差異</td><td>每期用最新 IA 曲線，差異入 EBS</td></tr>
+</table>
+</div>
+
+<!-- ══ §12.1 ══ -->
+<h3 id="ifrs17-models">§12.1 三大計量模型 Three Measurement Models</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">模型</th><th style="width:30%">適用條件</th><th style="width:28%">核心特徵</th><th>香港壽險應用</th></tr>
+
+  <tr>
+    <td><strong>GMM / BBA<br/>一般計量模型<br/>（Building Block Approach）</strong></td>
+    <td>
+      不符合 PAA 或 VFA 條件的長期壽險合約
+    </td>
+    <td>
+      三大積木：PVFCF + RA + CSM<br/>
+      CSM 按覆蓋單位（Coverage Units）逐期釋放<br/>
+      每期重新計量 PVFCF
+    </td>
+    <td>定期壽險、純保障型重疾</td>
+  </tr>
+
+  <tr>
+    <td><strong>PAA<br/>保費分攤法</strong></td>
+    <td>
+      保障期 ≤ 12 個月，<br/>或簡化結果與 GMM 無重大差異
+    </td>
+    <td>
+      負債 ≈ 未到期保費（Unearned Premium）<br/>簡單攤銷，無需現金流折現<br/>
+      發生額負債（Incurred Claims Liability）單獨計量
+    </td>
+    <td>短期醫療、意外險</td>
+  </tr>
+
+  <tr>
+    <td><strong>VFA<br/>可變費用法</strong></td>
+    <td>
+      合約具有直接參與特徵：<br/>
+      ① 持有一組明確底層資產<br/>
+      ② 份額實質為底層資產公允價值的比例<br/>
+      ③ 可變費用佔比重大
+    </td>
+    <td>
+      CSM 隨底層資產公允價值變動而調整<br/>
+      保單持有人份額的市場波動直接穿越 CSM（不入 P&amp;L）<br/>
+      與 GMM 的關鍵區別：財務假設變動調整 CSM 而非 P&amp;L
+    </td>
+    <td><strong>分紅保險（Par Fund）</strong><br/>萬能壽險（UL）</td>
+  </tr>
+</table>
+</div>
+
+<!-- ══ §12.2 ══ -->
+<h3 id="ifrs17-bba">§12.2 GMM 建模邏輯（Building Block Approach）</h3>
+
+<p style="font-size:0.92rem; color:var(--text);">GMM 下保險合約負債 = PVFCF + RA + CSM（初始確認）/ 或損失（虧損合約）。</p>
+
+<!-- 三大积木 -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">積木</th><th style="width:35%">定義與計算</th><th>關鍵精算輸入</th></tr>
+
+  <tr>
+    <td><strong>Block 1<br/>PVFCF<br/>未來現金流現值</strong></td>
+    <td>
+      概率加權的未來現金流，以 IFRS 17 折現率折現：<br/>
+      <code>PVFCF = PV(保費流入) − PV(賠付 + 費用)</code><br/>
+      ≈ HKRBC BEL，但折現率不同
+    </td>
+    <td>
+      死亡率 / 發病率 / 退保率（best estimate）<br/>
+      費用分攤假設<br/>
+      保費收入假設（含未來繳費）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>Block 2<br/>RA<br/>風險調整</strong></td>
+    <td>
+      對非財務風險不確定性的補償<br/>
+      常用方法：信賴水平法（VaR 75–90%）<br/>
+      <code>RA = Percentile_BEL(p) − Mean_BEL</code><br/>
+      可披露等效信賴水平
+    </td>
+    <td>
+      現金流分佈（歷史波動率、模型誤差）<br/>
+      目標信賴水平（公司自訂，常為 75–85%）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>Block 3<br/>CSM<br/>合約服務利潤</strong></td>
+    <td>
+      初始確認時，若合約有利可圖：<br/>
+      <code>CSM₀ = −(PVFCF₀ + RA₀)</code>（使 Day 1 利潤 = 0）<br/>
+      後續按覆蓋單位逐期攤銷至 P&amp;L：<br/>
+      <code>CSM 釋放 = CSM × CU(t) / Σ CU</code>
+    </td>
+    <td>
+      覆蓋單位（Coverage Unit）定義（如保額、保費、剩餘保障年限）<br/>
+      利率吸積（accretion of interest at locked-in rate）
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- CSM变动表 -->
+<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+<p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>📋 CSM 期間變動分析（CSM Roll-forward）</strong></p>
+<div class="tbl-wrap dark-box" style="font-size:0.86rem;">
+<table style="color:#e5e7eb;">
+  <tr><th style="color:#93c5fd;">項目</th><th style="color:#93c5fd;">影響</th><th style="color:#93c5fd;">備注</th></tr>
+  <tr style="color:#e5e7eb;"><td>期初 CSM</td><td>—</td><td>上期末餘額</td></tr>
+  <tr style="color:#e5e7eb;"><td>+ 利率吸積</td><td>CSM ↑</td><td>按鎖定利率計算</td></tr>
+  <tr style="color:#e5e7eb;"><td>± 非財務假設變動</td><td>CSM ±</td><td>死亡率/費用假設更新 → 調整 CSM</td></tr>
+  <tr style="color:#e5e7eb;"><td>± 財務假設變動（GMM）</td><td>P&amp;L 或 OCI</td><td><strong>不調整 CSM</strong>（VFA 例外）</td></tr>
+  <tr style="color:#e5e7eb;"><td>− CSM 釋放</td><td>CSM ↓ / P&amp;L ↑</td><td>按當期覆蓋單位比例</td></tr>
+  <tr style="color:#e5e7eb;"><td>期末 CSM</td><td>—</td><td>未釋放的未賺利潤</td></tr>
+</table>
+</div>
+</div>
+
+<!-- ══ §12.3 ══ -->
+<h3 id="ifrs17-vfa">§12.3 VFA — 分紅保險計量 Variable Fee Approach</h3>
+
+<p style="font-size:0.92rem; color:var(--text);">
+  VFA 是為<strong>直接參與特徵合約</strong>（如香港分紅保險）設計的計量模型。
+  核心差異：底層資產（Par Fund）的公允價值變動，
+  對應保單持有人份額的部分直接調整 CSM，而非衝擊 P&amp;L。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:30%">項目</th><th>GMM 處理</th><th>VFA 處理</th></tr>
+  <tr>
+    <td><strong>底層資產公允價值變動</strong><br/>（屬於保單持有人份額）</td>
+    <td>不適用（GMM 無底層資產概念）</td>
+    <td>→ 調整 CSM（不入 P&amp;L）<br/>保單持有人份額的市場波動不影響當期利潤</td>
+  </tr>
+  <tr>
+    <td><strong>財務假設（利率）變動</strong></td>
+    <td>→ P&amp;L 或 OCI（不調整 CSM）</td>
+    <td>→ 調整 CSM（對應保單持有人份額部分）</td>
+  </tr>
+  <tr>
+    <td><strong>非財務假設變動</strong></td>
+    <td>→ 調整 CSM</td>
+    <td>→ 調整 CSM（同 GMM）</td>
+  </tr>
+  <tr>
+    <td><strong>公司可變費用（管理費）</strong></td>
+    <td>作為現金流出列示</td>
+    <td>作為負債扣減（Variable Fee = 資產公允價值 × 費用比例）</td>
+  </tr>
+</table>
+</div>
+
+<div style="background:#1a2535; border:1px solid #2e4a6b; border-radius:6px; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+<p style="font-size:0.9rem; color:#93c5fd; margin:0 0 0.5rem 0;"><strong>⚙️ VFA 下 Par Fund 負債計量（簡化）</strong></p>
+<pre style="background:transparent; color:#e2e8f0; font-size:0.84rem; margin:0; line-height:1.6;">
+VFA 負債 = 保單持有人份額 × 底層資產公允價值
+         + 未來非基準現金流 PV（賠付、費用，扣除應收保費）
+         + Risk Adjustment（非財務風險）
+         − CSM（未賺的可變費用）
+
+CSM 每期更新：
+  CSM_t = CSM_{t-1}
+        + 利率吸積（鎖定利率）
+        + 底層資產公允價值變動 × 保單持有人份額（VFA 特有）
+        − 財務假設變動對負債的影響 × 保單持有人份額（VFA 特有）
+        ± 非財務假設變動
+        − 當期 CSM 釋放
+</pre>
+</div>
+
+<!-- ══ §12.4 ══ -->
+<h3 id="ifrs17-discount">§12.4 折現率 Discount Rate</h3>
+
+<p style="font-size:0.92rem; color:var(--text);">
+  IFRS 17 要求折現率反映「保險合約現金流的時間價值、貨幣時間價值及非財務風險」。
+  實務上有兩種確定方法：
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">方法</th><th style="width:38%">計算邏輯</th><th>優缺點</th></tr>
+  <tr>
+    <td><strong>底部法<br/>Bottom-Up</strong></td>
+    <td>
+      <code>IFRS 17 Rate = Risk-Free Rate + Illiquidity Premium</code><br/>
+      無風險利率：HIBOR / OIS / IA Schedule 4<br/>
+      流動性溢價（Illiquidity Premium）：反映保險負債相對市場的低流動性，通常 50–150bp
+    </td>
+    <td>
+      ✅ 概念清晰，與資產端分離<br/>
+      ❌ Illiquidity Premium 難以客觀估計，主觀性強
+    </td>
+  </tr>
+  <tr>
+    <td><strong>頂部法<br/>Top-Down</strong></td>
+    <td>
+      <code>IFRS 17 Rate = Asset Yield − Credit Risk Adjustment</code><br/>
+      資產收益率（參考現有資產組合）<br/>
+      扣減信用風險溢價（PD × LGD）<br/>
+      扣減非相關流動性敞口
+    </td>
+    <td>
+      ✅ 直接與資產掛鉤，減少 P&amp;L 波動<br/>
+      ❌ 需要詳細的資產信用調整，工作量大
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- OCI option -->
+<div style="background:#1a1a35; border-left:4px solid #818cf8; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#a5b4fc; font-size:0.9rem; margin:0 0 0.4rem 0;"><strong>📌 OCI Option — 減少 P&amp;L 利率波動</strong></p>
+  <div class="tbl-wrap dark-box" style="font-size:0.85rem;">
+  <table style="color:#c7d2fe;">
+    <tr><th style="color:#a5b4fc;">情況</th><th style="color:#a5b4fc;">不選 OCI Option</th><th style="color:#a5b4fc;">選 OCI Option（推薦）</th></tr>
+    <tr style="color:#c7d2fe;">
+      <td>折現率變動對 PVFCF 的影響</td>
+      <td>全部入 P&amp;L → EPS 大幅波動</td>
+      <td>入 OCI → P&amp;L 穩定，OCI 承載波動</td>
+    </tr>
+    <tr style="color:#c7d2fe;">
+      <td>P&amp;L 使用的折現率</td>
+      <td>每期最新利率</td>
+      <td>初始確認時的鎖定利率（locked-in rate）</td>
+    </tr>
+    <tr style="color:#c7d2fe;">
+      <td>OCI 最終釋放</td>
+      <td>不適用</td>
+      <td>合約期滿時，OCI 累計餘額釋放至 RE（不回收至 P&amp;L）</td>
+    </tr>
+    <tr style="color:#c7d2fe;">
+      <td>與資產 FVOCI 配合</td>
+      <td>錯配（資產 OCI 浮虧，負債 P&amp;L 利得）</td>
+      <td>匹配（兩端均在 OCI 承載利率波動）</td>
+    </tr>
+  </table>
+  </div>
+</div>
+
+<!-- ══ §12.5 ══ -->
+<h3 id="ifrs17-pnl">§12.5 IFRS 17 P&amp;L 歸因 Insurance Finance Income/Expense</h3>
+
+<p style="font-size:0.92rem; color:var(--text);">
+  IFRS 17 將保險合約損益分為兩大板塊，需在財務報表中分別列示：
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:35%">損益組成</th><th style="width:38%">內容</th><th>對應 P&amp;L 科目</th></tr>
+
+  <tr>
+    <td><strong>Insurance Service Result<br/>保險服務結果</strong></td>
+    <td>
+      Insurance Revenue（保險收入）<br/>
+      − Insurance Service Expense（保險服務費用）<br/>
+      = 保障利潤（含 CSM 釋放 + RA 釋放）
+    </td>
+    <td>Underwriting Profit<br/>（承保利潤）</td>
+  </tr>
+
+  <tr>
+    <td><strong>Insurance Finance Income / Expense<br/>保險財務收入 / 費用</strong></td>
+    <td>
+      負債折現率吸積（unwinding of discount）<br/>
+      ± 財務假設（利率）變動對 PVFCF 的影響<br/>
+      （若選 OCI option：入 OCI；否則：入 P&amp;L）
+    </td>
+    <td>Finance Expense<br/>（財務費用）</td>
+  </tr>
+
+  <tr>
+    <td><strong>Insurance Revenue 計算</strong></td>
+    <td>
+      ≠ 收到保費！<br/>
+      = 當期提供保障的服務收入，包含：<br/>
+      CSM 釋放 + RA 釋放 + 期望發生賠付 + 期望費用 + 損失組成部分攤銷
+    </td>
+    <td>Revenue（收入）</td>
+  </tr>
+</table>
+</div>
+
+<!-- ══ §12.6 ══ -->
+<h3 id="ifrs17-transition">§12.6 過渡方法 Transition Approaches</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:22%">方法</th><th style="width:38%">核心邏輯</th><th>優缺點</th></tr>
+
+  <tr>
+    <td><strong>完全追溯法<br/>Full Retrospective</strong></td>
+    <td>
+      假設 IFRS 17 從合約起始日即存在<br/>
+      重新計算每期 CSM，追溯至過渡日<br/>
+      需要合約起始日的所有精算假設和利率數據
+    </td>
+    <td>
+      ✅ 概念最純正，CSM 餘額最準確<br/>
+      ❌ 數據需求極大，舊保單可能無法追溯<br/>
+      ❌ 實務上往往不可行（尤其 20 年以上舊保單）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>修正追溯法<br/>Modified Retrospective</strong></td>
+    <td>
+      在「合理可行」範圍內追溯<br/>
+      對無法追溯部分使用簡化假設<br/>
+      例：CSM 用剩餘覆蓋期近似
+    </td>
+    <td>
+      ✅ 平衡準確性與可行性<br/>
+      ❌ 需逐一說明各項簡化的合理性
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>公允價值法<br/>Fair Value Approach</strong></td>
+    <td>
+      過渡日以 IFRS 17 公允價值計量合約群<br/>
+      CSM₀ = IFRS 17 公允價值 − PVFCF − RA<br/>
+      鎖定利率 = 過渡日利率（而非合約起始日）
+    </td>
+    <td>
+      ✅ 數據需求最低，最易實施<br/>
+      ❌ CSM 餘額偏低（鎖定利率為現值，非歷史高利率）<br/>
+      → 未來 CSM 釋放收入偏少，影響後期利潤
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- ══ §12.7 ══ -->
+<h3 id="ifrs17-hkrbc">§12.7 IFRS 17 與 HKRBC 對比及協同 Comparison &amp; Interaction</h3>
+
+<p style="font-size:0.92rem; color:var(--text);">
+  精算師在實務中需同時維護兩套計算，理解差異避免混淆：
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:25%">計算項目</th><th>IFRS 17（財務報告）</th><th>HKRBC（監管資本）</th></tr>
+
+  <tr>
+    <td><strong>BEL 折現率</strong></td>
+    <td>市場一致性：底部法或頂部法<br/>（含流動性溢價，不含 UFR 約束）</td>
+    <td>IA Schedule 4 零息曲線（UFR 3.8% at 60yr）<br/>不包含流動性溢價</td>
+  </tr>
+
+  <tr>
+    <td><strong>風險邊際</strong></td>
+    <td>RA（Risk Adjustment）：VaR 法，公司自訂信賴水平</td>
+    <td>RM（Risk Margin）：CoC 法，6% 資本成本率</td>
+  </tr>
+
+  <tr>
+    <td><strong>分紅保險模型</strong></td>
+    <td>VFA：負債 = 保單持有人份額 + 非基準 CF PV − CSM</td>
+    <td>Asset Share + GSV Floor，TVOG = Stoch BEL − Det BEL</td>
+  </tr>
+
+  <tr>
+    <td><strong>壓力測試</strong></td>
+    <td>無（財務報告不做 PCR 計算）</td>
+    <td>IR ±shock、CS shock、Equity shock → PCR</td>
+  </tr>
+
+  <tr>
+    <td><strong>管理行動</strong></td>
+    <td>Current Estimate 可包含 contractual management actions（如 GL34 §9 PROF 調整）</td>
+    <td>Management Actions 明確用於 LAC(FDB) 計算</td>
+  </tr>
+
+  <tr>
+    <td><strong>系統實現</strong></td>
+    <td>Prophet / AXIS / RiskAgility — IFRS 17 模式</td>
+    <td>Prophet — HKRBC 模式（含 Schedule 4 / Schedule 5）</td>
+  </tr>
+</table>
+</div>
+
+<!-- 协同之处 -->
+<div style="background:#1e2a3a; border-left:4px solid #38bdf8; padding:0.8rem 1.1rem; margin:0.8rem 0; border-radius:4px;">
+  <p style="color:#7dd3fc; font-size:0.9rem; margin:0 0 0.4rem 0;"><strong>🔗 IFRS 17 與 HKRBC 的協同點（Synergies）</strong></p>
+  <ul style="color:#bae6fd; font-size:0.86rem; margin:0; padding-left:1.2rem;">
+    <li><strong>精算假設共用</strong>：死亡率、退保率、費用假設，兩套計算通常使用相同 best estimate，僅折現率和風險邊際不同</li>
+    <li><strong>現金流引擎共用</strong>：Prophet 現金流模型可同時為 IFRS 17 PVFCF 和 HKRBC BEL 提供底層 CF</li>
+    <li><strong>OCI 機制互相呼應</strong>：IFRS 17 OCI option + HKFRS 9 FVOCI，兩端均在 OCI 承載利率波動，有效降低 P&amp;L 波動性（見 §11.15）</li>
+    <li><strong>管理行動一致性</strong>：GL34 §9 PROF 分配邏輯，在 IFRS 17 VFA 和 HKRBC LAC(FDB) 中均需保持一致，避免監管和財報之間的矛盾</li>
+    <li><strong>再保會計</strong>：IFRS 17 要求分保合約單獨計量（不可相抵），與 HKRBC 再保資產處理需協調</li>
+  </ul>
+</div>
+
+<!-- ══ §12.8 ══ -->
+<h3 id="ifrs17-production">§12.8 IFRS 17 季度生產流程 Quarterly Close</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:12%">時間節點</th><th style="width:28%">工作任務</th><th>具體內容</th></tr>
+
+  <tr>
+    <td><strong>T+0 ~ T+5</strong></td>
+    <td>數據準備</td>
+    <td>
+      提取保單數據（保額、保費、已付賠付）<br/>
+      確定 IFRS 17 折現率曲線（底部法 / 頂部法）<br/>
+      確認保單組（Group of Insurance Contracts）分組不變
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>T+5 ~ T+12</strong></td>
+    <td>計量運行</td>
+    <td>
+      Prophet 運行 IFRS 17 模式（PVFCF、RA、CSM）<br/>
+      VFA 合約：更新底層資產公允價值 → 調整 CSM<br/>
+      CSM Roll-forward：利率吸積 + 假設變動 + 釋放<br/>
+      損失組成部分（Loss Component）識別與追蹤
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>T+10 ~ T+18</strong></td>
+    <td>結果驗證</td>
+    <td>
+      CSM 餘額與上季對比分析（解釋重大變動）<br/>
+      PVFCF vs 上季：拆解假設變動 vs 利率變動 vs 新業務<br/>
+      IFRS 17 BEL vs HKRBC BEL 差異分析（折現率 + RA 差異）<br/>
+      OCI 金額確認（利率變動部分）
+    </td>
+  </tr>
+
+  <tr>
+    <td><strong>T+18 ~ T+25</strong></td>
+    <td>財務報告編制</td>
+    <td>
+      Insurance Revenue 計算（保障期服務收入分配）<br/>
+      Insurance Service Expense 計算（賠付 + 費用 + 損失組成）<br/>
+      Insurance Finance Income/Expense（利率吸積 + OCI 部分）<br/>
+      報表附注披露：CSM 分析表、RA 信賴水平披露
+    </td>
   </tr>
 </table>
 </div>
