@@ -4068,6 +4068,95 @@ AS_j_final = AS_j_raw * alpha   # apply same α to all model points
                                   # (or different α per product line if gap is concentrated)
 </pre>
 
+<!-- 替代方案：Individual Policy Seriatim Workflow -->
+<p style="font-size:0.88rem; color:#475569; margin:0.7rem 0 0.2rem 0;"><em>Alternative: Individual Policy (Seriatim) Workflow — 逐保單投影</em></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
+  若需消除 Jensen 偏差、或監管要求更高精確度，可繞過 model point 聚合，
+  直接對每張保單 <em>i</em> 以完整 AS 遞推投影。Prophet 本身支援 seriatim mode（每行 = 一張保單），
+  但通常需要配合 Grid computing 分散計算：
+</p>
+<pre class="codeblock" style="font-size:0.82rem; margin-bottom:0.5rem;">
+# ── Seriatim (Individual Policy) Prophet Workflow ──────────────────────────────
+#
+# 前提：Policy Admin System (PAS) 匯出每張保單的完整資料，
+#       包括 AS_i_0（當前 AS）、policy_year_i、SA_i、RB_accrued_i、MGCR_i 等
+
+# Step 1  ── 資料提取（PAS → Prophet input table，每行 = 一張保單）
+import pandas as pd
+
+policies = pd.read_csv("pas_extract.csv")
+# 必填欄位：policy_id, product_code, age_at_entry, policy_year,
+#           SA, RB_accrued, AS_0, MGCR, annual_premium
+
+# Step 2  ── 直接縮放：無 model point 聚合，僅做 PFNA 對賬
+#   個別保單 AS 之和與 PFNA 的差距（α）仍需計算，
+#   但此時 α 純粹反映 MtM vs 帳面差異，不含聚合誤差
+AS_individual_sum = (policies["AS_0"] * policies["in_force_flag"]).sum()
+alpha = PFNA / AS_individual_sum          # 期望接近 1.0
+policies["AS_0_scaled"] = policies["AS_0"] * alpha
+
+# Step 3  ── Prophet ALS Seriatim Run（Grid 並行）
+#   Prophet 輸入：每行保單一條記錄；ESG 情景檔案掛載為外部表
+#   Prophet 內部 ALS function 對每條保單 × 每個 ESG 情景 × 每個時間步執行 AS 遞推
+#
+#   典型 Run 規模：500K 保單 × 1,000 情景 × 60 年步 = 3×10^10 個格仔
+#   分拆方式（選其一）：
+#     (a) 按保單 ID 分批（推薦）：每個 grid node 處理 10K 保單 × 全部情景
+#     (b) 按情景分批：每個 grid node 處理全部保單 × 200 情景
+#
+#   Prophet batch command（示意）：
+#   $ prophet run AS_seriatim.run -batch policies_chunk_001.csv -esc esg_q.csv -o output/
+
+# Step 4  ── 結果收集與 TVOG 聚合
+results = pd.read_csv("output/seriatim_cf_all_chunks.csv")
+# 按情景 s、時間 t 聚合現金流 CF(t,s) = Σ_i [DB_i(t,s) + SB_i(t,s) + MB_i(t,s)]
+CF_agg = results.groupby(["scenario_id", "time_step"])[["DB","SB","MB"]].sum()
+
+# Step 5  ── 後續 TVOG 計算與 model point 版本相同（折現、CE、TVOG）
+</pre>
+
+<div class="tbl-wrap" style="font-size:0.82rem; margin:0.3rem 0 0.6rem 0;">
+<table>
+  <tr><th></th><th>Model Point Aggregation（傳統）</th><th>Individual Policy Seriatim（逐保單）</th></tr>
+  <tr>
+    <td><strong>精確度</strong></td>
+    <td>存在 Jensen 偏差；TVOG 可能低估 5–20%（視 AS 分散度）</td>
+    <td>理論上零偏差；完全消除組內分散損失</td>
+  </tr>
+  <tr>
+    <td><strong>運算時間</strong></td>
+    <td>快：500–2,000 MP × 1,000 情景 ≈ 0.5–2 小時（Grid）</td>
+    <td>慢：500K 保單 × 1,000 情景 ≈ 12–36 小時（50–100 Grid nodes）</td>
+  </tr>
+  <tr>
+    <td><strong>數據要求</strong></td>
+    <td>PAS 聚合匯出；欄位較少</td>
+    <td>PAS 全量逐筆匯出；需逐張保單的完整合約條款</td>
+  </tr>
+  <tr>
+    <td><strong>適用場景</strong></td>
+    <td>季度 HKRBC 常規計算；資產 &lt; HK$50B 的中小型保險公司</td>
+    <td>年度 ORSA 深度分析；高 TVOG 產品（AS 分散度大）；監管質詢</td>
+  </tr>
+  <tr>
+    <td><strong>監管接受度</strong></td>
+    <td>✅ 主流做法；AA 需陳述重大性評估</td>
+    <td>✅ 最佳實踐；等同「精確解」基準</td>
+  </tr>
+  <tr>
+    <td><strong>GL34 對賬（α）</strong></td>
+    <td>α 同時包含聚合誤差 + MtM 差異，難以分解</td>
+    <td>α 僅反映 MtM 差異，來源清晰；GL34 §4 合規更易舉證</td>
+  </tr>
+</table>
+</div>
+
+<p style="margin:0 0 0.5rem 0; font-size:0.85rem; color:#475569;">
+  <strong>實務建議：</strong>先用 Model Point 版本做日常 HKRBC 跑批；
+  每年用 Seriatim 跑一次作為「精確基準」，量化聚合誤差是否在容忍範圍（TVOG 偏差 &lt; 3%）。
+  若超出，重新設計 model point 分組維度（加入 moneyness 維度），而非直接切換到全量 seriatim。
+</p>
+
 <!-- Model Point 精度讨论 -->
 <div style="background:#fefce8; border:1px solid #fbbf24; border-radius:8px; padding:0.6rem 0.9rem; margin:0.4rem 0 0.6rem 0;">
   <p style="font-weight:600; color:#92400e; margin:0 0 0.3rem 0;">⚠️ Model Point Grouping 對精確度的影響</p>
