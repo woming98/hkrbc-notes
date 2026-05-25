@@ -7034,29 +7034,6 @@ V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42
 </table>
 </div>
 
-<h4>Sample Prophet Run Configuration File (.RUN)</h4>
-
-<pre class="codeblock"><code>[Run Settings]
-RUN_NAME            = HKRBC_Q4_2025_PARFUND_STOCH_5K
-RUN_TYPE            = STOCHASTIC
-SCENARIO_FILE       = ESG_MoodysBH_Q4_2025_5000scn.GSI
-SCENARIOS           = 5000
-ANTITHETIC          = ON
-PROJECTION_YEARS    = 100
-TIME_STEP           = MONTHLY
-MODEL_POINT_FILE    = HKD_PAR_FUND_A_2025Q4.RPT
-LIBRARY             = PROPHET_HK_PAR_v25.4
-TABLE_DIR           = .\TABLES\2025Q4\
-DISCOUNT_BASIS      = RFR_SCENARIO            ' use per-scenario RFR path
-OUTPUT_LEVEL        = COHORT, SCENARIO, YEAR
-OUTPUT_VARIABLES    = ASSET_SHARE, GTD_LIAB, VESTED_RB_BAL, &amp;
-                      DEATH_OUTGO, SURR_OUTGO, MATURITY_OUTGO, &amp;
-                      DISCOUNT_FACTOR, PV_CF
-
-[Distributed Computing]
-GRID                = PACER_HK_PROD_50NODES
-SPLIT_BY            = SCENARIO
-RESTART_ON_FAIL     = ON</code></pre>
 
 <!-- ─── §10.3.5 Phase 6 Post-Processing ─── -->
 <h3 id="prophet-phase6">§10.3.5 Phase 6: Post-Processing &amp; TVOG Calculation 後處理</h3>
@@ -7114,57 +7091,6 @@ RESTART_ON_FAIL     = ON</code></pre>
 </table>
 </div>
 
-<h4>Sample Python Post-Processing Script</h4>
-
-<pre class="codeblock"><code>import pandas as pd
-import numpy as np
-
-# ── Load Prophet output (extracted from RDF) ──
-df_stoch = pd.read_parquet('PROPHET_RDF/HKRBC_Q4_2025_STOCH_5K.parquet')
-# Columns: cohort_id, scenario, year, pv_cf
-
-df_det = pd.read_parquet('PROPHET_RDF/HKRBC_Q4_2025_DET_MEAN.parquet')
-# Columns: cohort_id, year, pv_cf
-
-# ── Step 1-2: Stochastic CE per cohort ──
-ce_stoch = (df_stoch.groupby(['cohort_id', 'scenario'])['pv_cf'].sum()
-                    .groupby('cohort_id').mean())
-
-# ── Step 3: Deterministic CE per cohort ──
-ce_det = df_det.groupby('cohort_id')['pv_cf'].sum()
-
-# ── Step 4: TVOG per cohort ──
-tvog = ce_stoch - ce_det
-tvog_pct = tvog / ce_det * 100
-
-# ── Step 5: Fund-level TVOG ──
-fund_tvog = tvog.sum()
-fund_tvog_pct = fund_tvog / ce_det.sum() * 100
-
-# ── Step 6: Standard error per cohort ──
-pv_by_scen = df_stoch.groupby(['cohort_id', 'scenario'])['pv_cf'].sum()
-se = pv_by_scen.groupby('cohort_id').std() / np.sqrt(5000)
-relative_se = se / ce_stoch.abs() * 100
-
-# ── Step 7: Convergence test ──
-ce_stoch_1k = (pv_by_scen.unstack().iloc[:, :1000].mean(axis=1))
-convergence_diff = (ce_stoch - ce_stoch_1k) / ce_stoch * 100
-
-# ── Build summary report ──
-report = pd.DataFrame({
-    'CE_Deterministic': ce_det,
-    'CE_Stochastic':    ce_stoch,
-    'TVOG':             tvog,
-    'TVOG_%':           tvog_pct,
-    'StdErr_%':         relative_se,
-    'Conv_Diff_%':      convergence_diff,
-}).round(2)
-
-report.to_excel('TVOG_Q4_2025_Summary.xlsx')
-
-print(f"Fund-level TVOG: HKD {fund_tvog/1e6:.1f}M ({fund_tvog_pct:.2f}% of CE)")
-print(f"Average cohort SE: {relative_se.mean():.2f}%")
-print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code></pre>
 
 <!-- ─── §10.3.6 Phase 7 Validation ─── -->
 <h3 id="prophet-phase7">§10.3.6 Phase 7: Validation &amp; GL34 Reporting 驗證與監管報告</h3>
