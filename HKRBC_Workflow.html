@@ -3467,8 +3467,61 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   </div>
 
   <p style="font-size:0.92rem; margin:0.3rem 0 0.4rem 0; color:#475569;">
-    Prophet 中：保單層 OOV（<code>AS</code>、<code>DIV</code>、<code>PROF</code>）逐單計算；基金層 OOV（<code>PFNA_TOTAL</code>、<code>AAS_TOTAL</code>、<code>ESTATE</code>、<code>CREDIT_RATE_DECISION</code>）以 <code>SUM</code> 聚合，再經 <code>DV_GLOBAL</code> 反饋給保單變量。下方公式 ①–④ 都是<strong>基金層的派生量</strong>，不取代逐單 AS 滾動。
+    Prophet 中：保單層 OOV（<code>AS</code>、<code>DIV</code>、<code>PROF</code>）逐單計算；基金層 OOV（<code>PFNA_TOTAL</code>、<code>AAS_TOTAL</code>、<code>ESTATE</code>、<code>CREDIT_RATE_DECISION</code>）以 <code>SUM</code> 聚合，再經 <code>DV_GLOBAL</code>／<code>DV_GLOBAL_PREV</code> 反饋給保單變量（詳見下方說明）。下方公式 ①–④ 都是<strong>基金層的派生量</strong>，不取代逐單 AS 滾動。
   </p>
+
+  <div style="background:#f0f9ff; border-left:4px solid #0284c7; padding:0.85rem 1rem; margin:0.5rem 0; font-size:0.91rem;">
+    <p style="margin:0 0 0.4rem 0;"><strong>Prophet <code>DV_GLOBAL</code> / <code>DV_GLOBAL_PREV</code> 具體說明</strong></p>
+
+    <p style="margin:0 0 0.35rem 0;">在普通產品庫（非 ALS）中，<strong>每條 Run 只有一個 Accumulation</strong>（匯總 run），保單層變量每個 model point 獨立算，彼此看不到對方的值。<code>DV_GLOBAL</code> 是 Prophet 打通「基金層 → 保單層」的標準機制：</p>
+
+    <div class="tbl-wrap">
+    <table style="font-size:0.87rem;">
+      <tr><th>函數</th><th>含義</th><th>用途</th></tr>
+      <tr>
+        <td><code>DV_GLOBAL(X)</code></td>
+        <td>讀取同一 Run 中「全局變量」<code>X</code> 在當前 time step <em>t</em> 的值（僅在 Global Product 或 Accumulation 層定義）</td>
+        <td>把基金層當期決策（credited rate、PROF 分配比）注入保單層</td>
+      </tr>
+      <tr>
+        <td><code>DV_GLOBAL_PREV(X)</code></td>
+        <td>讀取全局變量 <code>X</code> 在 <em>t−1</em> 的值（Lagged Feedback 的核心）</td>
+        <td>把上期基金層結果（AAS_TOTAL、ESTATE、PFNA）帶入本期保單計算</td>
+      </tr>
+      <tr>
+        <td><code>DV_PREV(X)</code></td>
+        <td>讀取<strong>本 model point 自身</strong>變量 <code>X</code> 在 <em>t−1</em> 的值</td>
+        <td>保單層自身的滯後值（AS_prev、DIV_prev 等）</td>
+      </tr>
+    </table>
+    </div>
+
+    <p style="margin:0.5rem 0 0.3rem 0;"><strong>典型寫法（Lagged Feedback）</strong>：</p>
+<pre class="codeblock" style="font-size:0.82rem;"><code>// ── Global Product（基金層，僅一個，計算聚合量）──
+AAS_TOTAL(t)   = SUM(AS)              // 對所有 model point 的 AS 求和
+                                       // SUM() = Prophet 對當期所有 cell 求和
+PFNA_TOTAL(t)  = DV_PREV(PFNA_TOTAL) * (1 + I_ACTUAL(t)) + ...
+ESTATE(t)      = PFNA_TOTAL(t) - AAS_TOTAL(t)
+CRED_RATE_NEXT = MAX(FLOOR, SMOOTH(I_ACTUAL, DV_PREV(CRED_RATE_NEXT), ...))
+PROF_ALLOC(t)  = ALPHA_SH * MAX(0, DV_PREV(ESTATE) - E_TARGET) * GAMMA * ETA
+
+// ── 普通 Product（保單層，每個 model point 各自算）──
+CRED_RATE(t)   = DV_GLOBAL_PREV(CRED_RATE_NEXT)   // 讀取上期基金層決定的 credited rate
+PROF(t)        = DV_GLOBAL_PREV(PROF_ALLOC) * DV_PREV(AS) / DV_GLOBAL_PREV(AAS_TOTAL)
+                                                   // 按 AS 比例分回每張保單
+AS(t)          = DV_PREV(AS) * (1 + CRED_RATE(t)) + PREM - DB - SB - EXP - PROF(t)</code></pre>
+
+    <p style="margin:0.4rem 0 0.3rem 0;"><strong>執行順序（每個 time step）</strong>：</p>
+    <ol style="margin:0.2rem 0 0.5rem 1.2rem; padding:0; font-size:0.9rem;">
+      <li>Prophet 先算所有保單層 cells（此時 <code>DV_GLOBAL_PREV</code> 讀的是上一期的基金層結果）</li>
+      <li>然後算 Global Product（<code>SUM(AS)</code> 聚合本期所有 cells 的 AS）</li>
+      <li><code>DV_GLOBAL</code>（非 PREV）若在保單層使用，需要 ALS 或特殊 Run Order 設定才能拿到同期基金層值；普通庫只能拿上期（即 <code>DV_GLOBAL_PREV</code>）</li>
+    </ol>
+
+    <p style="margin:0.4rem 0 0; color:#475569; font-size:0.9rem;">
+      <strong>實務注意：</strong><code>SUM()</code> 是 Prophet 的跨 cell 聚合函數，必須在 Global Product 或 Accumulation 變量中使用，不能在普通 Product 內直接調用。基金層所有計算（PFNA、Estate、PROF_ALLOC）均寫在 Global Product 的變量中，保單層通過 <code>DV_GLOBAL_PREV()</code> 讀取，形成閉環。
+    </p>
+  </div>
 
   <div style="background:rgba(234,88,12,0.06); border-left:3px solid #ea580c; padding:0.6rem 0.9rem; margin:0.4rem 0; font-size:0.93rem;">
   <strong>① 基金淨資產（PFNA, Par-Fund Net Assets）</strong>
