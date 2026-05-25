@@ -5663,12 +5663,12 @@ martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
   <div style="display:flex; gap:10px; margin-bottom:6px; align-items:stretch;">
 
     <!-- 资产端 -->
-    <div style="flex:1; background:#0c1a0c; border:1px solid #16a34a; border-radius:8px; padding:10px 14px;">
-      <div style="color:#4ade80; font-weight:700; margin-bottom:6px; font-size:0.88rem;">⚙ ASSET SIDE</div>
-      <div style="color:#bbf7d0; line-height:1.7; font-size:0.82rem;">
+    <div style="flex:1; background:#052e16; border:1px solid #22c55e; border-radius:8px; padding:10px 14px;">
+      <div style="color:#4ade80; font-weight:700; margin-bottom:6px; font-size:0.88rem; letter-spacing:0.04em;">⚙ ASSET SIDE</div>
+      <div style="color:#f0fdf4; line-height:1.8; font-size:0.82rem;">
         bond_return = rfr_short + credit_spread − EL + ΔP<sub>MtM</sub><br/>
         equity_value × (1 + equity_return)<br/>
-        <hr style="border-color:#166534; margin:5px 0;"/>
+        <hr style="border-color:#16a34a; margin:5px 0;"/>
         <strong style="color:#86efac;">earned_rate i(t,s)</strong><br/>
         = w<sub>bond</sub> × bond_return<br/>
         + w<sub>eq</sub> × equity_return<br/>
@@ -5677,20 +5677,20 @@ martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
     </div>
 
     <!-- 箭头 中间 -->
-    <div style="display:flex; align-items:center; color:#6b7280; font-size:1.2rem; flex-shrink:0;">i(t,s) →</div>
+    <div style="display:flex; align-items:center; color:#94a3b8; font-size:1rem; flex-shrink:0; padding:0 4px; font-weight:600;">i(t,s) →</div>
 
     <!-- 负债端 -->
-    <div style="flex:1.4; background:#0c1220; border:1px solid #6366f1; border-radius:8px; padding:10px 14px;">
-      <div style="color:#a5b4fc; font-weight:700; margin-bottom:6px; font-size:0.88rem;">📋 LIABILITY SIDE</div>
-      <div style="color:#c7d2fe; line-height:1.8; font-size:0.82rem;">
-        <strong>AS Recursion</strong><br/>
+    <div style="flex:1.4; background:#0f0a2a; border:1px solid #818cf8; border-radius:8px; padding:10px 14px;">
+      <div style="color:#a5b4fc; font-weight:700; margin-bottom:6px; font-size:0.88rem; letter-spacing:0.04em;">📋 LIABILITY SIDE</div>
+      <div style="color:#f0f0ff; line-height:1.8; font-size:0.82rem;">
+        <strong style="color:#c7d2fe;">AS Recursion</strong><br/>
         AS(t,s) = AS(t−1,s)×(1+i) + P − DB − SB − E − C − Tax − PROF<br/>
-        <hr style="border-color:#3730a3; margin:5px 0;"/>
-        <strong>DPB Lapse</strong><br/>
+        <hr style="border-color:#4338ca; margin:5px 0;"/>
+        <strong style="color:#c7d2fe;">DPB Lapse</strong><br/>
         q<sub>lapse</sub>(t,s) = q<sub>base</sub> × (1 + β·max(rfr − credited, 0))<br/>
         → CF(t,s) 受 surrender / maturity 影響<br/>
-        <hr style="border-color:#3730a3; margin:5px 0;"/>
-        <strong>Discounting</strong><br/>
+        <hr style="border-color:#4338ca; margin:5px 0;"/>
+        <strong style="color:#c7d2fe;">Discounting</strong><br/>
         PV(s) = Σ<sub>t</sub> CF(t,s) × discount_factor(t,s)
       </div>
     </div>
