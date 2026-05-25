@@ -3584,6 +3584,83 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <p style="font-size:0.92rem; margin:0.5rem 0 0 0; color:#475569;">
     <strong>結論：</strong>PROF 在 Architecture A 中是<em>主動的 AS-protection management action</em>（情景敏感），在 Architecture B 中是<em>被動的 90:10 結果</em>（DIV 敏感）。HKRBC TVOG 計算須採用 Architecture A 風格的動態 PROF；GL34 bonus illustration 採用 Architecture B 風格。兩者底層 board policy 必須一致，否則會出現 TVOG 與 bonus illustration 互相矛盾的審計問題。
   </p>
+
+  <!-- ─── Prophet 中的兩層耦合實現 ─── -->
+  <div style="background:#fef3c7; border-left:4px solid #d97706; border-radius:6px; padding:0.9rem 1.1rem; margin:0.9rem 0 0 0;">
+    <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>Prophet 中如何實現「逐單滾動 + 基金層管理動作」兩層耦合</strong></p>
+
+    <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
+      Prophet 原生支持 <strong>Fund Mode</strong>（FIS 文檔稱 "Pool Mode" 或 "Fund Mode Run"），允許在 stochastic projection 中同時跑保單層與基金層變量。香港實務有三種落實方式：
+    </p>
+
+    <div class="tbl-wrap">
+    <table style="font-size:0.88rem;">
+      <tr><th>方式</th><th>同步性</th><th>性能</th><th>適用</th><th>HK 採用率</th></tr>
+      <tr>
+        <td><strong>A. Lagged Feedback</strong><br/>（最常用）</td>
+        <td>用 \(\mathrm{AS}_i(t{-}1)\)、\(\mathrm{AAS}(t{-}1)\) 驅動 \(t\) 期管理動作（滯後一年）</td>
+        <td>快（與單 cell 相同）</td>
+        <td>HKRBC TVOG、GL34 bonus illustration、ORSA</td>
+        <td>≈ 80%+</td>
+      </tr>
+      <tr>
+        <td><strong>B. Same-step Fund Mode</strong></td>
+        <td>同 \((t,s)\) 內：聚合 → 決策 → 回灌（需 Prophet 二次掃描 cells）</td>
+        <td>慢 30–50%</td>
+        <td>嚴格 PRE 測試、特殊產品 stress test</td>
+        <td>≈ 15%</td>
+      </tr>
+      <tr>
+        <td><strong>C. Two-pass Iterative</strong></td>
+        <td>整個 projection 跑兩遍，第二遍用第一遍聚合結果校準</td>
+        <td>×2 時間</td>
+        <td>VA / GMxB 對沖、極複雜 path-dependent</td>
+        <td>&lt; 5%</td>
+      </tr>
+    </table>
+    </div>
+
+    <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>為什麼 Lagged Feedback (A) 是主流</strong>：</p>
+    <ul style="font-size:0.91rem; margin:0.2rem 0 0.5rem 1.2rem; padding:0;">
+      <li>Prophet 在單個 time step 內按 model point 順序處理，<strong>同步聚合需要 Run Engine 二次掃描</strong>，性能損耗大。</li>
+      <li>Par fund 是 long-term business（30 年+），滯後 1 年的管理動作對 PV 影響可忽略（典型 &lt; 0.05%）。</li>
+      <li>實際 board 也是<strong>事後</strong>看上年度 PFNA / Estate 決定下年 bonus，與 Lagged Feedback 一致。</li>
+      <li>Prophet 標準函數 <code>DV_PREV()</code>、<code>DV_GLOBAL_PREV()</code> 原生支持。</li>
+    </ul>
+
+    <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>Prophet 關鍵語法（Lagged Feedback 示意）</strong>：</p>
+
+<pre class="codeblock" style="font-size:0.82rem;"><code>// ── 保單層變量（per model point，逐單計算）──
+AS(t)        = DV_PREV(AS) * (1 + CRED_RATE(t)) + PREM(t) - DB(t) - SB(t)
+              - EXP(t) - COMM(t) - TAX(t) - DIV(t) - PROF(t)
+PROF(t)      = PROF_TOTAL_FUND(t) * DV_PREV(AS) / DV_PREV(AAS_FUND)   // 按 AS 權重回灌
+
+// ── 基金層變量（GLOBAL / fund-level OOV）──
+AAS_FUND(t)      = SUM_FUND(AS(t))               // 聚合所有 cell 的 AS
+PFNA_FUND(t)     = DV_PREV(PFNA_FUND) * (1 + I_ACTUAL(t)) + SUM_FUND(PREM - CF_OUT)
+ESTATE_FUND(t)   = PFNA_FUND(t) - AAS_FUND(t)
+SR_FUND(t)       = OWN_FUNDS_FUND(t) / PCR_FUND(t)
+
+// ── 基金層管理動作決策（用 t-1 聚合驅動 t 決策）──
+DS_FUND(t)       = MAX(0, DV_PREV(ESTATE_FUND) - E_TARGET)
+GAMMA(t)         = IF DV_PREV(SR_FUND) &lt; 1.10 THEN 0 ELSE 1
+ETA(t)           = LOOKUP(DV_PREV(ESTATE_FUND) / DV_PREV(AAS_FUND), ER_TABLE)
+PROF_TOTAL_FUND(t) = ALPHA_SH * DS_FUND(t) * GAMMA(t) * ETA(t)
+CRED_RATE(t)     = SMOOTH_FUNC(DV_PREV(I_ACTUAL), DV_PREV(CRED_RATE), PFNA/AAS, PCR)</code></pre>
+
+    <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>Same-step Fund Mode (B) 需要的額外設定</strong>：</p>
+    <ul style="font-size:0.91rem; margin:0.2rem 0 0.5rem 1.2rem; padding:0;">
+      <li>Run Settings 啟用 <code>FUND_MODE = TRUE</code>（或 <code>POOL_MODE</code>）。</li>
+      <li>變量分為 <strong>Pre-aggregation</strong>（先算的逐單變量）和 <strong>Post-aggregation</strong>（聚合後的基金層 + 回灌變量）。</li>
+      <li>用 <code>FUND_VAR()</code>、<code>FUND_TOT()</code> 而非 <code>DV_PREV</code>。</li>
+      <li>計算順序：所有 cells 算 Pre → 聚合 → 所有 cells 算 Post。每 time step 兩次掃描。</li>
+      <li>Prophet ALS / DCS module 對此優化更好（DCS = Dynamic Capital Solvency，2023+ 模組）。</li>
+    </ul>
+
+    <p style="font-size:0.91rem; margin:0.5rem 0 0 0; color:#475569;">
+      <strong>實務建議：</strong>HKRBC TVOG production 用 Lagged Feedback（A）即可；只在 IA 審計時若被質疑「lagged 是否影響 TVOG」，準備一份 Same-step（B）對比 run 作為敏感性分析（典型差異 &lt; 0.1% of CE）。AXIS（Moody's）和 RiskAgility（WTW）的等效設定為 "Fund Cell" / "Group Cell" 結構。
+    </p>
+  </div>
 </div>
 
 <p style="font-size:0.88rem; color:#475569; margin:0.3rem 0 0.3rem 0;"><strong>Other Decrements beyond Death and Lapse?</strong></p>
