@@ -3967,10 +3967,26 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 <div style="border-left:3px solid #f87171; padding-left:1rem; margin-bottom:0.5rem;">
 <h3 id="tvog-q-rationale" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§10.0 Why TVOG Must Use Q-measure 為什麼 TVOG 必須用風險中性測度</h3>
 <!-- ── 為什麼 TVOG 不能用 Real-World ── -->
-<div style="background:#2a1010; border:1px solid #7f1d1d; border-radius:6px; padding:0.9rem 1.1rem; margin:0.5rem 0 0.3rem 0;">
-<p style="font-size:0.9rem; color:#fca5a5; margin:0 0 0.5rem 0;"><strong>⛔ 為什麼 TVOG 不能用 Real-World（P-measure）情景？</strong></p>
+<div style="
+  background: linear-gradient(160deg, #0d0505 0%, #1a0808 45%, #260e0e 100%);
+  border: 1px solid #7f1d1d;
+  border-left: 4px solid #ef4444;
+  border-radius: 10px;
+  padding: 1.3rem 1.5rem;
+  margin: 0.6rem 0 0.5rem 0;
+  box-shadow: 0 6px 28px rgba(239,68,68,0.12), inset 0 1px 0 rgba(255,255,255,0.04);
+">
+<p style="font-size:0.92rem; color:#fca5a5; margin:0 0 0.6rem 0; display:flex; align-items:center; gap:0.4rem;">
+  <span style="font-size:1.05rem;">⛔</span>
+  <strong>為什麼 TVOG 不能用 Real-World（P-measure）情景？</strong>
+</p>
 
-<h4 id="tvog-q-ftap" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.1 Mathematical Foundation — FTAP &amp; Girsanov Theorem 數學根源</h4>
+<h4 id="tvog-q-ftap" style="
+  font-size:0.93rem; color:#fca5a5; margin:0.9rem 0 0.35rem 0;
+  padding: 0.25rem 0.6rem; border-radius:4px;
+  background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
+  letter-spacing:0.01em;
+">§10.0.1 &nbsp; Mathematical Foundation — FTAP &amp; Girsanov Theorem 數學根源</h4>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
   <strong>1. 數學根源：無套利定價必須在 Q-measure 下進行</strong>
 </p>
@@ -4028,7 +4044,11 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <strong>類比保險精算：</strong> 保險公司定價用的死亡率，不是真實人群死亡率，而是加了風險邊際的「定價死亡率」——同樣是「虛構」但在定價框架內自洽，目的是確保定價的一致性和充足性。Q-measure 概率亦然。
 </p>
 
-<h4 id="tvog-q-par-gsv" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.2 Par Fund Application — GSV Put &amp; Swaption Pricing 分紅基金應用</h4>
+<h4 id="tvog-q-par-gsv" style="
+  font-size:0.93rem; color:#fca5a5; margin:0.9rem 0 0.35rem 0;
+  padding: 0.25rem 0.6rem; border-radius:4px;
+  background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
+">§10.0.2 &nbsp; Par Fund Application — GSV Put &amp; Swaption Pricing 分紅基金應用</h4>
 <!-- Par Fund 無保證利率，但有 GSV Put -->
 <p style="font-size:0.88rem; color:#fca5a5; margin:0.4rem 0 0.3rem 0;"><strong>Par Fund 特殊情境：沒有保證利率，仍需 Q-measure</strong></p>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
@@ -4229,7 +4249,11 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   TVOG 必須按 Q-measure 計算，以確保嵌入期權的估值與 OTC 市場一致。</strong>
 </p>
 
-<h4 id="tvog-q-measure-divergence" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.3 Measure Divergence &amp; Martingale Test 測度偏差量化</h4>
+<h4 id="tvog-q-measure-divergence" style="
+  font-size:0.93rem; color:#fca5a5; margin:0.9rem 0 0.35rem 0;
+  padding: 0.25rem 0.6rem; border-radius:4px;
+  background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
+">§10.0.3 &nbsp; Measure Divergence &amp; Martingale Test 測度偏差量化</h4>
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.3rem 0;">
   <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
   Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
@@ -4249,7 +4273,11 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 </p>
 
 <p style="font-size:0.84rem; color:#fecaca; margin:0 0 0.4rem 0;">
-  <h4 id="tvog-q-regulatory" style="font-size:0.95rem; color:#f87171; margin:0.7rem 0 0.3rem 0;">§10.0.4 Intuition &amp; Regulatory Requirement 直觀理解與監管依據</h4>
+  <h4 id="tvog-q-regulatory" style="
+    font-size:0.93rem; color:#fca5a5; margin:0.9rem 0 0.35rem 0;
+    padding: 0.25rem 0.6rem; border-radius:4px;
+    background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
+  ">§10.0.4 &nbsp; Intuition &amp; Regulatory Requirement 直觀理解與監管依據</h4>
   <strong>2. 直觉理解：P-measure 低估了極端情景的權重</strong><br/>
   P-measure 的 drift 更高（含 ERP 和 term premium），路徑平均向上偏移：
 </p>
