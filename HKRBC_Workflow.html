@@ -5709,7 +5709,7 @@ ESG Output (per scenario s, per time step t)
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 1 — ESG Input Extraction</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   For scenario <em>s</em>, extract monthly time series from the ESG output array:<br/>
   <code>rfr_short[s,t]</code>, <code>equity_total_return[s,t]</code>, <code>credit_spread[s,t]</code>, <code>disc_factor[s,t]</code><br/>
   The disc_factor is pre-computed by the ESG as \(D(t,s) = \exp\!\left(-\sum_{\tau=1}^{t} r(\tau,s)\cdot\Delta\tau\right)\) — no further integration needed.
@@ -5718,7 +5718,7 @@ ESG Output (per scenario s, per time step t)
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 2 — Compute Earned Rate i(t,s)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   The earned rate is the total return on the Par fund's asset portfolio in scenario s:
   \[
     i(t,s) = w_{\text{bond}}\cdot\underbrace{\bigl[r^f(t,s) + cs(t,s) - \text{EL} + \Delta P_{\text{MtM}}(t,s)\bigr]}_{\text{bond total return}}
@@ -5726,8 +5726,8 @@ ESG Output (per scenario s, per time step t)
   \]
 </p>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.3rem 0;"><strong>Where does EL come from?</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#4b5563; margin:0.5rem 0 0.3rem 0;"><strong>Where does EL come from?</strong></p>
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   EL (Expected Loss) is a <strong>static parameter</strong>, not from ESG. It is calibrated by the credit team per rating band:
   \[\text{EL} = \text{PD} \times \text{LGD}\]
 </p>
@@ -5741,13 +5741,13 @@ ESG Output (per scenario s, per time step t)
   <tr><td>BB</td><td>1.00%</td><td>50%</td><td>~0.500%</td></tr>
 </table>
 </div>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   Source: Moody's / S&P historical default studies, or internal credit model.
   EL is subtracted from the credit spread because credit_spread already embeds default compensation — EL removes the expected loss portion, leaving only the risk premium that is actually earned on average.
 </p>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.3rem 0;"><strong>Where does ΔP<sub>MtM</sub> come from?</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#4b5563; margin:0.5rem 0 0.3rem 0;"><strong>Where does ΔP<sub>MtM</sub> come from?</strong></p>
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   ΔP<sub>MtM</sub> is <strong>derived from the ESG rfr_short and credit_spread paths</strong> using the duration approximation:
   \[
     \frac{\Delta P}{P} \approx -D_{\text{mod}} \cdot \Delta y + \tfrac{1}{2}\cdot\text{Conv}\cdot(\Delta y)^2,
@@ -5763,14 +5763,14 @@ convexity = 80       # portfolio convexity
 MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 # MtM is then added into bond_total_return alongside coupon and reinvestment yield
 </pre>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.5rem 0;">
   <em>Practical note: large insurers (e.g. AIA, Prudential) price each bond from the full discounted cash flow, CUSIP (Committee on Uniform Securities Identification Procedures — the unique 9-character identifier for each bond) by CUSIP, rather than using the duration approximation. The approximation is sufficient for ESG-based modelling and scenario analysis.</em>
 </p>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 6 — Cash Flow Projection</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   Aggregate all outflows and inflows in scenario s, year t:
 </p>
 <div class="tbl-wrap" style="margin-left:0; font-size:0.85rem;">
@@ -5787,7 +5787,7 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 7 — Discount Cash Flows to t=0</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.5rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.5rem 0;">
   \[
     \mathrm{PV}(s) = \sum_{t=1}^{T} CF(t,s) \times D(t,s)
     \quad\text{where}\quad D(t,s) = e^{-\sum_{\tau=1}^{t} r^f(\tau,s)\cdot\Delta\tau}
@@ -5796,8 +5796,8 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
   If Matching Adjustment applies, discount rate = RFR + MA; the MA itself may be scenario-dependent (Dynamic MA).
 </p>
 
-<p style="font-size:0.88rem; color:#aaa; margin:0.5rem 0 0.2rem 0;"><strong>What Goes into CF(t,s)? — Regulatory Basis</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.4rem 0;">
+<p style="font-size:0.88rem; color:#4b5563; margin:0.5rem 0 0.2rem 0;"><strong>What Goes into CF(t,s)? — Regulatory Basis</strong></p>
+<p style="font-size:0.88rem; color:#374151; margin:0.2rem 0 0.4rem 0;">
   <span class="ref rule">Cap. 41R Rule 17(4)</span> defines the scope of cash flows for long term insurance liabilities:
 </p>
 <div class="callout" style="margin: 0.3rem 0 0.6rem 0; font-size:0.85rem;">
@@ -5822,14 +5822,14 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 </table>
 </div>
 
-<p style="font-size:0.88rem; color:#ccc; margin:0.2rem 0 0.5rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.2rem 0 0.5rem 0;">
   <strong>Key principle:</strong> Investment income, tax and PROF are all <em>internal fund movements</em> — they change the size of AS but are not direct transfers to/from policyholders. By the time a policyholder receives SV or MB, those items are already reflected in the AS amount. Including them again in CF(t,s) would constitute double-counting.
 </p>
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 8 — Average Across Scenarios (Stochastic CE)</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   \[
     \mathrm{CE}_{\text{stochastic}} = \frac{1}{N}\sum_{s=1}^{N} \mathrm{PV}(s)
   \]
@@ -5840,7 +5840,7 @@ MtM       = -D_mod * delta_y + 0.5 * convexity * delta_y**2
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <p style="font-size:0.93rem; margin:0.3rem 0;"><strong>Step 9 — TVOG</strong></p>
-<p style="font-size:0.88rem; color:#ccc; margin:0.3rem 0 0.7rem 0;">
+<p style="font-size:0.88rem; color:#374151; margin:0.3rem 0 0.7rem 0;">
   \[
     \mathrm{TVOG} = \mathrm{CE}_{\text{stochastic}} - \mathrm{CE}_{\text{deterministic}}
   \]
