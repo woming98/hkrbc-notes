@@ -8065,6 +8065,355 @@ V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42
 </table>
 </div>
 
+<!-- ══ §11.9 Core ALM Risk Metrics ══ -->
+<h3 id="alm-metrics">§11.9 Core ALM Risk Metrics 核心風險指標體系</h3>
+
+<p style="font-size:0.93rem; margin:0 0 0.8rem 0;">
+  ALM 管理的本質是量化資產與負債對市場因子的敏感性差異，並通過配置決策縮小差距。
+  以下是實務中每個 ALCO 必須追蹤的核心指標。
+</p>
+
+<!-- 指标总表 -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:18%">指標</th><th style="width:28%">定義 / 公式</th><th style="width:28%">ALM 用途</th><th>HKRBC 連結</th></tr>
+  <tr>
+    <td><strong>Modified Duration<br/>修正久期</strong></td>
+    <td>\(D_{mod} = -\dfrac{1}{P}\dfrac{dP}{dr} = \dfrac{D_{Mac}}{1+y}\)<br/>單位：年</td>
+    <td>衡量收益率上升 1bp 時組合市值的百分比變化<br/>資產久期 ≈ 負債久期 → 利率中性</td>
+    <td>Duration Factor (DF) → MA 的 Application Ratio；IR PCR \(\approx (D_A - D_L)\cdot\Delta r\cdot V\)</td>
+  </tr>
+  <tr>
+    <td><strong>DV01 / PVBP</strong></td>
+    <td>\(\text{DV01} = D_{mod} \times P \times 0.0001\)<br/>單位：HKD/bp</td>
+    <td>收益率移動 1bp 時的絕對金額損益<br/>Duration Gap × portfolio = 净 DV01</td>
+    <td>IR PCR = 對應壓力 bp 數 × 净 DV01；直接量化利率風險敞口</td>
+  </tr>
+  <tr>
+    <td><strong>Key Rate Duration<br/>關鍵利率久期 (KRD)</strong></td>
+    <td>對每個關鍵期限點（1Y/3Y/5Y/10Y/20Y/30Y）各獨立扭轉 1bp 計算 DV01</td>
+    <td>捕捉收益率曲線形態風險（flatten / steepen）<br/>整體 Duration 相同但 KRD 不同 → 仍有曲線形態風險</td>
+    <td>IR PCR 壓力場景包括平行移動 + 扭轉；KRD 解釋為何某些組合 Duration 匹配但 PCR 仍大</td>
+  </tr>
+  <tr>
+    <td><strong>Convexity 凸性</strong></td>
+    <td>\(CX = \dfrac{1}{P}\dfrac{d^2P}{dr^2}\)<br/>二階敏感性</td>
+    <td>大幅利率移動下的非線性修正<br/>正凸性資產（普通債券）在大幅移動下跑贏久期估算<br/>負凸性（MBS/callable）則跑輸</td>
+    <td>精確計算 IR PCR 需要凸性修正，特別是大幅移動場景（±200bp）</td>
+  </tr>
+  <tr>
+    <td><strong>CS01 / Credit DV01</strong></td>
+    <td>信用利差移動 1bp 時組合市值變化<br/>\(\text{CS01} = D_{spread} \times P \times 0.0001\)</td>
+    <td>衡量信用利差擴大對資產組合的衝擊<br/>Dynamic MA 的核心：CS01<sub>asset</sub> 被 MA 抵消一部分</td>
+    <td>CS PCR = 壓力利差 × CS01（未被 Dynamic MA 抵消部分）</td>
+  </tr>
+  <tr>
+    <td><strong>Duration Gap<br/>久期缺口</strong></td>
+    <td>\(\Delta D = D_A - \dfrac{V_L}{V_A} \cdot D_L\)</td>
+    <td>資產負債久期錯配的淨敞口<br/>ΔD = 0 → 利率中性；ΔD &gt; 0 → 利率下行受益</td>
+    <td>DF 計算的核心輸入；控制 IR PCR 的直接槓桿</td>
+  </tr>
+  <tr>
+    <td><strong>Equity Delta / Vega</strong></td>
+    <td>組合市值對股價指數 / 隱含波動率的一階敏感性</td>
+    <td>Par Fund stock allocation；VA GMxB hedge notional</td>
+    <td>Equity PCR (Rule 49)；TVOG Vega 風險</td>
+  </tr>
+</table>
+</div>
+
+<!-- KRD可视化说明 -->
+<div class="callout" style="background:#eff6ff; border-left:4px solid #2563eb; padding:0.8rem 1rem; margin:0.6rem 0;">
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;"><strong>實務示例：KRD Profile 解讀</strong></p>
+  <p style="font-size:0.89rem; margin:0 0 0.3rem 0;">
+    假設一個 HKD Par Fund 的淨 KRD（資產 − 負債）如下：
+  </p>
+  <div class="tbl-wrap" style="font-size:0.86rem;">
+  <table>
+    <tr><th>期限</th><th>1Y</th><th>3Y</th><th>5Y</th><th>10Y</th><th>20Y</th><th>30Y</th><th>整體 DV01</th></tr>
+    <tr><td>資產 KRD (HKDm/bp)</td><td>−0.2</td><td>−0.8</td><td>−1.5</td><td>−4.2</td><td>−3.1</td><td>−0.6</td><td>−10.4</td></tr>
+    <tr><td>負債 KRD (HKDm/bp)</td><td>−0.1</td><td>−0.5</td><td>−1.0</td><td>−4.5</td><td>−3.8</td><td>−0.7</td><td>−10.6</td></tr>
+    <tr style="background:#fef3c7;"><td><strong>淨 KRD 缺口</strong></td><td>−0.1</td><td>−0.3</td><td>−0.5</td><td style="color:#16a34a;"><strong>+0.3</strong></td><td style="color:#dc2626;"><strong>+0.7</strong></td><td style="color:#16a34a;"><strong>+0.1</strong></td><td>+0.2</td></tr>
+  </table>
+  </div>
+  <p style="font-size:0.87rem; margin:0.3rem 0 0; color:#1e3a8a;">
+    整體 DV01 幾乎平衡（+0.2），但 20Y 段有 <strong>+0.7 的正缺口</strong>（資產少於負債）→
+    若 20Y 利率下行，負債漲幅大於資產 → 淨損失。<br/>
+    解決方案：買入 20Y 政府債或使用 20Y 利率互換（Receiver Swap）縮小缺口。
+  </p>
+</div>
+
+<!-- ══ §11.10 ALM Strategies ══ -->
+<h3 id="alm-strategy">§11.10 ALM 策略與免疫理論 Strategy & Immunization</h3>
+
+<p style="font-size:0.93rem; margin:0 0 0.7rem 0;">
+  ALM 策略的核心目標是：<strong>在可接受的資本成本下，最大化資產回報同時管理利率和信用風險敞口</strong>。
+  以下四種策略在香港壽險業均有實踐。
+</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:20%">策略</th><th style="width:30%">原理</th><th style="width:25%">適用場景</th><th>HKRBC 影響</th></tr>
+  <tr>
+    <td>
+      <strong>Duration Matching<br/>久期免疫</strong>
+      <div style="font-size:0.78rem; color:#5a6a7a; margin-top:3px;">傳統免疫</div>
+    </td>
+    <td>
+      令資產修正久期 ≈ 負債修正久期<br/>
+      同時滿足：資產 PV ≥ 負債 PV<br/>
+      且資產凸性 ≥ 負債凸性（防止大幅移動時免疫失效）<br/>
+      \(D_A = D_L,\; C_A \geq C_L,\; V_A \geq V_L\)
+    </td>
+    <td>
+      傳統壽險 / 年金<br/>保費固定、現金流可預測
+    </td>
+    <td>
+      Duration Factor ≈ 1 → AR ↑ → MA 最大化<br/>
+      IR PCR ≈ 0<br/>
+      最常用的 HKRBC 資本節省策略
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <strong>Cash Flow Matching<br/>（Dedication）現金流匹配</strong>
+    </td>
+    <td>
+      資產現金流（本金 + 利息）在每個時間點均覆蓋負債支出<br/>
+      ACS% = 0 → Predictability Factor = 1<br/>
+      極端形式：每筆負債配一筆零息債券（Strip Bond）
+    </td>
+    <td>
+      確定性給付（如年金）<br/>Pension 解除風險（De-risking）<br/>HKRBC ACS% 最小化
+    </td>
+    <td>
+      PF = 1 → AR 最大 → MA 最大化<br/>代價：流動性差、資產選擇受限、預期收益略低於久期匹配
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <strong>LDI<br/>（Liability-Driven Investment 負債驅動投資）</strong>
+    </td>
+    <td>
+      以負債現金流為基準構建「責任組合」（Liability-Hedging Portfolio，LHP）<br/>
+      再疊加「回報增強組合」（Return-Seeking Portfolio，RSP）<br/>
+      動態再平衡，目標是保持 Funding Ratio = V_A / V_L ≥ 1
+    </td>
+    <td>
+      DB Pension / 長尾保險負債<br/>利率風險敞口大、需主動對沖
+    </td>
+    <td>
+      LHP 部分將 IR PCR 降至接近 0<br/>RSP 部分（股票 / 信用）承擔其他 PCR<br/>靈活但需頻繁交易和 Overlay（IRS / Bond Future）
+    </td>
+  </tr>
+  <tr>
+    <td>
+      <strong>CDI<br/>（Cash flow-Driven Investment）</strong>
+    </td>
+    <td>
+      買入高質量固定收益（IG 信用債、ABS），其自然現金流直接匹配已知負債支出<br/>
+      「買入持有」無需衍生品 Overlay；強調真實現金流而非市值對沖<br/>
+      若對沖比率 &lt; 100%：剩余缺口由流動性儲備（政府債/現金）覆蓋
+    </td>
+    <td>
+      壽險年金 / Par Fund（GL34 要求物理隔離）<br/>監管傾向 buy-and-hold 的 MA 組合
+    </td>
+    <td>
+      天然符合 MA 資格（eligible assets + CF matching + buy-and-hold）<br/>ACS% 低 → PF 高 → MA 最大化<br/>HKRBC 最推薦的 MA 組合策略
+    </td>
+  </tr>
+</table>
+</div>
+
+<!-- 策略选择矩阵 -->
+<div class="callout" style="background:#f0fdf4; border-left:4px solid #16a34a; padding:0.8rem 1rem; margin:0.6rem 0;">
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;"><strong>💡 香港壽險業典型 ALM 策略組合</strong></p>
+  <div class="tbl-wrap" style="font-size:0.87rem;">
+  <table>
+    <tr><th>業務線</th><th>主要 ALM 策略</th><th>衍生品使用</th><th>HKRBC 重點</th></tr>
+    <tr><td>傳統壽險（非分紅）</td><td>Duration Match + CDI</td><td>IRS（微調久期缺口）</td><td>MA 最大化 + IR PCR 最小化</td></tr>
+    <tr><td>分紅保險（Par Fund）</td><td>CDI + LTA（股/房）</td><td>極少（GL34 限制）</td><td>MA + Qualified LTA + GL34 合規</td></tr>
+    <tr><td>年金（Annuity）</td><td>Cash Flow Match（Dedication）</td><td>很少</td><td>ACS% ≈ 0 → PF = 1 → 最高 AR</td></tr>
+    <tr><td>UL / VA</td><td>LDI（分離帳戶 + hedge overlay）</td><td>Delta hedge、Collar</td><td>Equity PCR + TVOG 對沖</td></tr>
+    <tr><td>GI（非壽）</td><td>短久期匹配（1-5 年）</td><td>基本不用</td><td>IR 敏感性低，關注流動性</td></tr>
+  </table>
+  </div>
+</div>
+
+<!-- ══ §11.11 ALM Governance ══ -->
+<h3 id="alm-governance">§11.11 ALCO 治理架構與報告體系 ALM Governance</h3>
+
+<p style="font-size:0.93rem; margin:0 0 0.7rem 0;">
+  ALM 不只是建模問題，更是治理問題。
+  HKRBC 框架下，<strong>IA 對 ALM 的隱式要求</strong>（通過 MA 合資格條件、LAC(FDB) 可信性標準）
+  實質上要求公司建立正式的 ALCO 體系。
+</p>
+
+<!-- ALCO结构 -->
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:22%">層級</th><th style="width:30%">職責</th><th style="width:25%">頻率</th><th>關鍵輸出</th></tr>
+  <tr>
+    <td><strong>Board / Finance Committee<br/>董事會 / 財務委員會</strong></td>
+    <td>
+      批准 ALM Policy（含 MA 策略、Limit Framework）<br/>
+      批准 LAC(FDB) 管理行動政策<br/>
+      批准 GL34 分紅哲學文件
+    </td>
+    <td>年度（正常）<br/>重大市場事件時臨時召開</td>
+    <td>Board ALM Policy<br/>GL34 Bonus Philosophy Document</td>
+  </tr>
+  <tr>
+    <td><strong>ALCO<br/>（Asset-Liability Committee 資產負債委員會）</strong></td>
+    <td>
+      監控 Duration Gap / DV01 / CS01 是否在 limit 內<br/>
+      批准再平衡交易（Rebalancing Trades）<br/>
+      審閱 HKRBC Solvency Ratio 預測<br/>
+      決定分紅（Bonus Declaration）建議
+    </td>
+    <td>月度（正常）<br/>重大波動時雙周</td>
+    <td>ALCO Report Pack<br/>Hedging Recommendation<br/>Bonus Recommendation to Board</td>
+  </tr>
+  <tr>
+    <td><strong>ALM Working Group<br/>精算 / 投資工作組</strong></td>
+    <td>
+      生成所有 ALM 指標（Duration、DV01、KRD、SR 預測）<br/>
+      運行 Prophet / Asset model<br/>
+      壓力測試（IR、CS、Equity）<br/>
+      準備 ALCO Report Pack
+    </td>
+    <td>月度（報告生成）<br/>季度（完整 HKRBC 計算）</td>
+    <td>ALM Metrics Dashboard<br/>PCR Attribution Report<br/>MA Calculation Sheet</td>
+  </tr>
+  <tr>
+    <td><strong>Appointed Actuary (AA)</strong></td>
+    <td>
+      簽發 HKRBC 償付能力報告（含 TVOG）<br/>
+      審閱 MA 計算和 ACS% 測試<br/>
+      驗證 LAC(FDB) 合理性<br/>
+      提交監管報告（IA Form IS-1）
+    </td>
+    <td>季度（IA 申報）<br/>年度（完整 AA Report）</td>
+    <td>AA Actuarial Report<br/>IA Form IS-1<br/>TVOG Calculation Memo</td>
+  </tr>
+</table>
+</div>
+
+<!-- 关键ALM报告 -->
+<p style="font-size:0.93rem; margin:0.8rem 0 0.4rem 0;"><strong>ALCO Report Pack 標準內容（每月）</strong></p>
+<div class="tbl-wrap">
+<table>
+  <tr><th>#</th><th>報告模塊</th><th>核心指標</th><th>觸發 Action 的閾值示例</th></tr>
+  <tr><td>1</td><td><strong>市場概覽</strong></td><td>HKD/USD RFR 曲線、IG 信用利差指數、恒指、HIBOR</td><td>—（參考性）</td></tr>
+  <tr><td>2</td><td><strong>Duration Gap 監控</strong></td><td>資產 / 負債 / 淨 Duration；KRD Profile；DV01 by tenor</td><td>|净 Duration Gap| &gt; 0.5yr → ALCO 審議再平衡</td></tr>
+  <tr><td>3</td><td><strong>MA 計算更新</strong></td><td>MA bps（各組合）；AR；DF；ACS%；PF</td><td>MA 下降 &gt;20bps MoM → 調查原因</td></tr>
+  <tr><td>4</td><td><strong>Solvency Ratio 預測</strong></td><td>SR（= CB / PCA）；CAR；PCR by module；LAC offset</td><td>SR &lt; 130% → 啟動資本應急計劃</td></tr>
+  <tr><td>5</td><td><strong>壓力測試快報</strong></td><td>IR ±100bp；CS +100bp；Equity −30% 的 SR 衝擊</td><td>任一壓力 SR &lt; 110% → 對沖行動</td></tr>
+  <tr><td>6</td><td><strong>Par Fund 分紅監控</strong></td><td>PFNA；AAS；Estate；Distributable Surplus；建議分紅率範圍</td><td>DS / AAS &lt; 0% → 暫停 PROF transfer</td></tr>
+  <tr><td>7</td><td><strong>對沖組合表現</strong></td><td>IRS / Bond Future P&amp;L；Delta / DV01 覆蓋率；對沖成本</td><td>覆蓋率偏離目標 ±10% → 再平衡</td></tr>
+</table>
+</div>
+
+<!-- 模型架构图 -->
+<h4 style="margin-top:1.2rem;">§11.11a ALM 模型整體架構圖</h4>
+<div class="callout" style="background:#f8fafc; border-left:4px solid #0f2044; padding:0.9rem 1.1rem; margin:0.4rem 0;">
+<pre class="diagram" style="font-size:0.8rem; line-height:1.6;">
+  ┌──────────────────────────────────────────────────────────────────────────────────────┐
+  │                           ALM MODEL ARCHITECTURE                                      │
+  └──────────────────────────────────────────────────────────────────────────────────────┘
+
+  INPUT LAYER                    MODEL LAYER                         OUTPUT LAYER
+  ─────────────────────────────────────────────────────────────────────────────────────
+  Market Data                    ┌────────────────────┐
+  • RFR Yield Curves             │  ASSET MODEL        │──→ Asset PV, Duration, CS01
+  • Credit Spreads         ──→  │  (OAS / Z-Spread)   │     Asset Cash Flows
+  • Equity Prices               │  IA Sch.4/5 curves  │     KRD Profile
+  • Swap Rates                  └────────────────────┘
+                                        │
+  Policy Data                           ▼
+  • In-Force Portfolio     ──→  ┌────────────────────┐
+  • Product Terms               │  LIABILITY MODEL    │──→ CE (BEL), Liability Duration
+  • Assumptions (mort/        │  (Prophet / AXIS)    │     Liability CFs (3 lapse scen)
+    lapse/expense)             │  + ESG (for TVOG)   │     TVOG
+                                └────────────────────┘
+                                        │
+                                        ▼
+                               ┌─────────────────────┐
+                               │  INTEGRATION ENGINE  │
+                               │  • MA Engine (Sch.5) │──→ MA bps, AR, ACS%
+                               │  • PCR Engine        │     PCR by module
+                               │  • LAC Engine        │     PCA
+                               │  • TVOG Aggregation  │     SR = CB / PCA
+                               └─────────────────────┘
+                                        │
+                          ┌─────────────┼─────────────┐
+                          ▼             ▼              ▼
+                   ALCO Report    IA Form IS-1    Capital Plan
+                   (Monthly)      (Quarterly)    (Annual ORSA)
+</pre>
+</div>
+
+<!-- ══ §11.12 Model Calibration ══ -->
+<h3 id="alm-calibration">§11.12 ALM 模型校準與驗證 Model Calibration & Validation</h3>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th style="width:25%">校準項目</th><th style="width:35%">方法</th><th>頻率 / 標準</th></tr>
+  <tr>
+    <td><strong>Yield Curve Bootstrap<br/>利率曲線校準</strong></td>
+    <td>
+      以 IA 公布的 Schedule 4 RFR 曲線為基準（非自行校準）<br/>
+      需驗證：插值方法（線性/Nelson-Siegel）的一致性<br/>
+      UFR（Ultimate Forward Rate）的應用
+    </td>
+    <td>每月更新<br/>IA 每月公布更新</td>
+  </tr>
+  <tr>
+    <td><strong>Asset Spread Calibration<br/>資產利差校準</strong></td>
+    <td>
+      Z-Spread 或 OAS（Option-Adjusted Spread）計算<br/>
+      對於含嵌入期權的債券需用 Hull-White 模型計算 OAS<br/>
+      \(\text{OAS} = \text{Z-Spread} - \text{Option Value in bps}\)
+    </td>
+    <td>月度<br/>與 Bloomberg / 彭博數據對齊</td>
+  </tr>
+  <tr>
+    <td><strong>Liability Duration Validation<br/>負債久期驗證</strong></td>
+    <td>
+      數值微分：CE(r − Δ) 和 CE(r + Δ) 分別用 ±1bp 計算<br/>
+      交叉驗證：與解析久期公式（簡單年金 D = (T+1)/2）比較<br/>
+      壓力下的久期穩定性（利率大幅移動時久期應基本穩定）
+    </td>
+    <td>季度（正式驗證）<br/>每月（監控）</td>
+  </tr>
+  <tr>
+    <td><strong>ACS% Back-Testing<br/>現金流覆蓋度回測</strong></td>
+    <td>
+      用歷史場景（如 2008、2015、2020 年）重跑 ACS% 測試<br/>
+      驗證：若按歷史發生的利率路徑，ACS% 是否一直 &lt; 100%
+    </td>
+    <td>年度<br/>AA Report 的一部分</td>
+  </tr>
+  <tr>
+    <td><strong>Management Action Back-Testing<br/>管理行動回測</strong></td>
+    <td>
+      比較過去 5–10 年實際分紅/credited rate 決策 vs 模型假設<br/>
+      LAC(FDB) 合理性的核心依據（IA 關注點）
+    </td>
+    <td>年度<br/>GL34 §8 獨立精算師審閱</td>
+  </tr>
+  <tr>
+    <td><strong>ESG Martingale Test<br/>情景生成器驗證</strong></td>
+    <td>
+      驗證 Q-measure 情景下，折現資產價格的均值 = 今日價格（鞅條件）<br/>
+      誤差容忍：±1% per tenor<br/>
+      另需：Implied Vol Test（見 Appendix A）
+    </td>
+    <td>每次 ESG 重校準時（至少年度）</td>
+  </tr>
+</table>
+</div>
+
 <!-- ─── §9.5 ESG ─── -->
 <h2 id="appendix-esg">Appendix A: ESG Minimum Requirements <span class="ref">Cap. 41R Rule 19(2)</span> <span class="ref circ">IA Circular 12 Jun 2024, Appendix 1</span></h2>
 
