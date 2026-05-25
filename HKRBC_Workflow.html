@@ -6861,96 +6861,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §10.3.3 Phase 2 Library Setup ─── -->
-<h3 id="prophet-phase2">§10.3.3 Phase 2: Prophet Library Setup &amp; Asset Share Variable Code 庫設置與變量代碼</h3>
-
-<p>The Asset Share calculation in Prophet is implemented as a set of <strong>user-defined variables</strong> in the library (.LIB file).
-Below is a representative pseudo-code skeleton in Prophet's variable language:</p>
-
-<pre class="codeblock"><code>'═════════════════════════════════════════════════════════════════
-' VARIABLE: ASSET_SHARE
-' Type: Numeric, Aggregation = Sum, Output Level = Cohort × Scenario × Year
-'═════════════════════════════════════════════════════════════════
-ASSET_SHARE = IF (t = 1) THEN
-                  OPEN_AS                  ' from MPF input field
-              ELSE
-                  ASSET_SHARE_PRV * (1 + EARNED_RATE_NET)
-                  + PREMIUM_INCOME
-                  - DEATH_OUTGO
-                  - SURR_OUTGO
-                  - EXPENSE_ALLOCATED
-                  - COI_CHARGE
-                  - TAX_FUND
-                  - PROFIT_CHARGE_SH        ' shareholder transfer per §6
-              END IF
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: EARNED_RATE_NET (driven by ESG scenario s)
-'═════════════════════════════════════════════════════════════════
-EARNED_RATE_NET = (INV_INC + REALIZED_GL + UNREALIZED_GL) / AVG_ASSET
-                  - INV_EXPENSE_RATE
-   ' Driven by ESG scenario through ASSET_RETURN_S(t, s) lookup
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: SMOOTHED_RATE (5-year exponential)
-'═════════════════════════════════════════════════════════════════
-SMOOTHED_RATE = IF (t = 1) THEN
-                    EARNED_RATE_NET
-                ELSE
-                    SMOOTHING_ALPHA * EARNED_RATE_NET
-                    + (1 - SMOOTHING_ALPHA) * SMOOTHED_RATE_PRV
-                END IF
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: TOTAL_BONUS_RATE (GL34 §6 governed declaration rule)
-'═════════════════════════════════════════════════════════════════
-DISTRIBUTABLE = MAX(ASSET_SHARE - GTD_LIAB - SMOOTHING_BUFFER, 0)
-TARGET_RATE   = MIN(SMOOTHED_RATE - GTD_RATE, DIVIDEND_CAP)
-TOTAL_BONUS_RATE = MAX(0, MIN(TARGET_RATE,
-                              DISTRIBUTABLE / SA_INFORCE))
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: RB_RATE_T, TB_RATE_T  (RB vested, TB discretionary)
-'═════════════════════════════════════════════════════════════════
-RB_RATE_T = RB_SHARE_PCT * TOTAL_BONUS_RATE         ' e.g. 40%
-TB_RATE_T = TB_SHARE_PCT * TOTAL_BONUS_RATE         ' e.g. 60%
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: VESTED_RB_BAL  (cumulative — once declared, vested)
-'═════════════════════════════════════════════════════════════════
-VESTED_RB_BAL = IF (t = 1) THEN
-                    OPEN_VESTED_RB
-                ELSE
-                    VESTED_RB_BAL_PRV + RB_RATE_T * SA_INFORCE
-                END IF
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: DYNAMIC_LAPSE_RATE (DPB with TB anticipation)
-'═════════════════════════════════════════════════════════════════
-RATE_GAP = MAX(MARKET_RATE - SMOOTHED_RATE, 0)
-TB_DECLINE_SIG = MAX((TB_RATE_T_PRV - TB_RATE_T) / TB_RATE_T_PRV, 0)
-DYNAMIC_LAPSE_RATE = BASE_LAPSE_TABLE * (1 + BETA1 * RATE_GAP
-                                            + BETA2 * TB_DECLINE_SIG)
-
-'═════════════════════════════════════════════════════════════════
-' VARIABLE: CASH FLOWS for the cohort in this scenario-year
-'═════════════════════════════════════════════════════════════════
-DEATH_OUTGO = (SA_INFORCE + VESTED_RB_BAL) * MORTALITY_RATE
-SURR_OUTGO  = (SA_INFORCE * GTD_CV_PCT
-               + VESTED_RB_BAL
-               + TB_RATE_T * SA_INFORCE)      ' TB paid at surrender
-              * DYNAMIC_LAPSE_RATE
-MATURITY_OUTGO = IF (t = POL_TERM) THEN
-                     SA_INFORCE + VESTED_RB_BAL + TB_RATE_T * SA_INFORCE
-                 ELSE 0 END IF</code></pre>
-
-<p style="font-size:0.88rem; color:var(--muted);">
-  Real Prophet code uses Prophet-specific syntax (e.g., <code>PRJ_</code> prefix, <code>RPT_</code> variables, <code>LOOKUP</code> functions);
-  this is a methodology illustration. A full production library can have 200-500 such variables.
-</p>
-
-<!-- ─── §10.3.4 Phase 3 Pre-Run Validation ─── -->
-<h3 id="prophet-phase3">§10.3.4 Phase 3: Pre-Run Validation 開跑前驗證</h3>
+<!-- ─── §10.3.3 Phase 3 Pre-Run Validation ─── -->
+<h3 id="prophet-phase3">§10.3.3 Phase 3: Pre-Run Validation 開跑前驗證</h3>
 
 <div class="tbl-wrap">
 <table>
@@ -6988,8 +6900,8 @@ MATURITY_OUTGO = IF (t = POL_TERM) THEN
 </table>
 </div>
 
-<!-- ─── §10.3.5 Phase 4-5 Runs ─── -->
-<h3 id="prophet-phase45">§10.3.5 Phase 4 &amp; 5: Deterministic + Stochastic Production Runs 確定式與隨機式</h3>
+<!-- ─── §10.3.4 Phase 4-5 Runs ─── -->
+<h3 id="prophet-phase45">§10.3.4 Phase 4 &amp; 5: Deterministic + Stochastic Production Runs 確定式與隨機式</h3>
 
 <h4>Phase 4 — Deterministic Run (1 scenario, fast)</h4>
 
@@ -7038,8 +6950,8 @@ GRID                = PACER_HK_PROD_50NODES
 SPLIT_BY            = SCENARIO
 RESTART_ON_FAIL     = ON</code></pre>
 
-<!-- ─── §10.3.6 Phase 6 Post-Processing ─── -->
-<h3 id="prophet-phase6">§10.3.6 Phase 6: Post-Processing &amp; TVOG Calculation 後處理</h3>
+<!-- ─── §10.3.5 Phase 6 Post-Processing ─── -->
+<h3 id="prophet-phase6">§10.3.5 Phase 6: Post-Processing &amp; TVOG Calculation 後處理</h3>
 
 <h4>Step-by-step Post-Processing</h4>
 
@@ -7146,8 +7058,8 @@ print(f"Fund-level TVOG: HKD {fund_tvog/1e6:.1f}M ({fund_tvog_pct:.2f}% of CE)")
 print(f"Average cohort SE: {relative_se.mean():.2f}%")
 print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code></pre>
 
-<!-- ─── §10.3.7 Phase 7 Validation ─── -->
-<h3 id="prophet-phase7">§10.3.7 Phase 7: Validation &amp; GL34 Reporting 驗證與監管報告</h3>
+<!-- ─── §10.3.6 Phase 7 Validation ─── -->
+<h3 id="prophet-phase7">§10.3.6 Phase 7: Validation &amp; GL34 Reporting 驗證與監管報告</h3>
 
 <div class="tbl-wrap">
 <table>
@@ -7195,8 +7107,8 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 </table>
 </div>
 
-<!-- ─── §10.3.8 Common Production Issues ─── -->
-<h3 id="prophet-issues">§10.3.8 Common Production Issues 常見生產問題</h3>
+<!-- ─── §10.3.7 Common Production Issues ─── -->
+<h3 id="prophet-issues">§10.3.7 Common Production Issues 常見生產問題</h3>
 
 <div class="tbl-wrap">
 <table>
@@ -7244,8 +7156,8 @@ print(f"Max cohort convergence diff: {convergence_diff.abs().max():.2f}%")</code
 </table>
 </div>
 
-<!-- ─── §10.3.9 End-to-End Run Calendar ─── -->
-<h3 id="prophet-calendar">§10.3.9 Quarterly Production Calendar 季度生產日曆</h3>
+<!-- ─── §10.3.8 End-to-End Run Calendar ─── -->
+<h3 id="prophet-calendar">§10.3.8 Quarterly Production Calendar 季度生產日曆</h3>
 
 <div class="tbl-wrap">
 <table>
