@@ -3623,10 +3623,128 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
 <h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Asset Share Recursion 遞推公式</h3>
 
+<!-- 两种架构 A vs B -->
+<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
+  In practice two distinct AS architectures exist, serving different purposes:
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
+<table>
+  <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
+  <tr><td><strong>Recursion</strong></td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
+      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
+  <tr><td><strong>DIV_t</strong></td>
+      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
+      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
+  <tr><td><strong>Surrender Value</strong></td>
+      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
+      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
+  <tr><td><strong>AS meaning</strong></td>
+      <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
+      <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
+  <tr><td><strong>Primary use</strong></td>
+      <td>HKRBC TVOG stochastic projection</td>
+      <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
+  <tr><td><strong>TVOG suitability</strong></td>
+      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
+      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
+<p style="margin:0.2rem 0 0.4rem 0;">
+  If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
+  CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
+  The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
+<table>
+  <tr><th>SV Treatment</th><th>TVOG Result</th><th>Correct?</th></tr>
+  <tr><td>Static CSV table (scenario-independent)</td><td>≈ 0 — all scenarios pay same SV</td><td>❌</td></tr>
+  <tr><td>Dynamic: max(AS(t,s), GSV_floor)</td><td>Reflects option value — higher in stressed scenarios</td><td>✅</td></tr>
+  <tr><td>Architecture B with scenario-dependent DIV + SV</td><td>Equivalent to Architecture A if consistently applied</td><td>✅</td></tr>
+</table>
+</div>
+
+<!-- ── Architecture A 的隐含红利理解 ── -->
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
+<p style="margin:0.2rem 0 0.3rem 0;">
+  A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
+</p>
+<p style="margin:0.2rem 0 0.3rem 0;">
+  <strong>Answer: dividends are deferred, not eliminated.</strong>
+  In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
+  At exit (surrender / maturity / death), the policyholder receives:
+  \[
+    SV = \max\!\bigl(AS(t,s),\; GSV_{\text{floor}}\bigr)
+  \]
+  \[
+    TB(t,s) = \max\!\bigl(AS(t,s) - SA - \text{Accrued RB},\; 0\bigr)
+  \]
+  TB is exactly the "crystallised dividends" — everything the fund accumulated above the guaranteed floor, paid out in one lump sum.
+</p>
+
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
+  <tr><td><strong>Each year</strong></td>
+      <td>Dividend stays inside AS, compounds with fund return</td>
+      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
+  <tr><td><strong>At surrender / maturity</strong></td>
+      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
+      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
+  <tr><td><strong>Total policyholder value</strong></td>
+      <td>= SV (lump sum at exit)</td>
+      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
+  <tr><td><strong>Economically equivalent?</strong></td>
+      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
+</table>
+</div>
+
+<p style="margin:0.2rem 0 0.5rem 0;">
+  <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
+  So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
+  the insurer's floor guarantee is clearly visible as an option.
+  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
+</p>
+
+<!-- ── Prophet 实务分工 ── -->
+<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
+<p style="margin:0.2rem 0 0.3rem 0;">
+  In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
+</p>
+<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
+<table>
+  <tr><th></th><th>Architecture A — TVOG / RBC Model</th><th>Architecture B — Bonus Projection Model</th></tr>
+  <tr><td><strong>Prophet model</strong></td><td>HKRBC stochastic run</td><td>Bonus recommendation / management projection</td></tr>
+  <tr><td><strong>Scenarios</strong></td><td>1,000 ESG paths × full projection</td><td>1–5 management scenarios (best estimate ± stress)</td></tr>
+  <tr><td><strong>SV in Prophet</strong></td>
+      <td><code>SV = MAX(AS_THEORETICAL, GSV_FLOOR)</code> — fully path-dependent</td>
+      <td><code>SV = CSV_TABLE[POL_YEAR]</code> or dynamic</td></tr>
+  <tr><td><strong>DPB lapse</strong></td><td>Full β₁ + β₂ formula</td><td>Simplified or static</td></tr>
+  <tr><td><strong>Dividend output</strong></td><td>TB implicit in SB/MB flows at exit</td><td>DIV_t explicit output used for GL34 bonus sustainability report</td></tr>
+  <tr><td><strong>Run frequency</strong></td><td>Quarterly (RBC reporting)</td><td>Annually (bonus recommendation to board)</td></tr>
+</table>
+</div>
+
+<p style="margin:0.2rem 0 0.5rem 0;">
+  <strong>Why not merge into one model?</strong>
+  (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
+  (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
+  (3) Validation differs: Architecture A is validated via martingale test; Architecture B via historical dividend sustainability back-test.<br/>
+  <em>Small companies with limited IT resources sometimes use Architecture A only, and produce a separate Excel bonus projection workbook for the board.</em>
+</p>
+
+<!-- ── 术语说明 ── -->
+
+
 <!-- 主递推公式 -->
 <p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>The Recursion Formula (t = 1, 2, …, T)</strong></p>
 <p style="margin:0.3rem 0 0.5rem 0;">
-  Propagate forward year by year (Architecture A shown):
+  With the two architectures in mind, the Architecture A recursion (TVOG/HKRBC) propagates year by year:
   \[
     AS(t,s) = AS(t{-}1,s)\cdot(1+i(t,s)) + P_t - DB_t - SB_t - MB_t - RB_t - E_t - C_t - \text{Tax}_t - \text{PROF}_t
   \]
@@ -3816,122 +3934,6 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
 <!-- ── 5.2 正文 ── -->
 
-<!-- 两种架构 A vs B -->
-<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
-<p style="margin:0.2rem 0 0.4rem 0;">
-  In practice two distinct AS architectures exist, serving different purposes:
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.6rem;">
-<table>
-  <tr><th></th><th>Architecture A — Theoretical AS</th><th>Architecture B — Dividend-Explicit AS</th></tr>
-  <tr><td><strong>Recursion</strong></td>
-      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - SB - E - C - \text{Tax} - \text{PROF}\)</td>
-      <td>\(AS(t,s) = AS(t{-}1,s)(1+i) + P - DB - \mathbf{DIV_t(s)} - E - C - \text{Tax} - \text{PROF}\)</td></tr>
-  <tr><td><strong>DIV_t</strong></td>
-      <td>Not explicit — dividends embedded in credited rate → RB/TB at exit</td>
-      <td>Explicitly deducted each year: cash dividends + RB encashments declared in year t</td></tr>
-  <tr><td><strong>Surrender Value</strong></td>
-      <td>Dynamic: \(\max(AS(t,s),\, GSV_{\text{floor}})\)</td>
-      <td>Often from a static GSV table (CSV lookup by policy year) OR dynamic \(\max(AS_{\text{after-DIV}}(t,s),\, GSV)\)</td></tr>
-  <tr><td><strong>AS meaning</strong></td>
-      <td>"If no dividends were ever paid, what has the fund accumulated?" — each policyholder's theoretical total share</td>
-      <td>"After paying out declared dividends, what remains in the fund?" — undistributed residual</td></tr>
-  <tr><td><strong>Primary use</strong></td>
-      <td>HKRBC TVOG stochastic projection</td>
-      <td>GL34 bonus decision support, fund reconciliation, dividend sustainability analysis</td></tr>
-  <tr><td><strong>TVOG suitability</strong></td>
-      <td>✅ Fully suitable — SV is scenario-dependent by construction</td>
-      <td>⚠️ Suitable <em>only if</em> DIV_t(s) and SV are both made scenario-dependent; fails if GSV table is static</td></tr>
-</table>
-</div>
-
-<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Why Static GSV Table Breaks TVOG</em></p>
-<p style="margin:0.2rem 0 0.4rem 0;">
-  If SV is read from a scenario-independent CSV table, the surrender cash flows are identical across all ESG scenarios →
-  CE_stochastic ≈ CE_deterministic → TVOG ≈ 0. This is one of the most common Par TVOG modelling errors in practice.
-  The fix: replace static GSV with <code>max(AS_after_DIV(t,s), GSV_floor)</code>, making SV path-dependent.
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.7rem;">
-<table>
-  <tr><th>SV Treatment</th><th>TVOG Result</th><th>Correct?</th></tr>
-  <tr><td>Static CSV table (scenario-independent)</td><td>≈ 0 — all scenarios pay same SV</td><td>❌</td></tr>
-  <tr><td>Dynamic: max(AS(t,s), GSV_floor)</td><td>Reflects option value — higher in stressed scenarios</td><td>✅</td></tr>
-  <tr><td>Architecture B with scenario-dependent DIV + SV</td><td>Equivalent to Architecture A if consistently applied</td><td>✅</td></tr>
-</table>
-</div>
-
-<!-- ── Architecture A 的隐含红利理解 ── -->
-<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Conceptual Understanding: Architecture A "Deferred Dividend" Logic</em></p>
-<p style="margin:0.2rem 0 0.3rem 0;">
-  A common question: if Architecture A has no DIV line, where do policyholders' dividends go?
-</p>
-<p style="margin:0.2rem 0 0.3rem 0;">
-  <strong>Answer: dividends are deferred, not eliminated.</strong>
-  In Architecture A the recursion has no DIV term — all investment returns (after expenses, tax, PROF, declared RB) stay inside AS and keep compounding.
-  At exit (surrender / maturity / death), the policyholder receives:
-  \[
-    SV = \max\!\bigl(AS(t,s),\; GSV_{\text{floor}}\bigr)
-  \]
-  \[
-    TB(t,s) = \max\!\bigl(AS(t,s) - SA - \text{Accrued RB},\; 0\bigr)
-  \]
-  TB is exactly the "crystallised dividends" — everything the fund accumulated above the guaranteed floor, paid out in one lump sum.
-</p>
-
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
-<table>
-  <tr><th></th><th>Architecture A</th><th>Architecture B</th></tr>
-  <tr><td><strong>Each year</strong></td>
-      <td>Dividend stays inside AS, compounds with fund return</td>
-      <td>DIV_t paid out annually; AS shrinks each year</td></tr>
-  <tr><td><strong>At surrender / maturity</strong></td>
-      <td>SV = max(AS, GSV) — AS is "fat" because all dividends accumulated inside</td>
-      <td>SV = max(AS_after_DIV, GSV) — AS is "lean" but policyholder already received annual dividends</td></tr>
-  <tr><td><strong>Total policyholder value</strong></td>
-      <td>= SV (lump sum at exit)</td>
-      <td>= Σ DIV_t (PV of annual payments) + SV at exit</td></tr>
-  <tr><td><strong>Economically equivalent?</strong></td>
-      <td colspan="2">✅ Yes — if same credited rate and consistent assumptions, total PV is the same</td></tr>
-</table>
-</div>
-
-<p style="margin:0.2rem 0 0.5rem 0;">
-  <em>Why this matters for TVOG:</em> in Architecture A, AS(t,s) is large and directly scenario-dependent through i(t,s).
-  So SV = max(AS(t,s), GSV) inherits the full stochastic dispersion across ESG scenarios →
-  the insurer's floor guarantee is clearly visible as an option.
-  In Architecture B with a static GSV table, SV is constant across scenarios → the option disappears → TVOG ≈ 0. Wrong.
-</p>
-
-<!-- ── Prophet 实务分工 ── -->
-<p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><em>Prophet Implementation: Do We Build Both Architectures?</em></p>
-<p style="margin:0.2rem 0 0.3rem 0;">
-  In practice, companies maintain <strong>two separate Prophet models</strong> rather than one combined model:
-</p>
-<div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.5rem;">
-<table>
-  <tr><th></th><th>Architecture A — TVOG / RBC Model</th><th>Architecture B — Bonus Projection Model</th></tr>
-  <tr><td><strong>Prophet model</strong></td><td>HKRBC stochastic run</td><td>Bonus recommendation / management projection</td></tr>
-  <tr><td><strong>Scenarios</strong></td><td>1,000 ESG paths × full projection</td><td>1–5 management scenarios (best estimate ± stress)</td></tr>
-  <tr><td><strong>SV in Prophet</strong></td>
-      <td><code>SV = MAX(AS_THEORETICAL, GSV_FLOOR)</code> — fully path-dependent</td>
-      <td><code>SV = CSV_TABLE[POL_YEAR]</code> or dynamic</td></tr>
-  <tr><td><strong>DPB lapse</strong></td><td>Full β₁ + β₂ formula</td><td>Simplified or static</td></tr>
-  <tr><td><strong>Dividend output</strong></td><td>TB implicit in SB/MB flows at exit</td><td>DIV_t explicit output used for GL34 bonus sustainability report</td></tr>
-  <tr><td><strong>Run frequency</strong></td><td>Quarterly (RBC reporting)</td><td>Annually (bonus recommendation to board)</td></tr>
-</table>
-</div>
-
-<p style="margin:0.2rem 0 0.5rem 0;">
-  <strong>Why not merge into one model?</strong>
-  (1) Computation: 1,000 paths × Architecture B DIV logic adds significant runtime.
-  (2) DIV_t in Architecture B requires management overlay assumptions (smoothing rules, payout ratio policy) that are not scenario-consistent under a risk-neutral ESG.
-  (3) Validation differs: Architecture A is validated via martingale test; Architecture B via historical dividend sustainability back-test.<br/>
-  <em>Small companies with limited IT resources sometimes use Architecture A only, and produce a separate Excel bonus projection workbook for the board.</em>
-</p>
-
-<!-- ── 术语说明 ── -->
 
 <!-- AS(0) 初始化 -->
 
