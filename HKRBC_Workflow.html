@@ -234,9 +234,12 @@ MathJax = {
 
   <div class="nav-section">§9 Asset Share 資產份額</div>
   <a href="#asset-share">§9 Asset Share Overview</a>
-  <a href="#as-recursion">§9.1 AS Recursion 遞推公式</a>
-  <a href="#as-credited">§9.2 Credited Rate &amp; Bonus 計息率</a>
-  <a href="#as-dpb">§9.3 DPB Lapse 動態退保</a>
+  <a href="#as-arch">§9.1 Two Architectures 兩種架構</a>
+  <a href="#as-recursion">§9.2 Recursion Formula 遞推公式</a>
+  <a href="#as-sb-methods">§9.3 SB Calculation Methods</a>
+  <a href="#as-init">§9.4 AS(0) Initialisation &amp; PFNA</a>
+  <a href="#as-credited">§9.5 Credited Rate &amp; Bonus 計息率</a>
+  <a href="#as-dpb">§9.6 DPB Lapse 動態退保</a>
 
   <div class="nav-section">§10 TVOG 時間價值</div>
   <a href="#tvog">§10 TVOG Deep-Dive</a>
@@ -3621,7 +3624,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Asset Share Recursion 遞推公式</h3>
+<h3 id="as-arch" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.1 Two AS Architectures 兩種 AS 架構</h3>
 
 <!-- 两种架构 A vs B -->
 <p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.2rem 0;"><strong>Two AS Rollforward Architectures</strong></p>
@@ -3788,7 +3791,10 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </p>
 
 <!-- ── 术语说明 ── -->
+</div><!-- end §9.1 -->
 
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<h3 id="as-recursion" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.2 Recursion Formula &amp; Key Terms 遞推公式與關鍵項目</h3>
 
 <!-- 主递推公式 -->
 <p style="font-size:0.88rem; color:#475569; margin:0.5rem 0 0.2rem 0;"><strong>The Recursion Formula (t = 1, 2, …, T)</strong></p>
@@ -3817,7 +3823,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr>
     <td><strong>SB<sub>t</sub></strong></td>
     <td>Surrender (lapse) benefit outgo</td>
-    <td><strong>Yes</strong> — q<sub>lapse</sub>(t,s) from DPB (Step 3，見上方執行順序)</td>
+    <td><strong>Yes</strong> — q<sub>lapse</sub>(t,s) from DPB (Step 3，見上方執行順序；§9.6)</td>
     <td>= q<sub>lapse</sub>(t,s) × max(AS(t,s), SV_floor). SV floor typically 85–100% of AS depending on policy year</td>
   </tr>
   <tr>
@@ -3829,7 +3835,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr>
     <td><strong>RB<sub>t</sub></strong></td>
     <td>Reversionary Bonus added to sum assured</td>
-    <td>Partially — based on credited rate (Step 2，見上方執行順序)，scenario-dependent via smoothing</td>
+    <td>Partially — based on credited rate (Step 2，見上方執行順序；§9.5)，scenario-dependent via smoothing</td>
     <td>Accrues annually; increases the guaranteed benefit floor in subsequent years</td>
   </tr>
   <tr>
@@ -3887,9 +3893,9 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 <div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.5rem 0.8rem; margin:0 0 0.6rem 0; font-size:0.85rem;">
   <ol style="margin:0; padding-left:1.3rem; line-height:1.9;">
     <li><strong>Step 1</strong> — 讀取 ESG 情景：提取第 t 年的 i_ESG(t,s)、r(t,s)、cs(t,s) 等因子（§8 輸出）</li>
-    <li><strong>Step 2</strong> — 計算 Earned Rate：對 i_ESG 做平滑 → credited rate i(t,s)（§9.2）</li>
-    <li><strong>Step 3</strong> — DPB 退保率：根據利率差距 gap(t,s) 計算 q_lapse(t,s)（§9.3）</li>
-    <li><strong>Step 4</strong> — AS 遞推：用 q_lapse(t,s) 計算 SB_t，然後滾動 AS(t,s)（§9.1，本節）</li>
+    <li><strong>Step 2</strong> — 計算 Earned Rate：對 i_ESG 做平滑 → credited rate i(t,s)（§9.5）</li>
+    <li><strong>Step 3</strong> — DPB 退保率：根據利率差距 gap(t,s) 計算 q_lapse(t,s)（§9.6）</li>
+    <li><strong>Step 4</strong> — AS 遞推：用 q_lapse(t,s) 計算 SB_t，然後滾動 AS(t,s)（§9.2，本節）</li>
     <li><strong>Step 5</strong> — 輸出現金流：記錄 CF(t,s) = DB_t + SB_t + MB_t，供 TVOG 折現（§10.2）</li>
   </ol>
 </div>
@@ -3904,6 +3910,15 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </p>
 
 <!-- 方法一 -->
+</div><!-- end §9.2 -->
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<h3 id="as-sb-methods" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.3 SB Calculation Methods SB 計算方法</h3>
+<p style="margin:0.2rem 0 0.4rem 0;">
+  AS 遞推公式中 SB_t 的計算存在循環性問題（SB 依賴 AS(t)，AS(t) 又包含 SB）。
+  以下三種方法各有不同的處理策略：
+</p>
+
 <p style="font-size:0.88rem; color:#f9c74f; margin:0.5rem 0 0.2rem 0;"><strong>Method 1 — Use Beginning-of-Year AS (Prophet default)</strong></p>
 <p style="margin:0.2rem 0 0.3rem 0;">
   Surrender value is based on <em>last year's</em> AS, avoiding any circularity:
@@ -3995,10 +4010,11 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 </table>
 </div>
 
-<!-- ── 5.2 正文 ── -->
-
-
 <!-- AS(0) 初始化 -->
+</div><!-- end §9.3 -->
+
+<div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
+<h3 id="as-init" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.4 AS(0) Initialisation &amp; PFNA Reconciliation 初始 AS 設定與基金對賬</h3>
 
 <!-- AS(0) 初始值 -->
 <p style="font-size:0.88rem; color:#475569; margin:0.4rem 0 0.2rem 0;"><strong>AS(0) Initialization: Initial Value at Valuation Date</strong></p>
@@ -4253,7 +4269,7 @@ CF_agg = results.groupby(["scenario_id", "time_step"])[["DB","SB","MB"]].sum()
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<h3 id="as-credited" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.2 Credited Rate &amp; Bonus Declaration 計息率與紅利宣告</h3>
+<h3 id="as-credited" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.5 Credited Rate &amp; Bonus Declaration 計息率與紅利宣告</h3>
 <p style="margin:0.3rem 0 0.7rem 0;">
   Apply the smoothing rule to derive the credited rate from the earned rate:
   \[
@@ -4266,7 +4282,7 @@ CF_agg = results.groupby(["scenario_id", "time_step"])[["DB","SB","MB"]].sum()
 </div>
 
 <div style="border-left: 3px solid #4a9eff; padding-left: 1rem; margin-bottom: 0.5rem;">
-<h3 id="as-dpb" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.3 Dynamic Policyholder Behaviour (DPB) Lapse</h3>
+<h3 id="as-dpb" style="font-size:1rem; margin:0.8rem 0 0.3rem 0;">§9.6 Dynamic Policyholder Behaviour (DPB) Lapse</h3>
 <p style="margin:0.3rem 0 0.4rem 0;">
   The full DPB formula has <strong>two drivers</strong> — interest rate gap and TB anticipation:
   \[
