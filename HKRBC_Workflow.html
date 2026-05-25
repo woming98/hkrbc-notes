@@ -3817,7 +3817,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr>
     <td><strong>SB<sub>t</sub></strong></td>
     <td>Surrender (lapse) benefit outgo</td>
-    <td><strong>Yes</strong> — q<sub>lapse</sub>(t,s) from DPB (Step 5)</td>
+    <td><strong>Yes</strong> — q<sub>lapse</sub>(t,s) from DPB (Step 3，見上方執行順序)</td>
     <td>= q<sub>lapse</sub>(t,s) × max(AS(t,s), SV_floor). SV floor typically 85–100% of AS depending on policy year</td>
   </tr>
   <tr>
@@ -3829,7 +3829,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr>
     <td><strong>RB<sub>t</sub></strong></td>
     <td>Reversionary Bonus added to sum assured</td>
-    <td>Partially — based on credited rate (Step 4), which is scenario-dependent via smoothing</td>
+    <td>Partially — based on credited rate (Step 2，見上方執行順序)，scenario-dependent via smoothing</td>
     <td>Accrues annually; increases the guaranteed benefit floor in subsequent years</td>
   </tr>
   <tr>
@@ -3880,13 +3880,27 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   The AS path is <strong>fully path-dependent across time</strong> — you cannot vectorise across t or skip steps.
 </p>
 
-<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.3rem 0;">
-  <strong>Why AS Recursion Comes After DPB Lapse (Steps 3–4) in Execution Order</strong>
+<!-- 每年循环执行顺序 -->
+<p style="font-size:0.88rem; color:#475569; margin:0.6rem 0 0.2rem 0;">
+  <strong>Per-Year Execution Order（每年迴圈執行順序）</strong>
+</p>
+<div style="background:#f8fafc; border:1px solid #cbd5e1; border-radius:6px; padding:0.5rem 0.8rem; margin:0 0 0.6rem 0; font-size:0.85rem;">
+  <ol style="margin:0; padding-left:1.3rem; line-height:1.9;">
+    <li><strong>Step 1</strong> — 讀取 ESG 情景：提取第 t 年的 i_ESG(t,s)、r(t,s)、cs(t,s) 等因子（§8 輸出）</li>
+    <li><strong>Step 2</strong> — 計算 Earned Rate：對 i_ESG 做平滑 → credited rate i(t,s)（§9.2）</li>
+    <li><strong>Step 3</strong> — DPB 退保率：根據利率差距 gap(t,s) 計算 q_lapse(t,s)（§9.3）</li>
+    <li><strong>Step 4</strong> — AS 遞推：用 q_lapse(t,s) 計算 SB_t，然後滾動 AS(t,s)（§9.1，本節）</li>
+    <li><strong>Step 5</strong> — 輸出現金流：記錄 CF(t,s) = DB_t + SB_t + MB_t，供 TVOG 折現（§10.2）</li>
+  </ol>
+</div>
+
+<p style="font-size:0.88rem; color:#475569; margin:0.2rem 0 0.3rem 0;">
+  <strong>Why AS Recursion（Step 4）Comes After DPB Lapse（Step 3）</strong>
 </p>
 <p style="margin:0.2rem 0 0.5rem 0;">
-  AS(t,s) requires q_lapse(t,s) to compute SB_t. Since q_lapse is now computed in Step 4 (before this step),
-  AS(t,s) can be calculated in a single pass with no circularity.
-  The remaining question is which AS value the surrender payment SB should be based on — that is where the three methods below differ:
+  AS(t,s) 的遞推公式中含有 SB_t = q_lapse(t,s) × SV_floor，因此必須先有 q_lapse(t,s)。
+  按上述順序，Step 3 先計算 q_lapse，Step 4 再計算 AS，整條迴圈無需反覆迭代，一次通過即可求解。
+  以下三種方法的差異僅在於 SB_t 的 SV 基準取哪一年的 AS：
 </p>
 
 <!-- 方法一 -->
