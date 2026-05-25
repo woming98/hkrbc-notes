@@ -3420,10 +3420,125 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <tr>
     <td><strong>PROF<sub>t</sub></strong></td>
     <td>Profit transfer to shareholders</td>
-    <td>Partially — management action under GL34 §9 can adjust this</td>
+    <td>Partially — management action under GL34 §9 can adjust this（詳見下方）</td>
     <td>GL34 limits profit transfer; in stressed scenarios management may reduce PROF to protect AS</td>
   </tr>
 </table>
+</div>
+
+<!-- ── PROF Management Action：Architecture A vs B 建模 ── -->
+<div class="callout" style="background:#fff7ed; border-left:4px solid #ea580c; padding:0.9rem 1.1rem; margin:0.8rem 0;">
+  <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>PROF（股東利潤轉移）Management Action：兩種 Architecture 的建模差異</strong></p>
+
+  <p style="font-size:0.92rem; margin:0 0 0.5rem 0;">
+    PROF 不是契約現金流，而是<strong>由董事會酌情決定</strong>的管理行為，受三層約束：
+    <strong>(i)</strong> GL34 §9 對 Par fund 利潤分配的監管限制；
+    <strong>(ii)</strong> 香港 <strong>90:10 規則</strong>（股東最多分得可分配盈餘的 10%，即保戶 bonus 的 1/9）；
+    <strong>(iii)</strong> 公司內部 board-approved AS protection policy。
+    在壓力情景下管理層可<strong>暫緩 / 減少</strong> PROF 以保護 AS、維持 PFNA 充足率。
+  </p>
+
+  <p style="font-size:0.93rem; margin:0.5rem 0 0.3rem 0;"><strong>核心差異 Conceptual Difference</strong>：</p>
+
+  <div class="tbl-wrap">
+  <table>
+    <tr><th>面向</th><th>Architecture A（Theoretical AS / TVOG 用）</th><th>Architecture B（Dividend-Explicit / GL34 Bonus）</th></tr>
+    <tr>
+      <td><strong>觸發邏輯</strong></td>
+      <td>AS-threshold-based：當 AS 跌破閾值即停止 PROF</td>
+      <td>Declared-bonus-based：DIV 宣告後按 1/9 自動計算 PROF</td>
+    </tr>
+    <tr>
+      <td><strong>計算公式</strong></td>
+      <td>\(\mathrm{PROF}_t = \pi_{\text{SH}} \cdot \max(0,\;\mathrm{AS}_t \cdot i(t,s) - \mathrm{GuaranteedAccrual}_t)\)</td>
+      <td>\(\mathrm{PROF}_t = \tfrac{1}{9}\cdot\bigl(\mathrm{DIV}_t + \Delta\mathrm{RB}_t + \Delta\mathrm{TB}_t\bigr)\)</td>
+    </tr>
+    <tr>
+      <td><strong>情景依賴度</strong></td>
+      <td>高 — AS 路徑直接驅動，每情景 PROF 都不同</td>
+      <td>中 — 通過 DIV smoothing 間接傳導；同一年多情景 DIV 可能近似（GL34 平滑機制）</td>
+    </tr>
+    <tr>
+      <td><strong>壓力反應</strong></td>
+      <td>當 \(\mathrm{AS}_t &lt; \mathrm{AS}^{\text{floor}}(t)\) → 立刻 PROF = 0</td>
+      <td>先降 DIV（smoothing buffer 耗盡）→ PROF 隨之降低</td>
+    </tr>
+    <tr>
+      <td><strong>TVOG 影響</strong></td>
+      <td>直接：PROF 是 AS 遞推中的減項，影響 BEL(s)</td>
+      <td>間接：通過 DIV smoothing 影響保單持有人總價值，再經 90:10 規則反映</td>
+    </tr>
+    <tr>
+      <td><strong>校準要點</strong></td>
+      <td>需 board policy 明確 AS-protection threshold（如 PFNA &lt; 105%）</td>
+      <td>需 board dividend policy 明確 smoothing window、payout target ratio</td>
+    </tr>
+    <tr>
+      <td><strong>典型用途</strong></td>
+      <td>TVOG / HKRBC stochastic projection</td>
+      <td>GL34 bonus illustration / 股東財務預測</td>
+    </tr>
+  </table>
+  </div>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>Architecture A 建模 — Python 偽碼</strong>：</p>
+
+<pre class="codeblock"><code>def prof_transfer_A(AS_before, i_t, scenario, t, board_policy):
+    """
+    Architecture A：基於 AS-protection threshold 的動態 PROF
+    在壓力情景下自動停止 PROF 以保護 AS。
+    """
+    AS_floor   = board_policy["AS_floor_pct"][t] * initial_AS    # 例如 95% 起始 AS
+    pfna_ratio = compute_pfna(AS_before, scenario, t)
+    pfna_min   = board_policy["pfna_trigger"]                    # 例如 105%
+
+    if AS_before &lt; AS_floor or pfna_ratio &lt; pfna_min:
+        return 0.0
+
+    guaranteed_accrual = AS_before * board_policy["guaranteed_rate"]
+    distributable      = max(0.0, AS_before * i_t - guaranteed_accrual)
+
+    pi_SH = board_policy["sh_share"]   # 通常 0.10（90:10 規則的股東部分）
+    return pi_SH * distributable
+
+AS_t = AS_before * (1 + i_t) + P - DB - SB - E - C - Tax - PROF_A(AS_before, i_t, ...)</code></pre>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>Architecture B 建模 — Python 偽碼</strong>：</p>
+
+<pre class="codeblock"><code>def prof_transfer_B(div_declared, rb_declared, tb_declared):
+    """
+    Architecture B：基於宣告 bonus 的 90:10 自動計算
+    PROF 隨 DIV declaration 變化，間接受場景影響。
+    """
+    total_bonus_cost = div_declared + rb_declared + tb_declared
+    return total_bonus_cost / 9.0   # 1/9 = 10/90，香港標準
+
+def declare_dividend_B(AS_before, smoothed_return, last_div, board_policy):
+    """GL34 §6 dividend smoothing：先降 DIV 再降 PROF"""
+    target_payout = board_policy["payout_ratio"] * smoothed_return * AS_before
+    max_change    = board_policy["max_dividend_change"]   # 例如 ±15%
+    return max(last_div*(1-max_change),
+               min(last_div*(1+max_change), target_payout))
+
+DIV_t  = declare_dividend_B(AS_before, smoothed_ret, last_DIV, policy)
+PROF_t = prof_transfer_B(DIV_t, RB_t, TB_t)
+AS_t   = AS_before * (1 + i_t) + P - DB - SB - DIV_t - E - C - Tax - PROF_t</code></pre>
+
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>實作關鍵點 Implementation Notes</strong>：</p>
+  <ul style="font-size:0.92rem; margin:0.2rem 0 0 1.2rem; padding:0;">
+    <li><strong>一致性原則：</strong>同一管理規則必須在所有情景一致應用（cherry-picking 即違反 Rule 19 market-consistency）。Prophet 中應寫成 <code>DV_</code> 變量，由情景變數驅動，不可手工逐情景調整。</li>
+    <li><strong>板級文檔：</strong>AS floor、PFNA trigger、payout ratio、smoothing window 須在 board policy 明確記錄，IA 審計時須提供。</li>
+    <li><strong>校準回顧：</strong>每年 ORSA 比對<strong>歷史實際 PROF 行為</strong>與模型假設（GL34 §6 back-test 要求）。</li>
+    <li><strong>TVOG 信號：</strong>
+      Architecture A 下，極端利率下行情景中 PROF→0 直接降低股東現金流現值 → TVOG 增；
+      Architecture B 下，PROF 跟隨 DIV smoothing，TVOG 主要來自 DIV 路徑差異 + GSV put 觸發。
+    </li>
+    <li><strong>互通驗證：</strong>同一份模型 library 用 Architecture A 算出 TVOG 後，可用 Architecture B 重算同口徑 bonus illustration，兩者應在 deterministic 場景下保持 90:10 規則一致（驗證實作正確性）。</li>
+  </ul>
+
+  <p style="font-size:0.92rem; margin:0.5rem 0 0 0; color:#475569;">
+    <strong>結論：</strong>PROF 在 Architecture A 中是<em>主動的 AS-protection management action</em>（情景敏感），在 Architecture B 中是<em>被動的 90:10 結果</em>（DIV 敏感）。HKRBC TVOG 計算須採用 Architecture A 風格的動態 PROF；GL34 bonus illustration 採用 Architecture B 風格。兩者底層 board policy 必須一致，否則會出現 TVOG 與 bonus illustration 互相矛盾的審計問題。
+  </p>
 </div>
 
 <p style="font-size:0.88rem; color:#475569; margin:0.3rem 0 0.3rem 0;"><strong>Other Decrements beyond Death and Lapse?</strong></p>
