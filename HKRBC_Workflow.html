@@ -5633,7 +5633,7 @@ martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
 <!-- ─── §10.2.0 ESG → Asset Share → TVOG Data Flow ─── -->
 <h4>§10.2.0 How ESG Variables Flow into Asset Share and TVOG</h4>
 
-<p style="font-size:0.93rem;">
+<p style="font-size:0.93rem; color:var(--text);">
   ESG 產生的情景變量如何逐步作用於資產側與負債側，最終匯出 TVOG 的完整數據流：
   （§8 生成 ESG 情景 → §9 AS 遞推 → §10.2 折現與 TVOG 聚合）
 </p>
@@ -5644,20 +5644,28 @@ martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
   <!-- 顶部：ESG 输出 -->
   <div style="display:flex; gap:8px; justify-content:center; margin-bottom:6px;">
     <div style="background:#0f172a; border:1px solid #334155; border-radius:8px; padding:8px 14px; color:#93c5fd; font-weight:700; letter-spacing:0.03em; text-align:center;">
-      ESG Output<br/><span style="font-size:0.78rem; color:#64748b; font-weight:400;">per scenario <em>s</em>, per time step <em>t</em></span>
+      ESG Output<br/><span style="font-size:0.78rem; color:#94a3b8; font-weight:400;">per scenario <em>s</em>, per time step <em>t</em></span>
     </div>
   </div>
 
-  <!-- 四个因子 pill -->
-  <div style="display:flex; gap:6px; justify-content:center; flex-wrap:wrap; margin-bottom:4px;">
-    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:3px 12px; color:#93c5fd;"><code style="font-size:0.8rem;">rfr_short(t,s)</code></span>
-    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:3px 12px; color:#93c5fd;"><code style="font-size:0.8rem;">equity_total_return(t,s)</code></span>
-    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:3px 12px; color:#93c5fd;"><code style="font-size:0.8rem;">credit_spread(t,s)</code></span>
-    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:3px 12px; color:#93c5fd;"><code style="font-size:0.8rem;">discount_factor(t,s)</code></span>
+  <!-- 10 列因子 pill（与 §10.1.9a 一致） -->
+  <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap; margin-bottom:6px;">
+    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:2px 10px; color:#93c5fd;"><code style="font-size:0.75rem;">rfr_short</code></span>
+    <span style="background:#1e3a5f; border:1px solid #3b82f6; border-radius:20px; padding:2px 10px; color:#93c5fd;"><code style="font-size:0.75rem;">disc_factor</code></span>
+    <span style="background:#1e4a2f; border:1px solid #22c55e; border-radius:20px; padding:2px 10px; color:#86efac;"><code style="font-size:0.75rem;">eq_total_return</code></span>
+    <span style="background:#2a1f3a; border:1px solid #a78bfa; border-radius:20px; padding:2px 10px; color:#c4b5fd;"><code style="font-size:0.75rem;">credit_spread</code></span>
+    <span style="background:#1e3f2a; border:1px solid #34d399; border-radius:20px; padding:2px 10px; color:#6ee7b7;"><code style="font-size:0.75rem;">fx_rate</code></span>
+    <span style="background:#1e3f2a; border:1px solid #34d399; border-radius:20px; padding:2px 10px; color:#6ee7b7;"><code style="font-size:0.75rem;">prop_return</code></span>
+    <span style="background:#3a2a1a; border:1px solid #f59e0b; border-radius:20px; padding:2px 10px; color:#fcd34d;"><code style="font-size:0.75rem;">cpi_index</code></span>
+    <span style="background:#3a2a1a; border:1px solid #f59e0b; border-radius:20px; padding:2px 10px; color:#fcd34d;"><code style="font-size:0.75rem;">inflation_rate</code></span>
   </div>
 
-  <!-- 箭头 -->
-  <div style="text-align:center; color:#475569; font-size:1.1rem; line-height:1.2; margin:2px 0;">↓&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓</div>
+  <!-- 箭头行 —— 用 flexbox 对齐，与下方卡片等比 -->
+  <div style="display:flex; gap:10px; margin:2px 0;">
+    <div style="flex:1; text-align:center; color:#64748b; font-size:1.1rem;">↓</div>
+    <div style="flex-shrink:0; width:52px;"></div><!-- 占位符，对应 i(t,s)→ 标签 -->
+    <div style="flex:1.4; text-align:center; color:#64748b; font-size:1.1rem;">↓</div>
+  </div>
 
   <!-- 中层：资产端 & 负债端 并排 -->
   <div style="display:flex; gap:10px; margin-bottom:6px; align-items:stretch;">
@@ -5697,20 +5705,20 @@ martingale_test: {tolerance: 0.01, check_tenors: [1, 2, 3, 5, 7, 10, 15]}</pre>
   </div>
 
   <!-- 箭头 -->
-  <div style="text-align:center; color:#475569; font-size:1rem; margin:2px 0;">↓</div>
+  <div style="text-align:center; color:#64748b; font-size:1rem; margin:2px 0;">↓</div>
 
   <!-- 底部：TVOG 聚合 -->
-  <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+  <div style="display:flex; gap:8px; justify-content:center; flex-wrap:wrap; align-items:center;">
     <div style="background:#1c1030; border:1px solid #7c3aed; border-radius:8px; padding:8px 18px; color:#ddd6fe; text-align:center; min-width:260px;">
-      <div style="font-size:0.78rem; color:#8b5cf6; margin-bottom:3px;">跨情景平均</div>
+      <div style="font-size:0.78rem; color:#a78bfa; margin-bottom:3px;">跨情景平均</div>
       <strong>CE<sub>stochastic</sub></strong> = (1/N) · Σ<sub>s</sub> PV(s)
     </div>
-    <div style="display:flex; align-items:center; color:#6b7280; font-size:1rem; padding:0 4px;">−</div>
+    <div style="color:#94a3b8; font-size:1.2rem; font-weight:700; padding:0 4px;">−</div>
     <div style="background:#1c1030; border:1px solid #7c3aed; border-radius:8px; padding:8px 18px; color:#ddd6fe; text-align:center; min-width:200px;">
-      <div style="font-size:0.78rem; color:#8b5cf6; margin-bottom:3px;">確定性基準</div>
+      <div style="font-size:0.78rem; color:#a78bfa; margin-bottom:3px;">確定性基準</div>
       <strong>CE<sub>deterministic</sub></strong>
     </div>
-    <div style="display:flex; align-items:center; color:#6b7280; font-size:1rem; padding:0 4px;">=</div>
+    <div style="color:#94a3b8; font-size:1.2rem; font-weight:700; padding:0 4px;">=</div>
     <div style="background:#2d1a4a; border:2px solid #a855f7; border-radius:8px; padding:8px 18px; color:#f3e8ff; text-align:center; min-width:120px; font-size:1rem;">
       <div style="font-size:0.78rem; color:#c084fc; margin-bottom:3px;">HKRBC Rule 19</div>
       <strong style="font-size:1.05rem; color:#e879f9;">TVOG</strong>
