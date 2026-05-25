@@ -4575,20 +4575,100 @@ for t in range(1, T+1):
 <!-- ────── §10.1.5 Simplified Methods ────── -->
 <h4>§10.1.5 Simplified Approximation Methods 簡化方法</h4>
 
-<p>Full stochastic TVOG calculation is slow (hours per portfolio). For internal monitoring or quick estimates, closed-form approximations are widely used.</p>
+<p>Full stochastic TVOG calculation is slow (hours per portfolio). 對<strong>內部監控、ORSA 多年度投影、實時對沖管理</strong>等場景，業界廣泛使用以下三類近似方法。本節目標是讓讀者讀完即可上手實作（含完整 Python 代碼、數值例、輸入校準與驗證流程）。</p>
 
-<h5>(a) Black-Scholes Approximation</h5>
+<div class="callout" style="background:#fefce8; border-left:4px solid #eab308; padding:0.8rem 1rem; margin:0.6rem 0;">
+  <strong>適用範圍 Scope of Use</strong>
+  <ul style="margin:0.3rem 0 0 1.2rem; padding:0; font-size:0.92rem;">
+    <li>✅ 月度 ALM 內部監控 / 日度對沖成本估算</li>
+    <li>✅ ORSA 5–10 年投影中的逐年 TVOG 重估（節省 95%+ 計算時間）</li>
+    <li>✅ 新產品定價的快速 sensitivity 分析</li>
+    <li>❌ 季度／年度 HKRBC 法定報告（仍須 Full ESG stochastic）</li>
+    <li>❌ 路徑依賴複雜（GMWB、Lookback 多步觸發）的最終結果</li>
+  </ul>
+</div>
 
-<p>For simple minimum return guarantees, TVOG ≈ value of European put option:</p>
+<h5>(a) Black-Scholes Closed-Form Approximation 解析解近似</h5>
+
+<p>For simple minimum return guarantees, TVOG ≈ value of European put option。適用於 GMAB、最低保證收益、單一到期保證等結構：</p>
 
 <div class="formula">
   \[
-    \mathrm{TVOG}_{\text{BS}} \approx \sum_{t} N_t \cdot P_{\text{BS}}\!\left(K = \mathrm{Floor}_t,\;T=t,\;\sigma,\;r\right)
+    \mathrm{TVOG}_{\text{BS}} \approx \sum_{t} N_t \cdot P_{\text{BS}}\!\left(S_0,\;K = \mathrm{Floor}_t,\;T=t,\;\sigma,\;r\right)
   \]
-  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">\(P_{\text{BS}}\) = Black-Scholes put price</div>
+  \[
+    P_{\text{BS}}(S_0,K,T,\sigma,r) = K\,e^{-rT}\,\Phi(-d_2) - S_0\,\Phi(-d_1)
+  \]
+  \[
+    d_1 = \frac{\ln(S_0/K) + (r + \tfrac{1}{2}\sigma^2)T}{\sigma\sqrt{T}},\quad d_2 = d_1 - \sigma\sqrt{T}
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">\(\Phi(\cdot)\) = 標準常態累積分佈函數；\(P_{\text{BS}}\) = Black-Scholes put price</div>
 </div>
 
-<h5>(b) Replicating Portfolio</h5>
+<p><strong>輸入參數對應 Input Mapping</strong>（實作時最易出錯的環節，務必逐項核對）：</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>BS 參數</th><th>HKRBC 對應</th><th>取值方式</th></tr>
+  <tr><td>\(S_0\)</td><td>當前 Asset Share / Account Value</td><td>估值日帳戶實際值</td></tr>
+  <tr><td>\(K\) Strike</td><td>保證底線 Floor</td><td>例如 GMAB = 保費 × (1 + g)^t，g 為保證滾存率</td></tr>
+  <tr><td>\(T\) Maturity</td><td>保證到期時間（年）</td><td>合約剩餘期限</td></tr>
+  <tr><td>\(\sigma\) Vol</td><td>標的資產年化波動率</td><td>Q-measure implied vol（首選）或長期歷史 vol</td></tr>
+  <tr><td>\(r\) Discount</td><td>無風險折現率</td><td>HKMA 即期曲線在 T 點的零息利率</td></tr>
+  <tr><td>\(N_t\)</td><td>該保證的 in-force 數量／面額</td><td>須扣除預期 lapse、mortality decrement</td></tr>
+</table>
+</div>
+
+<p><strong>Python 完整實作 Reference Code</strong>：</p>
+
+<pre class="codeblock"><code>import numpy as np
+from scipy.stats import norm
+
+def bs_put(S0, K, T, sigma, r, q=0.0):
+    if T &lt;= 0:
+        return max(K - S0, 0.0)
+    d1 = (np.log(S0/K) + (r - q + 0.5*sigma**2)*T) / (sigma*np.sqrt(T))
+    d2 = d1 - sigma*np.sqrt(T)
+    return K*np.exp(-r*T)*norm.cdf(-d2) - S0*np.exp(-q*T)*norm.cdf(-d1)
+
+def tvog_bs_approx(model_points, sigma, hkma_curve):
+    """
+    model_points: list of dicts with keys
+        S0, floor_per_year, maturity, in_force_decrement
+    sigma:       float, annualised
+    hkma_curve:  callable T -&gt; r(T) zero rate
+    """
+    tvog_total = 0.0
+    for mp in model_points:
+        for t in range(1, mp["maturity"] + 1):
+            K   = mp["floor_per_year"][t]
+            r_t = hkma_curve(t)
+            N_t = mp["in_force_decrement"][t]
+            tvog_total += N_t * bs_put(mp["S0"], K, t, sigma, r_t)
+    return tvog_total</code></pre>
+
+<p><strong>數值例 Worked Example</strong>（單一 GMAB 模型點）：</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>項目</th><th>數值</th></tr>
+  <tr><td>\(S_0\) 當前 AV</td><td>100,000</td></tr>
+  <tr><td>\(K\) GMAB Floor（5 年保證滾存 2%／年）</td><td>110,408</td></tr>
+  <tr><td>\(T\)</td><td>5 年</td></tr>
+  <tr><td>\(\sigma\) Equity Implied Vol</td><td>18%</td></tr>
+  <tr><td>\(r\) HKMA 5Y Zero Rate</td><td>3.50%</td></tr>
+  <tr><td>5 年累計存活率 \(N_5\)</td><td>0.85</td></tr>
+  <tr><td>\(d_1, d_2\)</td><td>−0.020, −0.422</td></tr>
+  <tr><td>\(P_{\text{BS}}\)（單契 Put 價）</td><td><strong>7,840</strong></td></tr>
+  <tr><td>TVOG（單一模型點）</td><td><strong>6,664</strong> = 7,840 × 0.85</td></tr>
+</table>
+</div>
+
+<p style="font-size:0.9rem; color:#475569;"><strong>局限 Limitations：</strong> 假設 σ 為常數、Brownian 標的、無 DPB endogeneity；對路徑依賴或 lapse-sensitive guarantees 通常低估 5–20%。</p>
+
+<h5>(b) Static Replicating Portfolio 靜態複製組合</h5>
+
+<p>將每種保證機制映射到一籃子市場可交易工具，TVOG = 對應工具市場價之加權和。優勢：Greeks 與市場敏感度可直接從工具報價計算，適合 daily P&amp;L 與對沖。</p>
 
 <div class="tbl-wrap">
 <table>
@@ -4598,21 +4678,118 @@ for t in range(1, T+1):
   <tr><td>GMAB (accumulation)</td><td>European put at maturity</td></tr>
   <tr><td>GMDB (rollup at fixed rate)</td><td>Compound put option</td></tr>
   <tr><td>GMWB (withdrawal)</td><td>Asian put or basket of puts (complex)</td></tr>
+  <tr><td>Par fund crediting floor (MGCR)</td><td>Receiver swaption（接收保證利率的權利）</td></tr>
 </table>
 </div>
 
-<h5>(c) When to Use Which Method</h5>
+<p><strong>校準工作流 Calibration Workflow</strong>：</p>
+
+<ol style="font-size:0.93rem;">
+  <li>選擇候選工具集 \(\{I_1, I_2, \dots, I_m\}\)（通常 5–15 個，覆蓋主要 strike / maturity）。</li>
+  <li>在 \(N\) 條 ESG 情景下計算保證的負債 PVF：\(\mathrm{Liab}^{(s)} = \mathrm{PV}^{(s)}\big[\max(K - S_T^{(s)},\,0)\big]\)。</li>
+  <li>計算每個候選工具在相同情景下的 PV：\(I_j^{(s)}\)。</li>
+  <li>OLS 回歸找權重 \(w_j\)，使 \(\sum_j w_j I_j^{(s)} \approx \mathrm{Liab}^{(s)}\)（最小化 path-wise SSE）。</li>
+  <li>TVOG ≈ \(\sum_j w_j \cdot \mathrm{MarketPrice}(I_j)\)，其中 MarketPrice 來自 Bloomberg / 經紀商報價。</li>
+</ol>
+
+<pre class="codeblock"><code>import numpy as np
+from numpy.linalg import lstsq
+
+# Liab_paths: (N,) array of liability PV per scenario
+# I_paths:    (N, m) array of m instrument PVs per scenario
+w, _, _, _ = lstsq(I_paths, Liab_paths, rcond=None)
+
+market_prices = np.array([price_instrument(i) for i in instruments])  # m-vector
+tvog_repl     = w @ market_prices
+
+residual = Liab_paths - I_paths @ w
+re_se    = np.std(residual) / np.std(Liab_paths)
+assert re_se &lt; 0.05, f"複製誤差 {re_se:.2%} 過大，需擴充工具集或重選 strike grid"
+
+greeks = {
+    "delta": w @ np.array([instr.delta for instr in instruments]),
+    "vega":  w @ np.array([instr.vega  for instr in instruments]),
+    "rho":   w @ np.array([instr.rho   for instr in instruments]),
+}</code></pre>
+
+<p style="font-size:0.9rem; color:#475569;"><strong>校準頻率：</strong> 季度重新校準；當市場 vol surface 變動 &gt;20% 或重大利率事件時須立即重做。</p>
+
+<h5>(c) Curve Fitting / Proxy Function 曲線擬合代理函數</h5>
+
+<p>適用於 ORSA / 多情景 stress test：完整 ESG 跑一次得到基準，擬合 TVOG = \(f(\text{risk drivers})\)，後續每個 stress 情景僅需代入函數計算，避免重跑 ESG。</p>
+
+<div class="formula">
+  \[
+    \widehat{\mathrm{TVOG}}(\mathbf{x}) = \beta_0 + \sum_i \beta_i x_i + \sum_{i \le j} \gamma_{ij}\,x_i x_j
+  \]
+  <div style="font-size:0.85em; color:#6b7280; margin-top:0.3rem;">\(\mathbf{x}\) = 關鍵風險因子向量（IR level, IR slope, Equity index, Vol, Credit spread...）</div>
+</div>
+
+<pre class="codeblock"><code>import numpy as np
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.linear_model import Ridge
+
+# Step 1: 在 K 個訓練情景下跑 Full TVOG (K ≈ 50–200)
+X_train = np.array([
+    [s.ir_level, s.ir_slope, s.eq_idx, s.vol, s.credit_spd]
+    for s in calibration_scenarios
+])
+y_train = np.array([full_tvog_stochastic(s) for s in calibration_scenarios])
+
+# Step 2: 二階多項式特徵 + Ridge 回歸
+poly  = PolynomialFeatures(degree=2, include_bias=True)
+model = Ridge(alpha=0.01).fit(poly.fit_transform(X_train), y_train)
+
+# Step 3: 對 1,000+ stress 情景僅代入函數（秒級）
+def fast_tvog(scenario):
+    x = np.array([[scenario.ir_level, scenario.ir_slope,
+                   scenario.eq_idx,   scenario.vol, scenario.credit_spd]])
+    return float(model.predict(poly.transform(x))[0])
+
+# Step 4: 質量檢驗（必做）
+r2 = model.score(poly.fit_transform(X_train), y_train)
+assert r2 &gt; 0.95, f"擬合 R²={r2:.3f} 不足，須擴充訓練情景或提高階次"</code></pre>
+
+<p style="font-size:0.9rem; color:#475569;"><strong>效能：</strong> 完整 ESG 1 次（5–60 分鐘）+ 函數擬合（秒級）+ 1,000 個 stress × 毫秒級 → 整體比逐 stress 重跑 ESG 快 100–1,000 倍。</p>
+
+<h5>(d) When to Use Which Method 方法選擇</h5>
 
 <div class="tbl-wrap">
 <table>
   <tr><th>Use Case</th><th>Recommended Method</th></tr>
-  <tr><td>Monthly ALM monitoring</td><td>Closed-form / replicating portfolio (speed)</td></tr>
-  <tr><td>Quarterly / annual HKRBC reporting</td><td>Full ESG stochastic (compliance)</td></tr>
+  <tr><td>Monthly ALM monitoring</td><td>(a) Black-Scholes / (b) Replicating（速度優先）</td></tr>
+  <tr><td>Quarterly / annual HKRBC reporting</td><td>Full ESG stochastic（法規合規）</td></tr>
   <tr><td>New product pricing</td><td>Full stochastic + sensitivity / Greeks</td></tr>
-  <tr><td>ORSA multi-year projection</td><td>Closed-form (speed prioritised over precision)</td></tr>
+  <tr><td>ORSA multi-year projection</td><td>(c) Curve fitting on baseline ESG</td></tr>
   <tr><td>VA hedging programme</td><td>Full stochastic + nested MC for hedge cost</td></tr>
+  <tr><td>Daily P&amp;L attribution</td><td>(b) Replicating（Greeks 直接可得）</td></tr>
 </table>
 </div>
+
+<h5>(e) Validation & Implementation Checklist 驗證與實作清單</h5>
+
+<p><strong>對 Full Stochastic 之容忍度</strong>：</p>
+
+<div class="tbl-wrap">
+<table>
+  <tr><th>用途</th><th>建議容忍度</th><th>偏差超標時行動</th></tr>
+  <tr><td>內部監控</td><td>±10%</td><td>記錄並繼續使用</td></tr>
+  <tr><td>ORSA / 管理層匯報</td><td>±5%</td><td>重新校準擬合函數或加入更高階項</td></tr>
+  <tr><td>輔助法規報告（非主結果）</td><td>±2%</td><td>切換回 Full ESG</td></tr>
+</table>
+</div>
+
+<p><strong>實作 Checklist</strong>：</p>
+
+<ol style="font-size:0.93rem;">
+  <li>☐ 選定方法（依用途對照 §10.1.5(d)）</li>
+  <li>☐ 校準輸入：σ 來源、HKMA r 曲線、Floor 計算邏輯（書面文檔化，供 IA 審核）</li>
+  <li>☐ 撰寫 Python 實作，加單元測試覆蓋邊界：\(T=0\)、\(K=0\)、\(\sigma\to 0\)、\(S_0 \gg K\)</li>
+  <li>☐ 對 ≥ 1 個 Full Stochastic run 做基準比對，記錄偏差並保存於 model documentation</li>
+  <li>☐ 設定季度重新校準排程（或當市場 vol surface 變動 &gt;20% 觸發）</li>
+  <li>☐ Board / Appointed Actuary 簽署簡化方法之適用範圍與局限</li>
+  <li>☐ 在 ORSA / 季度報告中明確披露所用近似方法及其驗證結果</li>
+</ol>
 
 <!-- ────── §10.1.6 Common Pitfalls ────── -->
 <h4>§10.1.6 Common Pitfalls 常見建模陷阱</h4>
