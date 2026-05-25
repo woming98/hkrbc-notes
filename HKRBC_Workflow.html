@@ -6526,18 +6526,110 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 <!-- ─── §10.2.5 Stochastic-on-Stochastic ─── -->
 <h4>§10.2.5 Stochastic-on-Stochastic (Nested MC) 雙重隨機</h4>
 
-<div class="callout" style="background:#fef9c3; border-left-color:#d97706;">
-  <strong>When Required:</strong> If management action depends on <em>current fair value</em> (not just current earned rate),
-  the inner loop must re-value liability at every outer point — leading to nested MC (1,000 × 1,000 = 1,000,000 simulations per policy).
+<p style="font-size:0.93rem; margin:0 0 0.5rem 0;">
+  標準 TVOG 計算是「單層」Monte Carlo：生成 N 條情景，每條情景沿時間路徑計算 AS / CF / PV，最後取均值。
+  <strong>Stochastic-on-Stochastic（SoS）</strong> 是在此基礎上，<strong>每個時間節點 t 的決策本身也需要一個內層 MC</strong>，形成「雙層巢狀」結構。
+</p>
+
+<!-- 核心概念：为什么需要内层MC -->
+<div class="callout" style="background:#fef3c7; border-left:4px solid #d97706; padding:0.9rem 1.1rem; margin:0.5rem 0;">
+  <p style="margin:0 0 0.4rem 0; font-size:0.95rem;"><strong>為什麼需要內層 MC？— 核心原因：管理決策依賴「負債公允價值」</strong></p>
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
+    大多數 Par fund 管理動作只需要<strong>當期的市場狀態</strong>（rfr、earned rate、AS 值）即可決策，<strong>不需要 SoS</strong>。
+    但某些管理動作需要知道「從現在到期末，負債還值多少」—— 即<strong>條件期望負債公允價值 \(V(t, \omega_t)\)</strong>。
+    計算 \(V(t, \omega_t)\) 本身就需要一個從 \(t\) 出發的 MC —— 這就是內層 MC。
+  </p>
+  <div class="tbl-wrap">
+  <table style="font-size:0.88rem;">
+    <tr><th>管理動作類型</th><th>依賴什麼</th><th>需要 SoS？</th></tr>
+    <tr><td>Credited rate 設定</td><td>rfr_short(t,s)、earned rate(t,s)</td><td>❌ 不需要</td></tr>
+    <tr><td>DPB lapse</td><td>rfr vs credited rate 差值</td><td>❌ 不需要</td></tr>
+    <tr><td>PROF 停止觸發</td><td>PFNA / AAS / PCR（基金層聚合）</td><td>❌ 不需要（lagged）</td></tr>
+    <tr><td>VA 保證費率動態調整</td><td>當前 in-the-money 程度（需要期望保證成本）</td><td>✅ 需要</td></tr>
+    <tr><td>提前終止保證（American-style）</td><td>繼續持有 vs 立刻行使的<strong>期望收益差</strong></td><td>✅ 需要</td></tr>
+    <tr><td>TB 最優贖回時間選擇（保戶行為）</td><td>保戶在每個時點評估「繼續 vs 退保」</td><td>✅ 需要（或用 LSMC）</td></tr>
+  </table>
+  </div>
 </div>
 
-<p style="font-size:0.93rem;">Common workarounds to avoid nested MC computational explosion:</p>
+<!-- 数学结构 -->
+<p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>數學結構：雙層巢狀</strong></p>
 
-<ul style="font-size:0.93rem;">
-  <li><strong>Least-Squares Monte Carlo (LSMC, Longstaff-Schwartz):</strong> Regress continuation values on state variables; replaces inner MC with polynomial fit. Industry standard for VA hedging and complex Par.</li>
-  <li><strong>Replicating Portfolio (RP):</strong> Find a portfolio of vanilla options that replicates liability cash flows. Once calibrated, RP can be valued in closed form at any state.</li>
-  <li><strong>Proxy Models / Curve Fitting / Gaussian Process Regression:</strong> Build a fast surrogate for inner valuation using ML techniques.</li>
-</ul>
+<div class="formula">
+  \[
+    V(t_0) = E^Q\!\left[\sum_{t}\underbrace{CF\!\bigl(t,\,\omega^{\text{outer}},\,\underbrace{V(t,\omega^{\text{outer}})}_{\text{內層 MC 計算}}\bigr)}_{\text{每個外層節點需一次內層 MC}} \cdot D(t)\right]
+  \]
+  <div style="font-size:0.84rem; color:#6b7280; margin-top:0.3rem;">
+    外層 \(N_1\) 條情景 × 每個時間節點 × 內層 \(N_2\) 條情景 → 總計算量 \(N_1 \times T \times N_2\)
+  </div>
+</div>
+
+<!-- 具体数值例子 -->
+<p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>具體計算量示例</strong>（VA GMxB，30 年期月步長）</p>
+<div class="tbl-wrap">
+<table>
+  <tr><th>結構</th><th>外層情景</th><th>時間節點</th><th>內層情景</th><th>總模擬次數</th><th>單政策運行時間</th></tr>
+  <tr><td>單層 MC</td><td>1,000</td><td>360</td><td>—</td><td>360,000</td><td>秒級</td></tr>
+  <tr><td>SoS（完整）</td><td>1,000</td><td>360</td><td>1,000</td><td>360,000,000</td><td>小時級</td></tr>
+  <tr><td>SoS（稀疏節點，每年1次）</td><td>1,000</td><td>30</td><td>500</td><td>15,000,000</td><td>分鐘級</td></tr>
+  <tr><td>LSMC 近似</td><td>10,000</td><td>360</td><td>—（多項式回歸替代）</td><td>3,600,000</td><td>分鐘級</td></tr>
+</table>
+</div>
+
+<!-- 直觉例子 -->
+<p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>直觀例子：保戶決定是否此刻退保拿 Terminal Bonus</strong></p>
+<div class="callout" style="background:#eff6ff; border-left:4px solid #3b82f6; padding:0.8rem 1rem; margin:0.4rem 0;">
+  <p style="font-size:0.92rem; margin:0 0 0.3rem 0;">
+    假設現在是第 10 年，外層情景 \(s\) 下利率已大幅下跌，AS = 120，GSV = 80，TB = 40。
+    保戶面臨兩個選擇：
+  </p>
+  <ul style="font-size:0.91rem; margin:0.2rem 0 0.3rem 1.2rem; padding:0;">
+    <li><strong>立刻退保</strong>：拿到 SV = max(AS, GSV) + TB = 160</li>
+    <li><strong>繼續持有</strong>：未來 AS 繼續增長，TB 可能更高，但也可能利率反彈 AS 縮水</li>
+  </ul>
+  <p style="font-size:0.91rem; margin:0.3rem 0 0;">
+    要評估「繼續持有的期望值」，需要從第 10 年的狀態 \((r_{10}, AS_{10})\) 出發，
+    再跑一批情景到第 30 年，計算期望 PV —— 這就是內層 MC。<br/>
+    <strong>LSMC 的做法</strong>：不直接跑內層 MC，而是用第 10 年的狀態變量
+    \((r_{10}, AS_{10}, CS_{10})\) 作為特徵，回歸出繼續持有的期望 PV，替代內層 MC，大幅降低計算量。
+  </p>
+</div>
+
+<!-- 近似方案 -->
+<p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>三種避免 SoS 計算爆炸的工業方案</strong></p>
+<div class="tbl-wrap">
+<table>
+  <tr><th>方案</th><th>原理</th><th>精度</th><th>計算量 vs 完整 SoS</th><th>適用場景</th></tr>
+  <tr>
+    <td><strong>LSMC<br/>（Longstaff-Schwartz）</strong></td>
+    <td>在外層情景路徑上，用狀態變量多項式回歸近似條件期望 \(V(t,\omega_t)\)；無需內層 MC</td>
+    <td>高（誤差 &lt; 1%）</td>
+    <td>1–5%</td>
+    <td>VA GMxB、複雜 Par TB、American-style 保證；Prophet ALS 內建</td>
+  </tr>
+  <tr>
+    <td><strong>Replicating Portfolio（RP）</strong></td>
+    <td>找一組市場可交易期權，其 PV 路徑複製負債；校準後任何狀態下用解析公式估值</td>
+    <td>中高</td>
+    <td>5–15%</td>
+    <td>日度對沖 P&amp;L、VA Greeks；需要 liquid options market</td>
+  </tr>
+  <tr>
+    <td><strong>Proxy / ML Surrogate</strong></td>
+    <td>預先跑有限個完整 SoS 作訓練集，擬合 \(V(t,\omega)\) 的機器學習函數（Ridge、GP、NN）</td>
+    <td>中（視訓練集密度）</td>
+    <td>1–3%</td>
+    <td>ORSA 多情景、PCR stress testing；見 §10.1.5(c)</td>
+  </tr>
+</table>
+</div>
+
+<p style="font-size:0.92rem; color:#475569; margin:0.5rem 0;">
+  <strong>HK Par fund 實務：</strong>絕大多數 Par 產品的管理動作（credited rate、PROF、DPB）
+  不依賴負債公允價值，<strong>單層 MC 已足夠</strong>，不需要 SoS。
+  SoS 主要出現在：(1) VA / GMxB 產品；(2) Par fund 中有保戶<strong>最優退保時機</strong>假設（dynamic lapse with continuation value）；
+  (3) HKRBC PCR 的 nested stochastic 壓力測試（外層 = PCR scenario，內層 = TVOG re-valuation）。
+</p>
 
 <!-- ─── §10.2.6 TVOG Decomposition ─── -->
 <h4>§10.2.6 TVOG Component Decomposition 來源拆解</h4>
