@@ -3432,11 +3432,21 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
 
   <p style="font-size:0.92rem; margin:0 0 0.5rem 0;">
     PROF 不是契約現金流，而是<strong>由董事會酌情決定</strong>的管理行為，受三層約束：
-    <strong>(i)</strong> GL34 §9 對 Par fund 利潤分配的監管限制；
-    <strong>(ii)</strong> 香港 <strong>90:10 規則</strong>（股東最多分得可分配盈餘的 10%，即保戶 bonus 的 1/9）；
-    <strong>(iii)</strong> 公司內部 board-approved AS protection policy。
-    在壓力情景下管理層可<strong>暫緩 / 減少</strong> PROF 以保護 AS、維持 PFNA 充足率。
+    <strong>(i)</strong> GL34 §8 對 Par fund 可分配盈餘的監管原則（fair、equitable、sustainable、PRE-compliant）；
+    <strong>(ii)</strong> Board-approved corporate policy 中明確定義的 profit-sharing mechanism（§4.1–4.2）；
+    <strong>(iii)</strong> 內部 AS-protection policy 與 PFNA 充足率約束。
+    在壓力情景下管理層可<strong>暫緩 / 減少</strong> PROF 以保護 AS、維持 PFNA。
   </p>
+
+  <div style="background:#fef9c3; border-left:3px solid #ca8a04; padding:0.6rem 0.9rem; margin:0.4rem 0; font-size:0.9rem;">
+    <strong>⚠️ 重要澄清：GL34 並沒有規定 90:10 比例</strong><br/>
+    經核實 IA 官方 GL34（2024-07-01 生效 / 2026-03-31 修訂版）<strong>全文沒有出現</strong> 9:1、90:10、10% 這類具體數字。
+    GL34 §8.1 僅要求分配方式須 fair / equitable / sustainable / 符合 PRE，
+    具體比例由 <strong>Board-approved corporate policy</strong> 自行定義（GL34 §4.2(q) 僅說此比例「<em>potentially disclosed</em>」於 benefit illustration）。<br/>
+    <strong>90:10 來自 UK</strong>（前 FSA/PRA Conduct of Business 對 with-profits 的慣例），香港僅部分英資保險公司沿用；
+    本地公司常用 80:20、70:30，甚至 100:0（不分潤）皆合規。
+    因此本節公式中的 <code>π_SH</code> 應理解為 board policy 配置參數，<strong>不是 GL34 強制 10%</strong>。
+  </div>
 
   <p style="font-size:0.93rem; margin:0.5rem 0 0.3rem 0;"><strong>核心差異 Conceptual Difference</strong>：</p>
 
@@ -3450,8 +3460,8 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
     </tr>
     <tr>
       <td><strong>計算公式</strong></td>
-      <td>\(\mathrm{PROF}_t = \pi_{\text{SH}} \cdot \max(0,\;\mathrm{AS}_t \cdot i(t,s) - \mathrm{GuaranteedAccrual}_t)\)</td>
-      <td>\(\mathrm{PROF}_t = \tfrac{1}{9}\cdot\bigl(\mathrm{DIV}_t + \Delta\mathrm{RB}_t + \Delta\mathrm{TB}_t\bigr)\)</td>
+      <td>\(\mathrm{PROF}_t = \pi_{\text{SH}} \cdot \max(0,\;\mathrm{AS}_t \cdot i(t,s) - \mathrm{GuaranteedAccrual}_t)\)<br/><span style="font-size:0.82rem; color:#64748b;">\(\pi_{\text{SH}}\) 由 board policy 設定，例 10%、20%、30%</span></td>
+      <td>\(\mathrm{PROF}_t = \dfrac{\alpha_{\text{SH}}}{1-\alpha_{\text{SH}}}\cdot\bigl(\mathrm{DIV}_t + \Delta\mathrm{RB}_t + \Delta\mathrm{TB}_t\bigr)\)<br/><span style="font-size:0.82rem; color:#64748b;">\(\alpha_{\text{SH}}\) = 股東分潤比例；例 \(\alpha=10\%\to\) 係數 \(1/9\)；\(\alpha=20\%\to\) 係數 \(1/4\)</span></td>
     </tr>
     <tr>
       <td><strong>情景依賴度</strong></td>
@@ -3498,20 +3508,24 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
     guaranteed_accrual = AS_before * board_policy["guaranteed_rate"]
     distributable      = max(0.0, AS_before * i_t - guaranteed_accrual)
 
-    pi_SH = board_policy["sh_share"]   # 通常 0.10（90:10 規則的股東部分）
+    pi_SH = board_policy["sh_share"]   # board-approved 股東分潤比例
+                                        # GL34 不強制具體數字；香港實務常見 10–30%
+                                        # （90:10 為 UK 慣例；本地公司多 80:20 或 70:30）
     return pi_SH * distributable
 
 AS_t = AS_before * (1 + i_t) + P - DB - SB - E - C - Tax - PROF_A(AS_before, i_t, ...)</code></pre>
 
   <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>Architecture B 建模 — Python 偽碼</strong>：</p>
 
-<pre class="codeblock"><code>def prof_transfer_B(div_declared, rb_declared, tb_declared):
+<pre class="codeblock"><code>def prof_transfer_B(div_declared, rb_declared, tb_declared, board_policy):
     """
-    Architecture B：基於宣告 bonus 的 90:10 自動計算
+    Architecture B：基於宣告 bonus 的 board-approved 分潤比例
     PROF 隨 DIV declaration 變化，間接受場景影響。
     """
+    alpha_SH = board_policy["sh_share_of_distributable"]   # 例 0.10 / 0.20 / 0.30
+    factor   = alpha_SH / (1.0 - alpha_SH)                 # α=10% → 1/9；α=20% → 1/4
     total_bonus_cost = div_declared + rb_declared + tb_declared
-    return total_bonus_cost / 9.0   # 1/9 = 10/90，香港標準
+    return factor * total_bonus_cost
 
 def declare_dividend_B(AS_before, smoothed_return, last_div, board_policy):
     """GL34 §6 dividend smoothing：先降 DIV 再降 PROF"""
@@ -3521,7 +3535,7 @@ def declare_dividend_B(AS_before, smoothed_return, last_div, board_policy):
                min(last_div*(1+max_change), target_payout))
 
 DIV_t  = declare_dividend_B(AS_before, smoothed_ret, last_DIV, policy)
-PROF_t = prof_transfer_B(DIV_t, RB_t, TB_t)
+PROF_t = prof_transfer_B(DIV_t, RB_t, TB_t, board_policy)
 AS_t   = AS_before * (1 + i_t) + P - DB - SB - DIV_t - E - C - Tax - PROF_t</code></pre>
 
   <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>實作關鍵點 Implementation Notes</strong>：</p>
@@ -3533,7 +3547,7 @@ AS_t   = AS_before * (1 + i_t) + P - DB - SB - DIV_t - E - C - Tax - PROF_t</cod
       Architecture A 下，極端利率下行情景中 PROF→0 直接降低股東現金流現值 → TVOG 增；
       Architecture B 下，PROF 跟隨 DIV smoothing，TVOG 主要來自 DIV 路徑差異 + GSV put 觸發。
     </li>
-    <li><strong>互通驗證：</strong>同一份模型 library 用 Architecture A 算出 TVOG 後，可用 Architecture B 重算同口徑 bonus illustration，兩者應在 deterministic 場景下保持 90:10 規則一致（驗證實作正確性）。</li>
+    <li><strong>互通驗證：</strong>同一份模型 library 用 Architecture A 算出 TVOG 後，可用 Architecture B 重算同口徑 bonus illustration，兩者應在 deterministic 場景下保持 <strong>同一 board-approved 分潤比例</strong>一致（驗證實作正確性，非 GL34 強制比例）。</li>
   </ul>
 
   <p style="font-size:0.92rem; margin:0.5rem 0 0 0; color:#475569;">
