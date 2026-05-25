@@ -3455,10 +3455,29 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   </table>
   </div>
 
-  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>Architecture A 建模公式（基金層動態，香港實務）</strong></p>
+  <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>Architecture A 建模公式（逐單滾動 + 基金層管理動作，香港實務）</strong></p>
 
   <p style="font-size:0.92rem; margin:0 0 0.4rem 0;">
-    A 架構下 PROF <strong>不是按單一保單 AS_floor 觸發</strong>，而是基於 <strong>基金層（fund-level）</strong>三個量的關係動態計算。情景 \(s\)、年末 \(t\)：
+    A 架構下 AS <strong>仍是逐單（per-policy / model point）滾動</strong> — PFNA、AAS、Estate <strong>由保單層聚合派生</strong>，再驅動基金層管理動作（PROF、credited rate、bonus declaration），最後將動作結果<strong>回灌</strong>至每張保單。香港 Par fund 實務是「兩層耦合」結構：
+  </p>
+
+  <div style="background:rgba(234,88,12,0.10); border-left:3px solid #ea580c; padding:0.6rem 0.9rem; margin:0.4rem 0; font-size:0.92rem;">
+  <strong>兩層耦合執行順序（每個情景 \(s\)、每年 \(t\)）</strong>
+  <ol style="margin:0.3rem 0 0 1.2rem; padding:0;">
+    <li><strong>保單層滾動</strong>：對每張保單 \(i\)，用上期決定的 credited rate \(i^{\text{cred}}_{t}\) 推進
+      \[ \mathrm{AS}_i(t,s) = \mathrm{AS}_i(t{-}1,s)\cdot(1+i^{\text{cred}}_t) + P_{i,t} - \mathrm{DB}_i - \mathrm{SB}_i - \mathrm{E}_i - \mathrm{C}_i - \mathrm{Tax}_i - \mathrm{DIV}_{i,t} - \mathrm{PROF}_{i,t} \]
+    </li>
+    <li><strong>聚合至基金層</strong>：\(\mathrm{AAS}(t,s) = \sum_i \mathrm{AS}_i(t,s)\)；\(\mathrm{PFNA}(t,s)\) 由實際資產端 \(i^{\text{actual}}\) 獨立滾動（公式 ①）</li>
+    <li><strong>基金層計算 Estate / DS / SR / ER</strong>（公式 ②③）</li>
+    <li><strong>基金層決定下一期管理動作</strong>：\(i^{\text{cred}}_{t+1}\)、\(\mathrm{DIV}_{t+1}\)、\(\mathrm{PROF}^{\text{total}}_{t+1}\)（公式 ④）</li>
+    <li><strong>回灌保單層</strong>：基金層的 \(\mathrm{PROF}^{\text{total}}_{t+1}\) 按權重分配回每張保單
+      \[ \mathrm{PROF}_{i,t+1} = \mathrm{PROF}^{\text{total}}_{t+1} \cdot \frac{\mathrm{AS}_i(t,s)}{\mathrm{AAS}(t,s)} \]
+      （或按 sum assured / declared bonus 權重，依 board policy）</li>
+  </ol>
+  </div>
+
+  <p style="font-size:0.92rem; margin:0.3rem 0 0.4rem 0; color:#475569;">
+    Prophet 中：保單層 OOV（<code>AS</code>、<code>DIV</code>、<code>PROF</code>）逐單計算；基金層 OOV（<code>PFNA_TOTAL</code>、<code>AAS_TOTAL</code>、<code>ESTATE</code>、<code>CREDIT_RATE_DECISION</code>）以 <code>SUM</code> 聚合，再經 <code>DV_GLOBAL</code> 反饋給保單變量。下方公式 ①–④ 都是<strong>基金層的派生量</strong>，不取代逐單 AS 滾動。
   </p>
 
   <div style="background:rgba(234,88,12,0.06); border-left:3px solid #ea580c; padding:0.6rem 0.9rem; margin:0.4rem 0; font-size:0.93rem;">
@@ -3552,7 +3571,7 @@ multiply each timestep's independent N(0,1) vector by L to get correlated shocks
   <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>實作關鍵點 Implementation Notes</strong>：</p>
   <ul style="font-size:0.92rem; margin:0.2rem 0 0 1.2rem; padding:0;">
     <li><strong>一致性原則：</strong>同一管理規則必須在所有情景一致應用（cherry-picking 即違反 Rule 19 market-consistency）。Prophet 中應寫成 <code>DV_</code> 變量，由情景變數驅動，不可手工逐情景調整。</li>
-    <li><strong>基金層 vs 保單層：</strong>A 架構必須同時跑 PFNA（基金層）與 AS_i（保單層）兩條軌跡 — 兩者差額即 Estate，是 PROF 觸發的真實來源；而非單一保單的 AS 是否跌破某 floor。</li>
+    <li><strong>兩層耦合：</strong>AS 始終是<strong>逐單（per-policy / model point）滾動</strong>；PFNA 由實際資產端獨立滾動；AAS = Σ AS_i 由保單層<strong>聚合派生</strong>。Estate = PFNA − AAS 是 PROF 觸發的真實來源，<strong>不是</strong>單一保單 AS 是否跌破某 floor。基金層的管理動作決定後需<strong>按權重回灌</strong>至每張保單。</li>
     <li><strong>板級文檔：</strong>分潤比例 \(\alpha_{\text{SH}}\)、estate ratio 目標區間、solvency trigger、payout ratio、Δmax 須在 board policy 明確記錄，IA 審計時須提供（GL34 §4.1–§4.2）。</li>
     <li><strong>校準回顧：</strong>每年 ORSA 比對<strong>歷史實際 PROF 行為</strong>與模型假設（GL34 §8 documentation 要求）。</li>
     <li><strong>TVOG 信號：</strong>
