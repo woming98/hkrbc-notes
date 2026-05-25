@@ -6560,6 +6560,106 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
   </div>
 </div>
 
+<!-- ══ 详细解释：为什么决策需要内层MC ══ -->
+<div class="callout" style="background:#eff6ff; border-left:4px solid #2563eb; padding:0.9rem 1.1rem; margin:0.5rem 0;">
+  <p style="margin:0 0 0.5rem 0; font-size:0.96rem;"><strong>🔍 深度解析：內層 MC 在算什麼？為什麼當期狀態不夠用？</strong></p>
+
+  <!-- 核心对比 -->
+  <p style="font-size:0.92rem; margin:0 0 0.5rem 0;"><strong>① 先理解：「當期狀態夠用」vs「需要未來期望」的本質差別</strong></p>
+  <div class="tbl-wrap" style="margin-bottom:0.6rem;">
+  <table style="font-size:0.87rem;">
+    <tr><th>決策</th><th>需要什麼信息</th><th>為什麼只需當期</th></tr>
+    <tr>
+      <td>Credited rate 設定</td>
+      <td>rfr(t,s)、earned_rate(t,s)</td>
+      <td>公式是 credited = max(GTD, smoothed_earned − margin)，只用今天的數字套公式即出結果</td>
+    </tr>
+    <tr>
+      <td>DPB lapse rate 調整</td>
+      <td>rfr(t,s) − credited(t,s) 差值</td>
+      <td>lapse = base × (1 + β·max(rfr−credited, 0))，差值大→退保多，純當期比較</td>
+    </tr>
+    <tr>
+      <td><strong style="color:#dc2626;">TB 最優退保決策</strong></td>
+      <td><strong style="color:#dc2626;">「繼續持有」的期望現值</strong></td>
+      <td style="color:#dc2626;"><strong>不能只看今天！保戶需要比較：<br/>立即拿 TB(t) vs 等下去 E^Q[PV of future TB | state_t]<br/>後者在今天是未知的，必須靠 MC 估算</strong></td>
+    </tr>
+  </table>
+  </div>
+
+  <!-- 关键直觉 -->
+  <p style="font-size:0.92rem; margin:0 0 0.4rem 0;"><strong>② TB 退保決策的核心問題</strong></p>
+  <p style="font-size:0.91rem; margin:0 0 0.4rem 0; padding-left:0.6rem; border-left:3px solid #93c5fd;">
+    在外層情景 s、第 t 年，保戶手上有：<strong>AS(t,s) = 130，TB(t,s) = 15，GSV = 80</strong>。<br/>
+    退保能拿：<strong>SV = max(130, 80) + 15 = 145</strong>。<br/>
+    問題是：<em>如果我不退保，再持有 20 年，我能拿多少（折現到今天）？</em><br/>
+    這個「繼續持有的期望現值」今天是 <strong>不確定的</strong> ——
+    取決於未來利率怎麼走、AS 怎麼增長、TB 如何累積。
+    <strong>這就是 V(t, ω_t)，必須用 MC 從 t 出發估算。</strong>
+  </p>
+
+  <!-- 内层MC步骤 -->
+  <p style="font-size:0.92rem; margin:0.5rem 0 0.3rem 0;"><strong>③ 內層 MC 的具體執行步驟（以 TB 退保決策為例）</strong></p>
+  <div style="background:#0f172a; border-radius:6px; padding:0.7rem 1rem; font-size:0.8rem; color:#e2e8f0; font-family:monospace; line-height:1.7; margin-bottom:0.5rem; overflow-x:auto;">
+<span style="color:#7dd3fc;">## 外層：第 t=10 年，情景 s=42，狀態已知：</span><br/>
+r_outer = 0.015       <span style="color:#94a3b8;"># 外層情景在 t=10 的短期利率（1.5%，利率大跌）</span><br/>
+AS_outer = 130        <span style="color:#94a3b8;"># 外層情景在 t=10 的 Asset Share</span><br/>
+TB_outer = 15         <span style="color:#94a3b8;"># 外層情景在 t=10 的 Terminal Bonus（每保單）</span><br/>
+SV_immediate = 145    <span style="color:#94a3b8;"># 立刻退保可拿到的金額</span><br/>
+<br/>
+<span style="color:#7dd3fc;">## 內層 MC：從 (r=0.015, AS=130) 出發，生成 K=500 條子情景</span><br/>
+<span style="color:#7dd3fc;">## 覆蓋剩餘 t=10 到 t=30（保單到期）的 20 年路徑</span><br/>
+PV_continue_list = []<br/>
+<span style="color:#f9a8d4;">for</span> k <span style="color:#f9a8d4;">in</span> range(K):   <span style="color:#94a3b8;"># 每條內層子情景</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;r_path  = hw1f_simulate(r0=r_outer, T=20yr)    <span style="color:#94a3b8;"># 從 r_outer 出發生成利率路徑</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;AS_path = roll_asset_share(AS0=AS_outer, r=r_path) <span style="color:#94a3b8;"># AS 遞推</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;TB_path = compute_tb(AS_path, fund_rules)          <span style="color:#94a3b8;"># TB 按分紅規則演化</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;CF_k = maturity_payout(AS_path[-1], TB_path[-1])   <span style="color:#94a3b8;"># 到期支付</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;disc_k = exp(-integral(r_path))                    <span style="color:#94a3b8;"># 折現因子</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;PV_continue_list.append(CF_k * disc_k)<br/>
+<br/>
+V_continue = mean(PV_continue_list)  <span style="color:#94a3b8;"># V(t=10, s=42) = 條件期望繼續持有現值</span><br/>
+<br/>
+<span style="color:#7dd3fc;">## 決策比較（保戶行為模型）</span><br/>
+<span style="color:#f9a8d4;">if</span> SV_immediate &gt;= V_continue:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;surrender_prob_adjustment = <span style="color:#86efac;">+20%</span>  <span style="color:#94a3b8;"># 退保更合算 → 提高退保率</span><br/>
+<span style="color:#f9a8d4;">else</span>:<br/>
+&nbsp;&nbsp;&nbsp;&nbsp;surrender_prob_adjustment = <span style="color:#86efac;">-10%</span>  <span style="color:#94a3b8;"># 繼續持有更合算 → 降低退保率</span>
+  </div>
+
+  <!-- 关键输出说明 -->
+  <p style="font-size:0.91rem; margin:0 0 0.4rem 0;"><strong>④ 內層 MC 輸出什麼、影響什麼</strong></p>
+  <div class="tbl-wrap" style="margin-bottom:0.5rem;">
+  <table style="font-size:0.87rem;">
+    <tr><th>內層 MC 輸出</th><th>如何影響外層情景的現金流</th></tr>
+    <tr>
+      <td><code>V_continue(t, s)</code> —— 繼續持有的條件期望現值</td>
+      <td>決定 t 時刻的 <strong>dynamic lapse rate</strong>：V_continue 越高（繼續合算），退保率越低；反之越高</td>
+    </tr>
+    <tr>
+      <td><code>V_guarantee(t, s)</code> —— 保證部分的條件期望值（GMxB）</td>
+      <td>決定 VA 保證費的動態調整，或 hedge notional 的再平衡量</td>
+    </tr>
+    <tr>
+      <td><code>V_ITM(t, s)</code> —— 保證 in-the-money 程度</td>
+      <td>決定是否立即行使 American-style 保證（PCR stress 情景下常需評估）</td>
+    </tr>
+  </table>
+  </div>
+
+  <!-- 为什么不能用解析解 -->
+  <p style="font-size:0.91rem; margin:0 0 0.3rem 0;"><strong>⑤ 為什麼不能直接用公式算出 V(t, ω_t)？</strong></p>
+  <p style="font-size:0.9rem; margin:0; color:#1e40af;">
+    簡單產品（如純 GSV Put）可以套 Black-Scholes 解析解。但 Par fund 的 AS 遞推包含：
+    <strong>管理動作反饋</strong>（credited rate 依賴 AS 又反過來影響 AS）、
+    <strong>DPB 動態退保</strong>（退保率依賴未來狀態）、
+    <strong>GL34 PROF 限制</strong>（基金層聚合）——
+    這些非線性、路徑依賴的特性使得 <strong>無法用閉合公式替代 MC</strong>，
+    只能數值模擬。這也是 LSMC 如此重要的根本原因：它用回歸函數近似 V(t, ω_t)，
+    既保住了精度又避開了內層 MC 的計算爆炸。
+  </p>
+</div>
+
 <!-- 数学结构 -->
 <p style="font-size:0.93rem; margin:0.6rem 0 0.3rem 0;"><strong>數學結構：雙層巢狀</strong></p>
 
