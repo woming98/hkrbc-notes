@@ -3987,18 +3987,18 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
   letter-spacing:0.01em;
 ">§10.0.1 &nbsp; Mathematical Foundation — FTAP &amp; Girsanov Theorem 數學根源</h4>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.4rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.4rem 0;">
   <strong>1. 數學根源：無套利定價必須在 Q-measure 下進行</strong>
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <em>資產定價基本定理（FTAP）：</em> 無套利市場存在唯一的等價鞅測度 Q，使得所有折現資產價格均為鞅：
   \[ \frac{S_t}{B_t} \text{ is a martingale under } Q \quad\Longleftrightarrow\quad E^Q\!\left[\frac{S_T}{B_T}\,\Big|\,\mathcal{F}_t\right] = \frac{S_t}{B_t} \]
   其中 \(B_t = e^{\int_0^t r_s\,ds}\) 為貨幣市場賬戶（numéraire）。因此任何 payoff 的公平價值為：
   \[ V_0 = E^Q\!\left[e^{-\int_0^T r_t\,dt}\cdot \text{Payoff}_T\right] \]
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <em>Girsanov 定理：Q 與 P 之間的測度轉換：</em><br/>
   從股票 SDE 出發更直觀。P-measure 下：
   \[ dS_t = \mu\,S_t\,dt + \sigma\,S_t\,dW^P_t \quad (\mu = r + \lambda\sigma,\ \lambda = \tfrac{\mu-r}{\sigma}\ \text{為市場風險價格}) \]
@@ -4013,34 +4013,34 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   所得結果 \(E^P[\cdot] \neq E^Q[\cdot]\)，不等於無套利價格。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0.4rem 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0.4rem 0 0.3rem 0;">
   <em>常見疑問：為什麼把 60% 重新賦權成 50% 是合理的？</em><br/>
   Q-measure 的 50% <strong>不是人為選定</strong>，而是由<strong>無套利條件唯一決定</strong>的。以下數字例子說明：
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">設置</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">數值</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>股票現價 \(S_0\)</td><td>100</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>下一期：漲至 120（+20%）或跌至 90（−10%）</td><td>–</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>無風險利率 \(r\)</td><td>5%</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>真實世界概率（P-measure）</td><td>漲 60%，跌 40%</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">設置</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">數值</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">股票現價 \(S_0\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">100</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">下一期：漲至 120（+20%）或跌至 90（−10%）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">–</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">無風險利率 \(r\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">5%</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">真實世界概率（P-measure）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">漲 60%，跌 40%</td></tr>
 </table>
 </div>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   令 Q-measure 下漲的概率為 \(q\)，無套利要求折現期望 = 當前價格：
   \[ \frac{1}{1.05}\bigl[q \times 120 + (1-q) \times 90\bigr] = 100 \]
   \[ \Rightarrow\quad q = \frac{100 \times 1.05 - 90}{120 - 90} = \frac{15}{30} = 50\% \]
   50% 是由市場價格和無風險利率<strong>唯一推算出來</strong>的，若用任何其他概率定價，就會出現套利機會。
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);"></th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">P-measure 60%</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">Q-measure 50%</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>含義</strong></td><td>股票真實漲跌概率（含投資者風險補償要求）</td><td>使期權定價與市場無套利一致的「定價概率」，不預測未來</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>Q 如何得到</strong></td><td>–</td><td>把「真實漲太多」的路徑權重調低，「跌」的路徑調高，直到期望回報 = 無風險利率</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>是否合理</strong></td><td>預測合理</td><td>定價合理（套利一致性）；不用於預測真實走勢</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);"></th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">P-measure 60%</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">Q-measure 50%</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>含義</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">股票真實漲跌概率（含投資者風險補償要求）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">使期權定價與市場無套利一致的「定價概率」，不預測未來</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>Q 如何得到</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">–</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">把「真實漲太多」的路徑權重調低，「跌」的路徑調高，直到期望回報 = 無風險利率</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>是否合理</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">預測合理</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">定價合理（套利一致性）；不用於預測真實走勢</td></tr>
 </table>
 </div>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.4rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.4rem 0;">
   <strong>類比保險精算：</strong> 保險公司定價用的死亡率，不是真實人群死亡率，而是加了風險邊際的「定價死亡率」——同樣是「虛構」但在定價框架內自洽，目的是確保定價的一致性和充足性。Q-measure 概率亦然。
 </p>
 
@@ -4051,36 +4051,36 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 ">§10.0.2 &nbsp; Par Fund Application — GSV Put &amp; Swaption Pricing 分紅基金應用</h4>
 <!-- Par Fund 無保證利率，但有 GSV Put -->
 <p style="font-size:0.88rem; color:#fca5a5; margin:0.4rem 0 0.3rem 0;"><strong>Par Fund 特殊情境：沒有保證利率，仍需 Q-measure</strong></p>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   Par Fund 的 TVOG 不來自「保證利率 g」，而來自兩個隱含的硬性期權：
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">保證類型</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">機制</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">等價期權</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>GSV（保證最低退保金）</strong></td><td>SV = max(AS, GSV)：AS 跌破 GSV 時保險公司依合約兜底，差額由公司承擔</td><td><strong>Put option on AS</strong>，行權價 = GSV</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>已宣告 RB 不可撤銷</strong></td><td>每年宣告的 RB 永久增加保證身故/退保利益，形成只升不降的棘輪</td><td><strong>Ratchet option</strong>（累計保證底部只升不降）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>DPB 放大效應</strong></td><td>AS 接近 GSV 時退保率上升，迫使公司在 AS 最低時兌付更多 SV = GSV</td><td>Path-dependent put（負 convexity）</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">保證類型</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">機制</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">等價期權</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>GSV（保證最低退保金）</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">SV = max(AS, GSV)：AS 跌破 GSV 時保險公司依合約兜底，差額由公司承擔</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>Put option on AS</strong>，行權價 = GSV</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>已宣告 RB 不可撤銷</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">每年宣告的 RB 永久增加保證身故/退保利益，形成只升不降的棘輪</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>Ratchet option</strong>（累計保證底部只升不降）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>DPB 放大效應</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">AS 接近 GSV 時退保率上升，迫使公司在 AS 最低時兌付更多 SV = GSV</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Path-dependent put（負 convexity）</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;"><em>具體數字例子（1年期，單張保單，SA=100）</em></p>
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;"><em>具體數字例子（1年期，單張保單，SA=100）</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">參數</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">數值</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">說明</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>初始 AS(0)</td><td>100</td><td>期初每張保單的理論份額</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>GSV（合約保證）</td><td>80</td><td>不論投資表現，退保最少拿 80</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>無風險利率 r</td><td>3%</td><td>折現用</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>ESG 情景 s=1（利率大跌 −3%）</td><td>AS(1) = 72</td><td>債券 MtM 損失：D × Δr ≈ 9yr × 3% = −27% → 100 × (1−0.27) ≈ 73，再扣費用後 72</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>ESG 情景 s=2（利率正常）</td><td>AS(1) = 105</td><td>正常投資回報 +5%</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>Q-measure</td><td>Q(s=1) = 45%，Q(s=2) = 55%</td><td>由 swaption 市場反推（利率下行風險偏高，詳見下方說明）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>P-measure</td><td>P(s=1) = 15%，P(s=2) = 85%</td><td>真實世界：利率大跌概率較低</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">參數</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">數值</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">說明</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">初始 AS(0)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">100</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">期初每張保單的理論份額</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">GSV（合約保證）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">80</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">不論投資表現，退保最少拿 80</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">無風險利率 r</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">3%</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">折現用</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">ESG 情景 s=1（利率大跌 −3%）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">AS(1) = 72</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">債券 MtM 損失：D × Δr ≈ 9yr × 3% = −27% → 100 × (1−0.27) ≈ 73，再扣費用後 72</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">ESG 情景 s=2（利率正常）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">AS(1) = 105</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">正常投資回報 +5%</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Q-measure</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Q(s=1) = 45%，Q(s=2) = 55%</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">由 swaption 市場反推（利率下行風險偏高，詳見下方說明）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">P-measure</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">P(s=1) = 15%，P(s=2) = 85%</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">真實世界：利率大跌概率較低</td></tr>
 </table>
 </div>
 
 <!-- Swaption 詳解 -->
 <p style="font-size:0.86rem; color:#fca5a5; margin:0.5rem 0 0.2rem 0;"><strong>▶ Swaption 是什麼？如何從香港市場反推 Q(s=1) = 45%？</strong></p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <strong>1. Swaption 定義</strong><br/>
   Swaption = Swap + Option。它是一個期權，給持有人在未來某日期選擇是否進入一個利率互換（Interest Rate Swap, IRS）。
   <br/>例：「1Y into 10Y receiver swaption」= 1年後，有權以固定利率 K（strike）<em>收取</em>固定、支付浮動，期限10年。
@@ -4088,54 +4088,54 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>因此，<strong>receiver swaption 的市場價格直接反映了市場對利率下行風險的定價</strong>，是提取 Q-measure 利率分佈的關鍵工具。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <strong>2. 香港 Swaption 市場</strong><br/>
   香港 swaption 市場以 USD IRS 和 HKD IRS（HIBOR/HONIA）為主，透過 Bloomberg（SWPM 頁面）和 Reuters 取得：
 </p>
 <div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">市場數據</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">Bloomberg 來源</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">說明</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>ATM swaption implied vol</td><td>USSV（USD）/ HDSV（HKD）vol cube</td><td>at-the-money 期權隱含波動率，反映市場對未來利率不確定性的定價</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>OTM receiver swaption vol（低 strike）</td><td>Vol cube，strike &lt; ATM</td><td>利率下行的 OTM put，其 implied vol skew 反映利率下行的尾部風險溢價</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>Swaption smile / skew</td><td>SWVS 頁面</td><td>不同 strike 的 implied vol 曲線；receiver skew 陡峭 → 市場對利率下行賦予更高 Q-weight</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">市場數據</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">Bloomberg 來源</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">說明</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">ATM swaption implied vol</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">USSV（USD）/ HDSV（HKD）vol cube</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">at-the-money 期權隱含波動率，反映市場對未來利率不確定性的定價</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">OTM receiver swaption vol（低 strike）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Vol cube，strike &lt; ATM</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">利率下行的 OTM put，其 implied vol skew 反映利率下行的尾部風險溢價</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Swaption smile / skew</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">SWVS 頁面</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">不同 strike 的 implied vol 曲線；receiver skew 陡峭 → 市場對利率下行賦予更高 Q-weight</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <strong>3. 從 Swaption 反推 Q(s=1) = 45% 的步驟（本例簡化）</strong>
 </p>
 <div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">步驟</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">操作</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">本例數字</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>① 取 OTM receiver swaption 市場價</strong></td><td>取 strike = 目前 swap rate − 3%（對應「利率大跌 3%」情景）的 receiver swaption 價格</td><td>假設 Bloomberg 報價：swaption premium = 3.50（折現後）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>② 識別 swaption 的賠付結構</strong></td><td>詳見下方展開說明</td><td>swaption 賠付 ≈ 8（與 GSV put 賠付對齊，推導見下）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>③ 從市場價格反推 Q-weight</strong></td><td>已知 swaption price = Q(利率大跌) × 賠付 / (1+r)<br/>
-    \[ Q(s=1) = \frac{\text{swaption price} \times (1+r)}{\text{賠付}} = \frac{3.50 \times 1.03}{8} \approx 0.45 \]</td><td>Q(s=1) = 3.50 × 1.03 / 8 ≈ <strong>45%</strong></td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>④ 為何 Q(s=1) = 45% ≫ P(s=1) = 15%？</strong></td><td>市場投資者厭惡利率下行（保險公司、退休基金都是 receiver），對低利率情景支付額外溢價 → Q-weight 被拉高。這個溢價即「利率風險溢價（term premium）」在 Q-measure 中的體現</td><td>45% vs 15%：Q 是 P 的 3 倍，反映市場對利率尾部風險的定價</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">步驟</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">操作</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">本例數字</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>① 取 OTM receiver swaption 市場價</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">取 strike = 目前 swap rate − 3%（對應「利率大跌 3%」情景）的 receiver swaption 價格</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">假設 Bloomberg 報價：swaption premium = 3.50（折現後）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>② 識別 swaption 的賠付結構</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">詳見下方展開說明</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">swaption 賠付 ≈ 8（與 GSV put 賠付對齊，推導見下）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>③ 從市場價格反推 Q-weight</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">已知 swaption price = Q(利率大跌) × 賠付 / (1+r)<br/>
+    \[ Q(s=1) = \frac{\text{swaption price} \times (1+r)}{\text{賠付}} = \frac{3.50 \times 1.03}{8} \approx 0.45 \]</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Q(s=1) = 3.50 × 1.03 / 8 ≈ <strong>45%</strong></td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>④ 為何 Q(s=1) = 45% ≫ P(s=1) = 15%？</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">市場投資者厭惡利率下行（保險公司、退休基金都是 receiver），對低利率情景支付額外溢價 → Q-weight 被拉高。這個溢價即「利率風險溢價（term premium）」在 Q-measure 中的體現</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">45% vs 15%：Q 是 P 的 3 倍，反映市場對利率尾部風險的定價</td></tr>
 </table>
 </div>
 
 <!-- ② 賠付結構展開說明 -->
 <p style="font-size:0.86rem; color:#fca5a5; margin:0.5rem 0 0.2rem 0;"><strong>▶ 展開：② Swaption 賠付如何計算？怎麼對齊 GSV put 賠付 = 8？</strong></p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.25rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.25rem 0;">
   <strong>Receiver Swaption 賠付公式拆解</strong><br/>
   一個 receiver swaption 在到期時的賠付是：
   \[ \text{Payoff} = N \times \max(K - r_{\text{swap}},\; 0) \times A(r_{\text{swap}}, T_{\text{swap}}) \]
   其中：
 </p>
 <div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">符號</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">含義</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">本例設定</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>\(N\)</td><td>名義本金（Notional）</td><td>N = 27.8（後面計算得出）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>\(K\)</td><td>行權利率（Strike rate）= 此 swaption 鎖定的固定利率</td><td>K = 4%（當前 HKD 10Y swap rate）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>\(r_{\text{swap}}\)</td><td>到期時市場上的 10Y swap rate</td><td>s=1（利率跌 3%）時：r_swap = 1%</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>\(\max(K - r_{\text{swap}}, 0)\)</td><td>利率差值（只在利率低於 K 時有賠付）</td><td>max(4% − 1%, 0) = <strong>3%</strong></td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>\(A(r, T)\)</td><td>Annuity factor = 互換期限內每期 1 元固定收益的現值之和</td><td>A(1%, 10Y) ≈ 9.47</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">符號</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">含義</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">本例設定</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">\(N\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">名義本金（Notional）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">N = 27.8（後面計算得出）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">\(K\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">行權利率（Strike rate）= 此 swaption 鎖定的固定利率</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">K = 4%（當前 HKD 10Y swap rate）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">\(r_{\text{swap}}\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">到期時市場上的 10Y swap rate</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">s=1（利率跌 3%）時：r_swap = 1%</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">\(\max(K - r_{\text{swap}}, 0)\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">利率差值（只在利率低於 K 時有賠付）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">max(4% − 1%, 0) = <strong>3%</strong></td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">\(A(r, T)\)</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Annuity factor = 互換期限內每期 1 元固定收益的現值之和</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">A(1%, 10Y) ≈ 9.47</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;">
   <strong>Annuity Factor 是什麼？</strong><br/>
   利率互換（IRS）是每半年或每年交換一次現金流。
   「收取固定，支付浮動」的 receiver swap，每年固定收益 = K × N。
@@ -4146,20 +4146,20 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>直觀理解：如果年利率只有 1%，10 年現金流的現值合計是名義本金的 9.47 倍。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;">
   <strong>本例賠付計算（不對齊 GSV 前）</strong>
 </p>
 <div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">項目</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">s=1（利率跌 3%）</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">s=2（正常）</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>K − r_swap</td><td>4% − 1% = 3%</td><td>4% − 4% = 0%</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>Annuity A</td><td>A(1%, 10Y) ≈ 9.47</td><td>0（不行使）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>Payoff per unit N</td><td>3% × 9.47 = <strong>0.284</strong></td><td>0</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>若 N = 1（名義本金）</td><td>賠付 = 0.284</td><td>0</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">項目</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">s=1（利率跌 3%）</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">s=2（正常）</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">K − r_swap</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">4% − 1% = 3%</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">4% − 4% = 0%</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Annuity A</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">A(1%, 10Y) ≈ 9.47</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">0（不行使）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Payoff per unit N</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">3% × 9.47 = <strong>0.284</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">0</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">若 N = 1（名義本金）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">賠付 = 0.284</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">0</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;">
   <strong>如何「對齊」至 GSV put 賠付 = 8？——選擇合適的名義本金 N</strong><br/>
   GSV put 在 s=1 的賠付 = GSV − AS = 80 − 72 = 8。
   我們希望找到一個名義本金 N，使 swaption 的賠付在 s=1 下也等於 8，從而確認兩者是「等效期權」：
@@ -4168,7 +4168,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>這個 N 也代表保單資產組合中受利率影響的「有效債券倉位」。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;">
   <strong>為什麼「利率跌 3%」可以對應「AS 跌至 72」？</strong><br/>
   AS 的主要資產是長存期債券（本例 duration ≈ 9yr）。利率下行時，債券 MtM 損失：
   \[ \Delta P \approx -D \times \Delta r = -9 \times (-3\%) = +27\%? \]
@@ -4176,16 +4176,16 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>但本例設定 s=1 是「利率大跌」導致 AS 下跌，原因是：
 </p>
 <div class="tbl-wrap" style="font-size:0.82rem; margin-bottom:0.3rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">真實情況</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">說明</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>HTM 債券不 MtM</td><td>Par fund 的大部分債券以 HTM 持有，利率下行帳面值不變，earned rate 卻下降（再投資收益降低）</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>再投資利率下降</td><td>到期後的債券只能以低利率再投資，earned rate 逐年下降，AS 增長放慢</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>credited rate 跟隨下調</td><td>earned rate 低 → credited rate 低 → AS 累積速度低於 GSV 增長速度</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>本例簡化</td><td>將「低利率環境下 AS 增長不足」壓縮為 1 年，直接令 AS(1) = 72 以簡化說明</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">真實情況</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">說明</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">HTM 債券不 MtM</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">Par fund 的大部分債券以 HTM 持有，利率下行帳面值不變，earned rate 卻下降（再投資收益降低）</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">再投資利率下降</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">到期後的債券只能以低利率再投資，earned rate 逐年下降，AS 增長放慢</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">credited rate 跟隨下調</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">earned rate 低 → credited rate 低 → AS 累積速度低於 GSV 增長速度</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">本例簡化</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">將「低利率環境下 AS 增長不足」壓縮為 1 年，直接令 AS(1) = 72 以簡化說明</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <strong>小結：Swaption 賠付對齊流程</strong>
   <br/>① Swaption payoff = N × max(K − r_swap, 0) × A(r_swap, T)
   <br/>② 在「利率跌 3%」情景下，per-unit payoff = 0.284
@@ -4194,7 +4194,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>⑤ 若保險公司用 P-measure 對 GSV put 定價只收 1.17，與市場 3.50 存在 2.33 的無風險套利空間
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <strong>4. 在 ESG 中的實際操作</strong><br/>
   實際 ESG 校準並非手動計算每個情景的 Q-weight，而是：
   <br/>① 將 HW（Hull-White）或 LMM 模型參數 (a, σ) 校準至整條 swaption vol cube（多個 tenor × strike）
@@ -4203,45 +4203,45 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   <br/>④ Martingale test 驗證：\(E^Q[P(0,T)] = \) 市場零息債券價格，確保 Q-measure 正確
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.5rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.5rem 0;">
   <strong>一句話總結：Swaption 是利率方向的「保險合約」，市場對 receiver swaption 的定價
   直接揭示了風險中性機率下利率下行的權重。ESG 透過校準 swaption vol cube 把這個市場資訊嵌入每條情景路徑，
   確保 TVOG 與 OTC 期權定價一致。</strong>
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;"><em>Step 1：計算每張保單的 GSV Put 賠付</em></p>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;"><em>Step 1：計算每張保單的 GSV Put 賠付</em></p>
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   SV = max(AS, GSV)，GSV put 賠付 = max(GSV − AS, 0)：<br/>
   s=1：SV = max(72, 80) = <strong>80</strong>，put 賠付 = 80 − 72 = <strong>8</strong>（公司須額外承擔）<br/>
   s=2：SV = max(105, 80) = <strong>105</strong>，put 賠付 = 0（保單持有人拿 AS，公司無額外負擔）
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;"><em>Step 2：DPB 放大效應（退保率在壞情景上升）</em></p>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;"><em>Step 2：DPB 放大效應（退保率在壞情景上升）</em></p>
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   s=1 情景：AS = 72 &lt; GSV = 80，保單持有人知道退保拿 80 &gt; 持有價值 → 退保率 q_lapse 從基準 5% 升至 25%。<br/>
   退保人數從 5 人升至 25 人（每 100 人計），公司需多付 (80 − 72) × 20 = <strong>160 的額外 GSV 賠付</strong>。<br/>
   這個 DPB 效應使壞情景的損失非線性放大——這正是 Par Fund TVOG 的核心風險來源。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;"><em>Step 3：TVOG 定價對比</em></p>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;"><em>Step 3：TVOG 定價對比</em></p>
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   為簡化，忽略 DPB，只計每張保單的 GSV put 價值：
   \[ V^Q = \frac{0.45\times8 + 0.55\times0}{1.03} = \frac{3.6}{1.03} \approx 3.50 \]
   \[ V^P = \frac{0.15\times8 + 0.85\times0}{1.03} = \frac{1.2}{1.03} \approx 1.17 \]
   P-measure 低估：\(3.50 - 1.17 = \mathbf{2.33}\)（每張保單）
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;"><em>Step 4：套利操作</em></p>
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;"><em>Step 4：套利操作</em></p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">操作</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">t = 0</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">t = 1（s=1，AS=72）</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">t = 1（s=2，AS=105）</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>買入 Par 保單（付 1.17 for GSV 保證部分）</td><td>−1.17</td><td>+8（獲 GSV 兜底）</td><td>0</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>在 OTC 賣出債券 put（strike=80，收 3.50）</td><td>+3.50</td><td>−8（賠付）</td><td>0</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td><strong>淨（無風險）</strong></td><td><strong>+2.33</strong></td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">操作</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">t = 0</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">t = 1（s=1，AS=72）</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">t = 1（s=2，AS=105）</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">買入 Par 保單（付 1.17 for GSV 保證部分）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">−1.17</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">+8（獲 GSV 兜底）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">0</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">在 OTC 賣出債券 put（strike=80，收 3.50）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">+3.50</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">−8（賠付）</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">0</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>淨（無風險）</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>+2.33</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>0</strong></td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;"><strong>0</strong></td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.5rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.5rem 0;">
   <strong>Par Fund 結論：即使沒有明確的保證利率，GSV 合約條款本身就是一個 put option。
   OTC 市場按 Q-measure 為等價 put 定價，保險公司若用 P-measure，
   等於把 put option 以 1.17 賣出，而市場正確價格是 3.50。
@@ -4254,7 +4254,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   padding: 0.25rem 0.6rem; border-radius:4px;
   background:rgba(239,68,68,0.12); border-left:3px solid #ef4444;
 ">§10.0.3 &nbsp; Measure Divergence &amp; Martingale Test 測度偏差量化</h4>
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.3rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.3rem 0;">
   <em>量化誤差的大小（Radon-Nikodým 導數）：</em><br/>
   Q 與 P 之間的測度轉換由 Radon-Nikodým 導數給出：
   \[ \frac{dQ}{dP}\bigg|_{\mathcal{F}_T} = \exp\!\left(-\int_0^T \lambda_t\,dW^P_t - \frac{1}{2}\int_0^T \lambda_t^2\,dt\right) \]
@@ -4264,7 +4264,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   由於保證 Payoff 在低利率路徑觸發（\(\frac{dQ}{dP}\) 在這些路徑上更大），兩者正相關 → Cov &gt; 0 → \(\text{TVOG}^P &lt; \text{TVOG}^Q\)，P-measure 系統性低估。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.4rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.4rem 0;">
   <em>Martingale Test（監管驗證標準）：</em><br/>
   IA 要求每條情景的折現股票路徑均值等於當前市場價格：
   \[ \frac{1}{N}\sum_{s=1}^{N} e^{-\int_0^T r_t^{(s)}\,dt}\cdot S_T^{(s)} = S_0 \]
@@ -4272,7 +4272,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   P-measure 情景：不滿足，因 drift = r + ERP → 折現期望值 &gt; S_0，直接違規。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.4rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.4rem 0;">
   <h4 id="tvog-q-regulatory" style="
     font-size:0.93rem; color:#fca5a5; margin:0.9rem 0 0.35rem 0;
     padding: 0.25rem 0.6rem; border-radius:4px;
@@ -4282,22 +4282,22 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   P-measure 的 drift 更高（含 ERP 和 term premium），路徑平均向上偏移：
 </p>
 <div class="tbl-wrap" style="font-size:0.83rem; margin-bottom:0.4rem;">
-<table style="color:#fff0f0; border-collapse:collapse;">
-  <tr><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">情景</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">Q-measure（TVOG 正確）</th><th style="background:rgba(180,30,30,0.55); color:#ffffff; border:1px solid rgba(239,68,68,0.25);">P-measure（TVOG 錯誤）</th></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>低利率極端路徑</td><td>足夠多條路徑利率跌破保證利率 → 保證觸發 → TVOG 有值</td><td>drift 高 → 極端低利率路徑極少出現 → 保證幾乎不觸發 → TVOG ≈ 0</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>平均利率水平</td><td>從當前 forward curve 出發，無風險溢價</td><td>從 forward curve + ERP 出發，整體偏高</td></tr>
-  <tr style="color:#fff0f0; border-collapse:collapse;"><td>計算結果</td><td>✅ 反映保證期權的真實市場價值</td><td>❌ 嚴重低估，可能接近 0</td></tr>
+<table style="color:#f0f0f0; width:100%; border-collapse:collapse; background:transparent;">
+  <tr><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">情景</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">Q-measure（TVOG 正確）</th><th style="background:rgba(150,20,20,0.70); color:#ffffff; padding:6px 10px; border:1px solid rgba(239,68,68,0.20);">P-measure（TVOG 錯誤）</th></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">低利率極端路徑</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">足夠多條路徑利率跌破保證利率 → 保證觸發 → TVOG 有值</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">drift 高 → 極端低利率路徑極少出現 → 保證幾乎不觸發 → TVOG ≈ 0</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">平均利率水平</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">從當前 forward curve 出發，無風險溢價</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">從 forward curve + ERP 出發，整體偏高</td></tr>
+  <tr style="color:#fff0f0; border-collapse:collapse;"><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">計算結果</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">✅ 反映保證期權的真實市場價值</td><td style="background:transparent; padding:5px 10px; color:#f0f0f0;">❌ 嚴重低估，可能接近 0</td></tr>
 </table>
 </div>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.4rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.4rem 0;">
   <strong>3. 類比：雨傘保險的定價</strong><br/>
   用 P-measure（"平均天氣預報"）定價雨傘保險，因為大多數路徑都是晴天，保險賠付幾乎不觸發 → 保費接近零。
   但這是錯的：雨傘保險的價值正是來自那些極端暴雨情景——這些情景在 Q-measure 下有足夠的權重，
   即使它們在 P-measure 下概率很低。
 </p>
 
-<p style="font-size:0.84rem; color:#ffe4e4; margin:0 0 0.2rem 0;">
+<p style="font-size:0.84rem; color:#f0f0f0; margin:0 0 0.2rem 0;">
   <strong>4. 監管依據：Cap. 41R Rule 19</strong><br/>
   Rule 19(2) 明確要求 TVOG 情景必須為<strong>市場一致性（market-consistent）</strong>，且符合 IA Circular（2024）
   附錄 1 的 ESG 最低要求（包括 martingale test）。P-measure 情景無法通過 martingale test，直接違規。
