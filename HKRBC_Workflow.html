@@ -4410,7 +4410,7 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   per Rule 19. The standard valuation methodology is the stochastic−deterministic difference approach.
 </p>
 
-<h4>§9.6.1 Core Definition &amp; Mathematical Foundation 核心定義與數學基礎</h4>
+<h4>§10.1.1 Core Definition &amp; Mathematical Foundation 核心定義與數學基礎</h4>
 
 <div class="formula">
   \[
@@ -4459,8 +4459,8 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
   This difference is TVOG.
 </p>
 
-<!-- ────── §9.6.2 7-Step Process ────── -->
-<h4>§9.6.2 End-to-End TVOG Calculation Process 端到端計算流程 (7 Steps)</h4>
+<!-- ────── §10.1.2 7-Step Process ────── -->
+<h4>§10.1.2 End-to-End TVOG Calculation Process 端到端計算流程 (7 Steps)</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -4531,8 +4531,8 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 </table>
 </div>
 
-<!-- ────── §9.6.3 Product-Specific Treatment ────── -->
-<h4>§9.6.3 Product-Specific TVOG Treatment 不同產品的TVOG特點</h4>
+<!-- ────── §10.1.3 Product-Specific Treatment ────── -->
+<h4>§10.1.3 Product-Specific TVOG Treatment 不同產品的TVOG特點</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -4592,8 +4592,8 @@ LAPSE_RATE = CLIP(BASE_LAPSE * DPB_MULT,
 </table>
 </div>
 
-<!-- ────── §9.6.4 Key Implementation Techniques ────── -->
-<h4>§9.6.4 Key Implementation Techniques 關鍵實作技術</h4>
+<!-- ────── §10.1.4 Key Implementation Techniques ────── -->
+<h4>§10.1.4 Key Implementation Techniques 關鍵實作技術</h4>
 
 <h5>(a) Scenario Count &amp; Convergence 情景數與收斂</h5>
 
@@ -4669,8 +4669,8 @@ for t in range(1, T+1):
         gmab_claim = max(0, high_water_mark - av_t)  # Lookback GMAB
     av_prev = av_t</code></pre>
 
-<!-- ────── §9.6.5 Simplified Methods ────── -->
-<h4>§9.6.5 Simplified Approximation Methods 簡化方法</h4>
+<!-- ────── §10.1.5 Simplified Methods ────── -->
+<h4>§10.1.5 Simplified Approximation Methods 簡化方法</h4>
 
 <p>Full stochastic TVOG calculation is slow (hours per portfolio). For internal monitoring or quick estimates, closed-form approximations are widely used.</p>
 
@@ -4711,8 +4711,8 @@ for t in range(1, T+1):
 </table>
 </div>
 
-<!-- ────── §9.6.6 Common Pitfalls ────── -->
-<h4>§9.6.6 Common Pitfalls 常見建模陷阱</h4>
+<!-- ────── §10.1.6 Common Pitfalls ────── -->
+<h4>§10.1.6 Common Pitfalls 常見建模陷阱</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -4760,8 +4760,8 @@ for t in range(1, T+1):
 </table>
 </div>
 
-<!-- ────── §9.6.7 TVOG in HKRBC EBS ────── -->
-<h4>§9.6.7 TVOG's Position in the HKRBC EBS 在經濟資產負債表中的位置</h4>
+<!-- ────── §10.1.7 TVOG in HKRBC EBS ────── -->
+<h4>§10.1.7 TVOG's Position in the HKRBC EBS 在經濟資產負債表中的位置</h4>
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
   <pre class="diagram">
@@ -4784,7 +4784,7 @@ for t in range(1, T+1):
   <li>TVOG is NOT recalculated in every PCR stress separately — it is part of CE under each stressed valuation</li>
 </ul>
 
-<h4>§9.6.8 Practical Production Setup 實務生產配置</h4>
+<h4>§10.1.8 Practical Production Setup 實務生產配置</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -4815,12 +4815,12 @@ for t in range(1, T+1):
   Par TVOG can easily reach <strong>1-3% of Current Estimate</strong>, materially impacting capital.
 </p>
 
-<!-- ─── §9.7.0 ESG → Asset Share → TVOG Data Flow ─── -->
-<h4>§9.7.0 How ESG Variables Flow into Asset Share and TVOG</h4>
+<!-- ─── §10.2.0 ESG → Asset Share → TVOG Data Flow ─── -->
+<h4>§10.2.0 How ESG Variables Flow into Asset Share and TVOG</h4>
 
 <p style="font-size:0.93rem;">
-  Before diving into the mechanics, it helps to understand exactly how each ESG output variable
-  acts on the asset side and liability side, and ultimately produces the TVOG figure.
+  ESG 產生的情景變量如何逐步作用於資產側與負債側，最終匯出 TVOG 的完整數據流：
+  （§8 生成 ESG 情景 → §9 AS 遞推 → §10.2 折現與 TVOG 聚合）
 </p>
 
 <!-- 总流程图 -->
@@ -5211,8 +5211,8 @@ print(f"TVOG = {TVOG:,.0f} HKD")
 print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </pre>
 
-<!-- ─── §9.7.1 Product Structure ─── -->
-<h4>§9.7.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
+<!-- ─── §10.2.1 Product Structure ─── -->
+<h4>§10.2.1 Par Product Structure — Three Liability Layers 三層負債結構</h4>
 
 <div class="callout" style="background:#eff6ff; border-left-color:#3b82f6;">
   <pre class="diagram">
@@ -5256,8 +5256,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §9.7.2 Key Assumptions ─── -->
-<h4>§9.7.2 Key Modelling Assumptions 關鍵建模假設</h4>
+<!-- ─── §10.2.2 Key Assumptions ─── -->
+<h4>§10.2.2 Key Modelling Assumptions 關鍵建模假設</h4>
 
 <h5>(a) Asset Earned Rate 資產回報率投影</h5>
 
@@ -5346,8 +5346,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
   current TB level if they expect TB to decline. β<sub>1</sub> ≈ 1.5-3.0, β<sub>2</sub> ≈ 1.0-2.0 (calibrated from historical experience).
 </p>
 
-<!-- ─── §9.7.3 10-Step Process ─── -->
-<h4>§9.7.3 End-to-End Calculation Process 完整計算流程 (10 Steps)</h4>
+<!-- ─── §10.2.3 10-Step Process ─── -->
+<h4>§10.2.3 End-to-End Calculation Process 完整計算流程 (10 Steps)</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -5381,26 +5381,20 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §9.7.4 Asset Share Model & GL34 Compliance ─── -->
-<h4>§9.7.4 Asset Share Model &amp; GL34 Compliance 資產份額模型與GL34合規 <span class="ref circ">GL34 (effective 1 Jul 2024)</span></h4>
+<!-- ─── §10.2.4 Asset Share Model & GL34 Compliance ─── -->
+<h4>§10.2.4 Asset Share Model &amp; GL34 Compliance 資產份額模型與GL34合規 <span class="ref circ">GL34 (effective 1 Jul 2024)</span></h4>
 
-<p>
-  <strong>Asset Share (AS, 資產份額)</strong> is the cornerstone of Par fund actuarial management.
-  It represents <em>the theoretical accumulated share each policy (or cohort) "should" have</em>
-  if it were managed on a standalone basis since policy inception, after sharing investment returns and bearing its share of costs.
-  Under <strong>GL34</strong>, Asset Share is the <em>de facto</em> audit basis for the IA to assess fair treatment of policyholders,
-  and is the most defensible methodology for both <strong>dividend declaration</strong> and <strong>TVOG calculation</strong>.
+<p style="font-size:0.88rem; background:#1e2a1e; border-left:3px solid #6ee7b7; padding:0.4rem 0.7rem; margin:0.3rem 0 0.5rem 0; color:#d1fae5;">
+  ℹ️ AS 遞推公式（架構、各項定義、SB 計算方法、AS(0) 初始化）詳見
+  <a href="#asset-share" style="color:#6ee7b7;">§9 Asset Share</a>（§9.1–§9.4）。
+  本節專注於 <strong>GL34 合規視角</strong>：每個公式項目的法規依據與審計問題。
 </p>
 
-<h5>(a) Core Asset Share Formula 核心公式</h5>
-
-<div class="formula">
-  \[
-    AS_t = AS_{t-1}\,(1+i_t) + P_t - DB_t - SB_t - E_t - C_t - \mathrm{Tax}_t - \mathrm{PROF}_t
-  \]
-</div>
-
-<p style="font-size:0.93rem;">Each component is governed by a specific GL34 section — this is what makes the model audit-ready:</p>
+<p style="font-size:0.93rem; margin:0.2rem 0 0.4rem 0;">
+  AS 遞推公式（<a href="#as-recursion">§9.2</a>）：
+  \(AS_t = AS_{t-1}(1+i_t) + P_t - DB_t - SB_t - E_t - C_t - \mathrm{Tax}_t - \mathrm{PROF}_t\)
+</p>
+<p style="font-size:0.93rem; margin:0.2rem 0 0.4rem 0;">下表列出每個項目對應的 GL34 條款與審計核心問題：</p>
 
 <div class="tbl-wrap">
 <table>
@@ -5661,8 +5655,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §9.7.5 Stochastic-on-Stochastic ─── -->
-<h4>§9.7.5 Stochastic-on-Stochastic (Nested MC) 雙重隨機</h4>
+<!-- ─── §10.2.5 Stochastic-on-Stochastic ─── -->
+<h4>§10.2.5 Stochastic-on-Stochastic (Nested MC) 雙重隨機</h4>
 
 <div class="callout" style="background:#fef9c3; border-left-color:#d97706;">
   <strong>When Required:</strong> If management action depends on <em>current fair value</em> (not just current earned rate),
@@ -5677,8 +5671,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
   <li><strong>Proxy Models / Curve Fitting / Gaussian Process Regression:</strong> Build a fast surrogate for inner valuation using ML techniques.</li>
 </ul>
 
-<!-- ─── §9.7.6 TVOG Decomposition ─── -->
-<h4>§9.7.6 TVOG Component Decomposition 來源拆解</h4>
+<!-- ─── §10.2.6 TVOG Decomposition ─── -->
+<h4>§10.2.6 TVOG Component Decomposition 來源拆解</h4>
 
 <div class="formula">
   \[
@@ -5696,8 +5690,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §9.7.7 ALM Feedback Loop ─── -->
-<h4>§9.7.7 Asset-Liability Feedback Loop 資產負債回饋循環</h4>
+<!-- ─── §10.2.7 ALM Feedback Loop ─── -->
+<h4>§10.2.7 Asset-Liability Feedback Loop 資產負債回饋循環</h4>
 
 <p>
   Par fund TVOG calculation has a <strong>unique feedback loop</strong> not present in other product TVOG calculations.
@@ -5724,8 +5718,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
   Locking dividends at base-case levels and running stress separately leads to material TVOG misstatement.
 </p>
 
-<!-- ─── §9.7.8 GL34 Impact ─── -->
-<h4>§9.7.8 GL34 Impact on Par TVOG GL34對分紅TVOG的影響 <span class="ref circ">GL34, effective 1 Jul 2024</span></h4>
+<!-- ─── §10.2.8 GL34 Impact ─── -->
+<h4>§10.2.8 GL34 Impact on Par TVOG GL34對分紅TVOG的影響 <span class="ref circ">GL34, effective 1 Jul 2024</span></h4>
 
 <div class="tbl-wrap">
 <table>
@@ -5740,8 +5734,8 @@ print(f"TVOG as % of CE_det = {TVOG/CE_deterministic*100:.2f}%")
 </table>
 </div>
 
-<!-- ─── §9.7.9 Simplified Python Implementation ─── -->
-<h4>§9.7.9 Simplified Python Implementation 簡化Python實作</h4>
+<!-- ─── §10.2.9 Simplified Python Implementation ─── -->
+<h4>§10.2.9 Simplified Python Implementation 簡化Python實作</h4>
 
 <pre class="codeblock"><code>import numpy as np
 
@@ -5816,8 +5810,8 @@ def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
   full asset modelling, replicating portfolio shortcuts for nested MC, etc.).
 </p>
 
-<!-- ─── §9.7.10 Common Pitfalls ─── -->
-<h4>§9.7.10 Common Pitfalls Specific to Par TVOG 分紅TVOG常見陷阱</h4>
+<!-- ─── §10.2.10 Common Pitfalls ─── -->
+<h4>§10.2.10 Common Pitfalls Specific to Par TVOG 分紅TVOG常見陷阱</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -5870,7 +5864,7 @@ def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
 </table>
 </div>
 
-<h4>§9.7.11 Production Considerations 實務生產要點</h4>
+<h4>§10.2.11 Production Considerations 實務生產要點</h4>
 
 <div class="tbl-wrap">
 <table>
@@ -5890,7 +5884,7 @@ def par_fund_tvog(scenarios, policy, smoothing_alpha=0.3,
 <h3 id="alm-model-prophet">§10.3 Par TVOG in Prophet — End-to-End Production Workflow 分紅TVOG在Prophet的完整實作工作流</h3>
 
 <p>
-  This section translates the Asset Share TVOG methodology (§9.7.4) into a concrete <strong>end-to-end Prophet production workflow</strong>.
+  This section translates the Asset Share TVOG methodology (§10.2.4) into a concrete <strong>end-to-end Prophet production workflow</strong>.
   Prophet (by FIS / Sungard) is the dominant actuarial modelling platform in Hong Kong, used by AIA, Prudential, AXA, Manulife, China Life and others.
   The workflow below covers all 7 phases from upstream data to final IA-ready TVOG report.
 </p>
